@@ -15,7 +15,8 @@ const overlayCanvas = document.getElementById("overlay") as HTMLCanvasElement;
 const octx = overlayCanvas.getContext("2d")!;
 let player: PlayerView | null = null;
 
-const FONT = `"Segoe UI", system-ui, sans-serif`;
+// Plain bold lettering on the table, from the bundled font, so it reads at an angle and upside down (D-023).
+const FONT = `"Source Sans 3", "Segoe UI", system-ui, sans-serif`;
 const ACCENT = "#6cb8a4";
 
 /** Text centred at (x, y) and again rotated half a turn about the centre of `rect`, so both long sides can read it. */
@@ -26,7 +27,7 @@ function textBothSides(
   inset: number,
   size: number,
 ): void {
-  ctx.font = `600 ${size}px ${FONT}`;
+  ctx.font = `700 ${size}px ${FONT}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const cx = rect.x + rect.w / 2;
@@ -144,3 +145,5 @@ function show(v: PlayerView): void {
 terra.onView(show);
 terra.getView().then(show);
 draw();
+// Canvas text doesn't wait for web fonts: load the bundled one, then draw again.
+document.fonts.load(`700 20px ${FONT}`).then(draw);

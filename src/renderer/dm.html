@@ -7,56 +7,98 @@
     <link rel="stylesheet" href="dm.css" />
   </head>
   <body>
-    <header>
+    <header class="topbar">
       <h1>Project Terra</h1>
+      <span class="scene">No scene yet</span>
       <p id="status" role="status">Starting…</p>
+      <button id="panels" type="button" aria-pressed="true" data-icon="panelsClose" title="Show or fold the side panels (Tab)">
+        Panels<kbd>Tab</kbd>
+      </button>
+      <button id="curtain" type="button" aria-pressed="false" data-icon="curtain" title="Blank the table (B)">Curtain<kbd>B</kbd></button>
+      <button id="nextTurn" type="button" class="primary" data-icon="nextTurn" disabled title="Initiative arrives in step 6">
+        Next turn<kbd>N</kbd>
+      </button>
     </header>
     <p id="notice" role="alert" hidden></p>
-    <main>
-      <section class="panel" aria-labelledby="table-heading">
-        <h2 id="table-heading">Table screen</h2>
-        <label for="display">Show the table on</label>
-        <select id="display"></select>
-        <div class="toggles">
-          <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
-          <button id="curtain" type="button" aria-pressed="false">Curtain</button>
-        </div>
-        <p class="hint">The curtain blanks the table while you set up. The test grid shows 1-inch squares.</p>
-      </section>
 
-      <section class="panel" aria-labelledby="cal-heading">
-        <h2 id="cal-heading">Calibration</h2>
-        <p id="calState" class="hint"></p>
-        <button id="calibrate" type="button" aria-pressed="false">Calibrate</button>
-        <div id="calTools" class="cal-tools" hidden>
-          <ol class="steps">
-            <li>With a ruler, mark a rectangle on the mat: a coin or tape at each corner.</li>
-            <li>Enter its size, then drag corners 1–4 below until each lands on its mark on the table.</li>
-            <li>Check one square with the ruler. It should be 1 inch.</li>
-          </ol>
-          <div class="size">
-            <label>Width <input id="calWidth" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
-            <label>Height <input id="calHeight" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
+    <div class="work">
+      <aside class="side left" aria-label="Initiative and markers">
+        <h2>Initiative</h2>
+        <p class="empty">Turn order, whose turn it is and enemy condition arrive in step 6.</p>
+        <h2>Markers</h2>
+        <p class="empty">Enemy discs and hidden groups arrive in step 6.</p>
+      </aside>
+
+      <main class="stage">
+        <section class="card lead" aria-labelledby="map-heading">
+          <span class="lead-icon" data-icon="map"></span>
+          <div>
+            <h2 id="map-heading">No map yet</h2>
+            <p class="hint">Map import arrives in step 4. Until then, set up the table screen here.</p>
           </div>
-          <canvas
-            id="calPreview"
-            tabindex="0"
-            aria-label="Table screen. Drag the numbered corners, or select one and use the arrow keys."
-          ></canvas>
-          <div class="toggles" role="group" aria-label="Selected corner">
-            <button type="button" class="corner" data-corner="0" aria-pressed="true">1</button>
-            <button type="button" class="corner" data-corner="1" aria-pressed="false">2</button>
-            <button type="button" class="corner" data-corner="2" aria-pressed="false">3</button>
-            <button type="button" class="corner" data-corner="3" aria-pressed="false">4</button>
+        </section>
+
+        <section class="card" aria-labelledby="table-heading">
+          <h2 id="table-heading">Table screen</h2>
+          <label for="display">Show the table on</label>
+          <select id="display"></select>
+          <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
+          <p class="hint">The test grid shows 1-inch squares. The curtain (top right, or B) blanks the table while you set up.</p>
+        </section>
+
+        <section class="card" aria-labelledby="cal-heading">
+          <h2 id="cal-heading">Calibration</h2>
+          <p id="calState" class="hint"></p>
+          <button id="calibrate" type="button" aria-pressed="false">Calibrate</button>
+          <div id="calTools" class="cal-tools" hidden>
+            <ol class="steps">
+              <li>With a ruler, mark a rectangle on the mat: a coin or tape at each corner.</li>
+              <li>Enter its size, then drag corners 1–4 below until each lands on its mark on the table.</li>
+              <li>Check one square with the ruler. It should be 1 inch.</li>
+            </ol>
+            <div class="size">
+              <label>Width <input id="calWidth" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
+              <label>Height <input id="calHeight" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
+            </div>
+            <canvas
+              id="calPreview"
+              tabindex="0"
+              aria-label="Table screen. Drag the numbered corners, or select one and use the arrow keys."
+            ></canvas>
+            <div class="row" role="group" aria-label="Selected corner">
+              <button type="button" class="corner" data-corner="0" aria-pressed="true">1</button>
+              <button type="button" class="corner" data-corner="1" aria-pressed="false">2</button>
+              <button type="button" class="corner" data-corner="2" aria-pressed="false">3</button>
+              <button type="button" class="corner" data-corner="3" aria-pressed="false">4</button>
+            </div>
+            <p class="hint">Arrow keys move the selected corner 1 pixel on the table screen; hold Shift for 10.</p>
+            <div class="row">
+              <button id="calReset" type="button">Start over</button>
+              <button id="calDone" type="button" class="primary">Done</button>
+            </div>
           </div>
-          <p class="hint">Arrow keys move the selected corner 1 pixel on the table screen; hold Shift for 10.</p>
-          <div class="toggles">
-            <button id="calReset" type="button">Start over</button>
-            <button id="calDone" type="button">Done</button>
-          </div>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+
+      <aside class="side right" aria-label="Table preview and notes">
+        <h2>On the table now</h2>
+        <div class="preview"><span id="previewText">Starting…</span></div>
+        <p class="hint">A live picture of the table arrives with fog in step 5.</p>
+        <h2>Notes</h2>
+        <p class="empty">Notes for the DM only. Not built yet.</p>
+      </aside>
+    </div>
+
+    <footer class="tools" aria-label="Map tools">
+      <button type="button" data-icon="select" disabled title="Arrives with maps in step 4">Select<kbd>V</kbd></button>
+      <button type="button" data-icon="reveal" disabled title="Arrives with fog in step 5">Reveal<kbd>R</kbd></button>
+      <button type="button" data-icon="shape" disabled title="Arrives with fog in step 5">Shape<kbd>S</kbd></button>
+      <button type="button" data-icon="hide" disabled title="Arrives with fog in step 5">Hide<kbd>H</kbd></button>
+      <button type="button" data-icon="marker" disabled title="Arrives with markers in step 6">Marker<kbd>M</kbd></button>
+      <button type="button" data-icon="ping" disabled title="Arrives in step 7">Ping<kbd>P</kbd></button>
+      <button type="button" data-icon="undo" disabled title="Arrives with maps in step 4">Undo<kbd>Ctrl+Z</kbd></button>
+      <span class="tools-note">Map tools switch on as their steps arrive.</span>
+    </footer>
     <script src="dm.js"></script>
   </body>
 </html>

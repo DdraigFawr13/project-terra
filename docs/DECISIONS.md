@@ -135,3 +135,17 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 - **Status:** Accepted (2026-10-28)
 - **Decision:** Step 3 of the session 1 plan is UI design: how the DM window and the table look and feel, decided with the `planning-interview` skill and mockups before more screens are built. Map import, fog, initiative, ping and rehearsal become steps 4–8.
 - **Why:** Morgan's instruction on 2026-10-28, after step 2 merged. Steps 4–6 each add DM controls and table visuals; deciding the look first means building them once.
+
+## D-023 UI design
+
+- **Status:** Accepted (2026-10-28), approved by Morgan in the UI design interview ([round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)).
+- **Decision:**
+  - DM window: the "Ember" look. Dark warm brown, a copper-red highlight (not amber, so it can't be mistaken for the yellow enemy disc), Alegreya SC for headings only, and Source Sans 3 for everything else. Both fonts are bundled (SIL OFL), so the app looks the same on any laptop and works offline.
+  - Layout: D-012 with the "Classic" sizes (left about 290 px, right about 340 px). The side panels fold away with a button or Tab. Tools run along the bottom with icons, names and keys.
+  - Icons: Lucide line icons for now. Fantasy icons later.
+  - Controls: every button and row is at least 40 px tall, for both touch and mouse. Shortcuts: B curtain, N next turn, V select, R reveal, S shape, H hide, M marker, P ping, Ctrl+Z undo, Esc cancel, Tab panels. Shortcuts never fire while typing, and Tab folds the panels only when no control has focus.
+  - Table: plain bold lettering (Source Sans 3), twice per D-008. The turn strip is one chip per creature, with the current turn larger and outlined, and enemies shown with their disc colour and condition in words. When the chips don't fit, show the current turn and those after it that fit, then "+N more". Enemy discs are solid strong colours (yellow kept) with a white rim. Areas explored but not currently seen are grey and hatched.
+  - Between scenes: a black curtain for session 1. A per-scene choice comes with scene switching after session 1.
+  - Step 3 builds the styled shell: theme, fonts, layout with empty panels, toolbar, folding, and the curtain and next-turn keys. Steps 4–6 fill it.
+- **Why:** Morgan wants a clean tool with a light fantasy touch that reads fast mid-fight, in a dark room, on a 1080p laptop with mouse and touch. On a projector, strong colours and plain bold text survive best.
+

@@ -4,7 +4,7 @@ Updated: 2026-10-28. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two windows) and 2 (calibration, [PR #3](https://github.com/DdraigFawr13/project-terra/pull/3)) are merged; the plan change is [PR #4](https://github.com/DdraigFawr13/project-terra/pull/4) and tested in the cloud. Neither has run on Windows: Morgan can't test on a Windows computer for now (2026-10-28), so steps stay "built, awaiting Morgan's check" (VER-07). Next is step 3, UI design (D-022), then step 4, map import.
+Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two windows) and 2 (calibration, [PR #3](https://github.com/DdraigFawr13/project-terra/pull/3)) are merged; the plan change is [PR #4](https://github.com/DdraigFawr13/project-terra/pull/4) and tested in the cloud. Neither has run on Windows: Morgan can't test on a Windows computer for now (2026-10-28), so steps stay "built, awaiting Morgan's check" (VER-07). Step 3, UI design, is decided (D-023) and its styled shell is built on the branch, awaiting a PR. Next is step 4, map import.
 
 ## Just done
 
@@ -25,8 +25,8 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
 
 ## Next
 
-0. **Step 3: UI design** (D-022). Round 1 answered (collection `uiround1`): decide everything from mockups; dark, clean tool with a light fantasy touch, balanced density, shortcuts alongside buttons, mouse and touch; table: plain bold lettering, minimal strip, strong colours; likes Foundry, Owlbear Rodeo, Dungeon Alchemist, BG3. Round 2 picks (`uiround2`): Ember look, Classic layout, folding panels, line icons now (fantasy icons later), table chips strip, solid discs with white rim, explored fog grey and hatched, black curtain between scenes for session 1, scale unknown. Final check (`uifinal`) is out; on "UI final done", record D-023 and build the styled shell. Mockup sources: scratchpad `ui2/` (lost with the container; regenerate if needed).
-1. **Step 4: map import** (PLAN.md step 4, D-009, D-010). Design first: decide the state model (audit P1 item 4: commands with `apply(state, command)` in `src/core/`, giving undo and a determinism test), and where the personal library lives on the laptop. Draw maps on the table layer in inches (D-021). Testable in the cloud with a sample SRD or self-made image; never commit book maps.
+0. **Step 3: UI design** (D-023, approved). Styled shell built on branch `ccr-9a5d3541-2loy31`: Ember theme, bundled fonts (`src/renderer/assets/SOURCES.md`), Lucide icons, Classic layout with empty panels, folding panels (Tab), curtain key (B), disabled tools for later steps, bold table lettering. Summary to Morgan, then PR (D-018).
+1. **Step 4: map import** (PLAN.md step 4, D-009, D-010). Design first: decide the state model (audit P1 item 4: commands with `apply(state, command)` in `src/core/`, giving undo and a determinism test), and where the personal library lives on the laptop. Draw maps on the table layer in inches (D-021), into the shell's middle area (D-023). Testable in the cloud with a sample SRD or self-made image; never commit book maps.
 2. When Morgan has a Windows laptop: the 5-minute step 1 test (README "Try it on Windows"), then calibration with a ruler on the laptop screen, then the projector photo. Check `Display.internal` on that laptop (the built-in screen must say "this laptop" in the screen list).
 3. Steps 3–6 can be built and tested without Windows; their projected proof waits for Morgan's photos.
 ## Open questions
