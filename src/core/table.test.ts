@@ -100,6 +100,13 @@ test("maps move by whole inches and turn in quarter turns", () => {
   assert.deepEqual(run([{ type: "fog", op: reveal }]), defaultState());
   // Moving or turning with no map changes nothing.
   assert.deepEqual(run([{ type: "moveMap", dx: 1, dy: 1 }, { type: "turnMap" }]), defaultState());
+  // A locked map can't be moved, turned or taken off, and the same state comes back so no undo step is kept (D-029).
+  const locked = run([{ type: "lockMap", on: true }], s);
+  for (const c of [{ type: "moveMap", dx: 1, dy: 0 }, { type: "turnMap" }, { type: "removeMap" }] as const)
+    assert.equal(apply(locked, c), locked);
+  assert.equal(run([{ type: "lockMap", on: false }, { type: "removeMap" }], locked).map, null);
+  // Placing a map from the library leaves it free to be put in place.
+  assert.equal(run([{ type: "placeMap", map }], locked).mapLocked, false);
 });
 
 test("commands with wrong parts are refused", () => {
@@ -183,7 +190,7 @@ test("the same commands give the same state, and any state saves and loads uncha
       hpMax: anyValue,
     }),
     fc.record({ type: fc.constantFrom("characterHp", "tempHp"), id: fc.constant("pc-1"), change: anyValue, tempHp: anyValue }),
-    fc.record({ type: fc.constant("flipLetters"), on: anyValue }),
+    fc.record({ type: fc.constantFrom("flipLetters", "lockMap"), on: anyValue }),
     fc.record({
       type: fc.constant("addCharacter"),
       character: fc.record({
@@ -251,6 +258,6 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
   // A version 3 map has no fog: it loads all black.
   const v3 = { ...v2, version: 3, map: { id: "map-1", name: map.name, bounds: map.bounds, x: 4, y: 5, turns: 0 } };
   assert.deepEqual(parseSave(JSON.stringify(v3)), { ok: true, state: { ...defaultState(), calibrations: { window: cal }, map } });
-  assert.equal(parseSave(JSON.stringify({ version: 7, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 8, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });

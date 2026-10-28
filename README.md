@@ -29,6 +29,7 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 2. Drag corners 1–4 onto the corners of a block of grid squares (or any rectangle you know the size of), and enter its size in squares.
 3. Press **Straighten and place**. A slanted photo comes out square, with each square 1 inch on the table.
 4. Move the map with the arrows or by dragging it (whole inches, so the squares stay on the grid), turn it, or take it off the table. Ctrl+Z undoes map changes.
+5. Once it sits right, press **Lock**: a stray drag mid-game can't shift it under the minis. Discs still move.
 
 Imported maps stay in the library on this laptop (`library/maps` in the app's data folder) and are never shared. Turn on **Test grid** under **Table setup** to check the map's squares line up with the table's.
 

@@ -41,7 +41,7 @@ import {
 import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, type Bounds } from "./map.ts";
 
-const SAVE_VERSION = 6;
+const SAVE_VERSION = 7;
 
 /** A straightened map from the personal library (D-010), placed on the table. Positions are in inches (D-005). */
 export type PlacedMap = {
@@ -85,6 +85,8 @@ export type TableState = {
   flipLetters: boolean;
   /** The highest character id number given out, so a removed character's id is never reused. */
   lastCharacter: number;
+  /** The placed map can't be moved, turned or taken off, so a stray drag mid-game can't shift it under the minis (D-029). */
+  mapLocked: boolean;
 };
 
 export type Command =
@@ -97,6 +99,7 @@ export type Command =
   | { type: "moveMap"; dx: number; dy: number }
   | { type: "turnMap" }
   | { type: "removeMap" }
+  | { type: "lockMap"; on: boolean }
   | { type: "fog"; op: FogOp }
   | { type: "placeDisc"; colour: DiscColour; x: number; y: number; size: number }
   | { type: "moveDisc"; colour: DiscColour; letter: string; x: number; y: number }
@@ -161,6 +164,7 @@ export function defaultState(): TableState {
     fight: null,
     flipLetters: false,
     lastCharacter: 0,
+    mapLocked: false,
   };
 }
 
@@ -323,7 +327,8 @@ export function parseCommand(raw: unknown): Command | null {
       return isWho(raw.id) && !isColour(raw.id) && tempHp !== null ? { type: "tempHp", id: raw.id, tempHp } : null;
     }
     case "flipLetters":
-      return typeof raw.on === "boolean" ? { type: "flipLetters", on: raw.on } : null;
+    case "lockMap":
+      return typeof raw.on === "boolean" ? { type: raw.type, on: raw.on } : null;
     case "addCharacter": {
       const character = parseCharacterFields(raw.character);
       return character && { type: "addCharacter", character };
@@ -384,19 +389,24 @@ export function apply(state: TableState, c: Command): TableState {
     case "calibrations":
       return { ...state, calibrations: c.value };
     case "placeMap":
-      return { ...state, map: c.map };
+      // A newly placed map is free to be put in place, then locked.
+      return { ...state, map: c.map, mapLocked: false };
+    case "lockMap":
+      return { ...state, mapLocked: c.on };
     case "moveMap": {
-      if (!state.map) return state;
+      if (!state.map || state.mapLocked) return state;
       const x = inches(state.map.x + c.dx);
       const y = inches(state.map.y + c.dy);
       return x === null || y === null ? state : { ...state, map: { ...state.map, x, y } };
     }
     case "turnMap":
-      return state.map ? { ...state, map: { ...state.map, turns: ((state.map.turns + 1) % 4) as PlacedMap["turns"] } } : state;
+      return state.map && !state.mapLocked
+        ? { ...state, map: { ...state.map, turns: ((state.map.turns + 1) % 4) as PlacedMap["turns"] } }
+        : state;
     case "removeMap":
-      return { ...state, map: null };
+      return state.mapLocked ? state : { ...state, map: null };
     case "fog":
-      return state.map ? { ...state, map: { ...state.map, fog: addFog(state.map.fog, c.op) } } : state;
+      return state.map ? { ...state, map: { ...state.map, fog: addFog(state.map.fog, c.op, state.map.bounds) } } : state;
     case "placeDisc":
       return withDiscs(state, (ds) => placeDisc(ds, c.colour, c, c.size));
     case "moveDisc":
@@ -466,7 +476,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.
@@ -477,6 +487,8 @@ export function parseSave(text: string): ParsedSave {
     { type: "playerDisplay", id: raw.playerDisplayId },
     { type: "calibrations", value: raw.calibrations },
     { type: "placeMap", map: raw.map },
+    // After the map, which places it unlocked.
+    { type: "lockMap", on: raw.mapLocked },
     { type: "flipLetters", on: raw.flipLetters },
   ];
   const state = fields.reduce<TableState>((s, f) => {
@@ -498,6 +510,7 @@ export function parseSave(text: string): ParsedSave {
   return { ok: true, state: { ...state, party, fight, lastCharacter } };
 }
 
+/** Compact JSON: with fog, an indented save is about three times bigger and slower to write after every change. */
 export function serialize(state: TableState): string {
-  return JSON.stringify(state, null, 2) + "\n";
+  return JSON.stringify(state) + "\n";
 }

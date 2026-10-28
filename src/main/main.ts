@@ -1,6 +1,6 @@
 // Electron main process: opens the DM window and the player (table) window, keeps the table
 // state, and saves it after every change so a crash or restart reopens where it was.
-import { app, BrowserWindow, ipcMain, net, protocol, screen, type Display } from "electron";
+import { app, BrowserWindow, ipcMain, net, powerSaveBlocker, protocol, screen, type Display } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -32,6 +32,7 @@ function keepOnUndo(s: TableState): Partial<TableState> {
     party: s.party,
     flipLetters: s.flipLetters,
     lastCharacter: s.lastCharacter,
+    mapLocked: s.mapLocked,
   };
 }
 
@@ -47,6 +48,8 @@ const history: TableState[] = [];
 const MAX_HISTORY = 100;
 /** A problem the DM should see, such as a save that couldn't be read. The packaged app has no console. */
 let notice: string | null = null;
+/** Why the last save failed, until one succeeds again. */
+let saveProblem: string | null = null;
 
 const savePath = () => path.join(app.getPath("userData"), "table-state.json");
 
@@ -55,9 +58,13 @@ function loadState(): TableState {
   if (!fs.existsSync(file)) return defaultState();
   const parsed = parseSave(fs.readFileSync(file, "utf8"));
   if (parsed.ok) return parsed.state;
-  // Keep the unreadable file for inspection instead of overwriting it (GAME-05).
+  // Keep the unreadable file for inspection instead of overwriting it (GAME-05). If Windows won't let it move, copy it.
   const kept = file.replace(/\.json$/, `.unreadable-${Date.now()}.json`);
-  fs.renameSync(file, kept);
+  try {
+    fs.renameSync(file, kept);
+  } catch {
+    fs.copyFileSync(file, kept);
+  }
   notice = `The last save couldn't be read (${parsed.reason}), so the table started fresh. The old file is kept as ${path.basename(kept)}.`;
   console.error(notice);
   return defaultState();
@@ -68,13 +75,39 @@ function saveSoon(): void {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 200);
 }
+/** Rename, retrying briefly: on Windows a virus scanner or the search indexer can hold the file for a moment. */
+function renameWithRetry(from: string, to: string): void {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return fs.renameSync(from, to);
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (attempt >= 5 || !["EPERM", "EBUSY", "EACCES"].includes(code ?? "")) throw e;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30 * attempt);
+    }
+  }
+}
 function saveNow(): void {
   clearTimeout(saveTimer);
   const file = savePath();
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  // Write then rename, so a crash mid-write never leaves a half-written save.
-  fs.writeFileSync(file + ".tmp", serialize(state));
-  fs.renameSync(file + ".tmp", file);
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    // Write then rename, so a crash mid-write never leaves a half-written save.
+    fs.writeFileSync(file + ".tmp", serialize(state));
+    renameWithRetry(file + ".tmp", file);
+    if (saveProblem) {
+      saveProblem = null;
+      send(dmWindow, "table:status", tableStatus());
+    }
+  } catch (e) {
+    // Never crash the app over a save: tell the DM and try again shortly. The last good save stays on disk.
+    const first = !saveProblem;
+    const reason = (e as NodeJS.ErrnoException).code ?? (e as Error).message;
+    saveProblem = `The table couldn't be saved (${reason}). Trying again; the last good save is kept.`;
+    console.error(saveProblem);
+    if (first) send(dmWindow, "table:status", tableStatus());
+    if (!quitting) saveTimer = setTimeout(saveNow, 2000);
+  }
 }
 
 function displayInfo(d: Display): DisplayInfo {
@@ -104,7 +137,8 @@ function surface(): Surface {
 
 function tableStatus() {
   const { display, fullscreen, surfaceKey } = placement();
-  return { displays: listDisplays(), playerDisplayId: display?.id ?? null, fullscreen, surfaceKey, surface: surface(), notice };
+  const shown = [notice, saveProblem].filter(Boolean).join(" ") || null;
+  return { displays: listDisplays(), playerDisplayId: display?.id ?? null, fullscreen, surfaceKey, surface: surface(), notice: shown };
 }
 
 function sendPlayerView(): void {
@@ -167,6 +201,20 @@ function createWindows(): void {
   // The DM's calibration preview follows the table window's size.
   playerWindow.on("resize", () => send(dmWindow, "table:status", tableStatus()));
   playerWindow.webContents.once("did-finish-load", placePlayerWindow);
+  for (const w of [dmWindow, playerWindow]) reloadIfGone(w);
+}
+
+/** A window whose page crashes loads again and asks for the state, so the projector isn't left blank mid-game. */
+function reloadIfGone(w: BrowserWindow): void {
+  const crashes: number[] = [];
+  w.webContents.on("render-process-gone", (_e, details) => {
+    if (details.reason === "clean-exit" || quitting || w.isDestroyed()) return;
+    console.error(`${w.getTitle()} crashed (${details.reason}); reloading.`);
+    // Give up after three crashes in a minute rather than loop.
+    const now = Date.now();
+    crashes.push(now);
+    if (crashes.filter((t) => now - t < 60_000).length <= 3) w.webContents.reload();
+  });
 }
 
 // Map images reach both windows through terra-map://<id>, which serves only PNGs from the personal library (D-010).
@@ -205,20 +253,22 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle("state:get", () => state);
     ipcMain.handle("player:get", () => playerViewOf(state, placement().surfaceKey));
     ipcMain.handle("table:status", () => tableStatus());
+    // Neither returns the state: `commit` has already sent it, and with a long fog list each copy costs (D-029).
     ipcMain.handle("state:apply", (_e, raw: unknown) => {
       const command = parseCommand(raw);
-      if (!command) return state;
+      if (!command) return;
+      const next = apply(state, command);
+      // A command that changes nothing, such as moving a locked map, leaves no undo step behind.
+      if (next === state) return;
       if (UNDOABLE.has(command.type)) {
         history.push(state);
         if (history.length > MAX_HISTORY) history.shift();
       }
-      commit(apply(state, command));
-      return state;
+      commit(next);
     });
     ipcMain.handle("state:undo", () => {
       const previous = history.pop();
       if (previous) commit(dropMissingCharacters({ ...previous, ...keepOnUndo(state) }));
-      return state;
     });
     ipcMain.handle("history:get", () => history.length > 0);
     ipcMain.handle("library:list", () => listMaps(app.getPath("userData")));
@@ -237,6 +287,8 @@ if (!app.requestSingleInstanceLock()) {
       const png = await net.fetch(pathToFileURL(file).toString());
       return new Response(png.body, { headers: { "content-type": "image/png", "access-control-allow-origin": "*" } });
     });
+    // A quiet stretch of role-play mustn't let Windows switch off the projector or put the laptop to sleep (D-029).
+    powerSaveBlocker.start("prevent-display-sleep");
     screen.on("display-added", placePlayerWindow);
     screen.on("display-removed", placePlayerWindow);
     screen.on("display-metrics-changed", placePlayerWindow);

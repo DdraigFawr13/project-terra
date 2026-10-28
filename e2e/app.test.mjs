@@ -82,6 +82,25 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     assert.equal(await dm.getAttribute("body", "data-panels"), "folded");
     await dm.keyboard.press("b");
     await table.waitForFunction(() => document.body.dataset.view === "curtain");
+
+    // A crashed table page loads again and shows the table as it was, so the projector isn't left blank (D-029).
+    const crashed = new Promise((resolve) => table.once("crash", resolve));
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((w) => w.getTitle().includes("(Table)"))
+        .webContents.forcefullyCrashRenderer(),
+    );
+    await crashed;
+    // Playwright lets go of a crashed page, so ask the main process what the reloaded page shows.
+    const reloaded = () =>
+      app.evaluate(async ({ BrowserWindow }) => {
+        const w = BrowserWindow.getAllWindows().find((x) => x.getTitle().includes("(Table)"));
+        return w.webContents.isCrashed() ? null : w.webContents.executeJavaScript("document.body.dataset.view").catch(() => null);
+      });
+    for (let tries = 0; (await reloaded()) !== "curtain"; tries++) {
+      assert.ok(tries < 50, "the table page didn't come back");
+      await new Promise((r) => setTimeout(r, 200));
+    }
   } finally {
     await app.close();
   }
@@ -244,6 +263,17 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.evaluate(() => document.activeElement.blur());
     await dm.keyboard.press("Control+z");
     await table.waitForFunction(async () => (await window.terra.getView()).map?.x === 0);
+
+    // Locked, the map stays put: its move buttons are off and a drag on the map moves nothing (D-029).
+    await dm.click("#lockMap");
+    await dm.waitForSelector("button.move[data-dx='1']:disabled");
+    await dm.mouse.move(box.x + 20, box.y + 20);
+    await dm.mouse.down();
+    await dm.mouse.move(box.x + box.width - 20, box.y + 20, { steps: 4 });
+    await dm.mouse.up();
+    await dm.click("#lockMap");
+    await dm.waitForSelector("button.move[data-dx='1']:enabled");
+    assert.equal((await table.evaluate(() => window.terra.getView())).map.x, 0);
   } finally {
     await app.close();
   }
@@ -372,8 +402,9 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     const view = await table.evaluate(() => window.terra.getView());
     // 6 of 15 HP: bloodied, worked out from HP. Only the word reaches the table (D-013, D-028).
     assert.equal(view.strip.chips[0].condition, "bloodied");
-    for (const secret of ["Zombie", "SRD52", "board", "hp", "ac", "passive", "init", "notes"])
-      assert.ok(!JSON.stringify(view).includes(secret), secret);
+    // The map's id is random hex, which can hold "ac" by chance; it is checked to be the library id elsewhere.
+    const shown = JSON.stringify({ ...view, map: view.map && { ...view.map, id: "" } });
+    for (const secret of ["Zombie", "SRD52", "board", "hp", "ac", "passive", "init", "notes"]) assert.ok(!shown.includes(secret), secret);
     // The table window's bridge has no way to the library.
     assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onView"]);
 

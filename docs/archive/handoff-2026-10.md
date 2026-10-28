@@ -35,3 +35,13 @@ Finished entries moved out of HANDOFF.md (CTX-02). Newest last.
   - Personal library at `<userData>/library/maps` (PNG + JSON), served only through `terra-map://<id>/` (`src/main/library.ts`).
   - DM import and map views in `src/renderer/dm-map.ts`; the table draws the map on the calibrated inch layer.
   - Tests: 21 unit (0.4 s), 3 e2e journeys (about 6 s).
+- 2026-10-28 Windows install test on Morgan's PC (Node 24.22.1, npm 11.19.1), fresh clone of step 5: `npm ci`, unit and e2e tests pass; `dist:win` builds and the packaged exe opens both windows. Fixed in [PR #13](https://github.com/DdraigFawr13/project-terra/pull/13):
+  - `npm run check` failed on all 35 files: git's `core.autocrlf=true` checked out CRLF. `.gitattributes` now forces LF (LESSONS).
+  - Electron 44.6.0 → 44.10.0 (GHSA-jr5w-w6x2-84p9, high); `npm audit` clean.
+  - `actions/checkout` v7.0.1, `setup-node` v7.1.0, `upload-artifact` v7.0.2 (Node 24 runtime).
+  - Still open on the PC: Node 24 instead of the pinned 22.22.0 (WEB-01). Works with an EBADENGINE warning.
+- 2026-10-28 Step 6 ([PR #12](https://github.com/DdraigFawr13/project-terra/pull/12)), D-027 then redone per D-028 after Morgan's review:
+  - Core: `src/core/fight.ts` (discs, groups with AC/HP max/notes, HP per disc, condition from HP, initiative, strip, cards with temp HP and passives), `src/core/creatures.ts` (library stat blocks). Save version 6.
+  - Main: `src/main/creatures.ts` stores imported library files in `<userData>/library/creatures/`; DM bridge only.
+  - DM: floating windows (`float-win.ts`), number pad (`numpad.ts`), `dm-party.ts`, `dm-monsters.ts` (HP, Edit, Book), left panel `dm-fight.ts`. Undo keeps cards and drops rolls of removed characters.
+  - Tests: 30 unit, 4 e2e (about 13 s). Real `mm2024.json` imports: 503 read, 6 checked.

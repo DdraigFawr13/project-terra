@@ -379,12 +379,22 @@ input[type="number"] {
 }
 .maptools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 .maptools h2 {
-  flex: 1;
+  /* The name takes the first row when the buttons don't fit beside it; a very long one is cut short. */
+  flex: 1 1 10em;
+  min-width: 0;
   color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.maptools button {
+  white-space: nowrap;
 }
 .maptools .move {
   min-width: var(--target);

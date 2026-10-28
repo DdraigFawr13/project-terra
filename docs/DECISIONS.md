@@ -162,7 +162,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-025 Fog
 
-- **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults.
+- **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults. Item 5's op limit changed by D-029: long fog lists are baked, never refused.
 - **Decision:**
   1. Three states on the table: never seen is black; seen before is the map in grey, darkened, with a line every half inch; in view now is the map itself (D-023). The DM sees the whole map, tinted where players can't see now and darker where they've never been.
   2. Touch first. The bottom tools are 56 px buttons: Select (V), Reveal (R), Hide (H); draw with Brush (1, 2 or 4 inches), Outline (a freehand loop that fills) or Box (snaps to whole squares), with S stepping through them; Undo. Under the preview: "Party moves on" (in view becomes seen before), Reveal all and Cover all. One finger, the pen or the mouse paints; a second finger or Esc cancels the stroke. Morgan uses a stylus: touches are ignored while the pen draws (a resting palm), a hovering pen shows the brush ring, and the pen's eraser hides.
@@ -212,3 +212,14 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   6. Disc letters are drawn once, upright from the bottom edge of the projected picture, with a Flip switch in Table setup. The turn strip keeps its two copies (D-008).
   7. Button sizes stay at D-023's 40 px and 56 px until Morgan tries the laptop.
 - **Why:** Morgan found the panel crowded and typing HP not touch friendly, and wants the Monster Manual entry at the table. Floating windows inside the DM window keep DM-only data off the projector (D-002). The six Thundertree creatures are already page-checked, so the stat block costs about one step, not the whole library phase (estimate).
+
+## D-029 Hardening before step 7
+
+- **Status:** Accepted (2026-10-28). Morgan asked for an adversarial audit of the app as built, then said "go with your recommendations" for the fixes that need no design choices. Changes D-025 item 5.
+- **Decision:**
+  1. Fog never stops taking strokes. A list of 500 ops is baked into one `base` op before the next: seen and explored for each cell at 24 cells per inch (the renderer's mask resolution, so the table looks the same), stored as run lengths. Baking reads the same as replaying the ops at every cell centre (a property test checks it). The 2,000-op limit now only bounds untrusted lists. Save version 7.
+  2. Each change reaches the DM window once: the window takes each new state from the bridge in one place and hands it to every panel, and `apply` and `undo` no longer send the state back. Saves are compact JSON.
+  3. The app keeps the display awake (`powerSaveBlocker`, "prevent-display-sleep") so Windows can't switch off the projector or sleep the laptop mid-session.
+  4. Lock map: a switch beside the map's name. A locked map can't be moved, turned or taken off; Select still drags discs. A newly placed map starts unlocked. Like the curtain, the lock is outside undo, and a command a lock refuses leaves no undo step.
+  5. A failed save never crashes the app: renames retry briefly (on Windows a scanner or indexer can hold the file), then the DM sees a notice and the save is tried again every 2 seconds; the last good save stays on disk. A window whose page crashes reloads itself, up to three times a minute. An unreadable save that Windows won't move is copied aside instead.
+- **Why:** measured on Morgan's PC (Ryzen 7 5800X3D) with fog at the old 2,000-op limit: every change took about 400 ms, as the state was copied once per panel, and the save was 5.9 MB; past the limit new strokes were dropped with only a hint in the right panel. Now: about 9 ms for an HP change and 25 ms for a stroke, about 0.2 s once per 500 strokes to bake, and a 39 KB save. Zoom on the DM map and the floating windows covering the table preview change how the DM screen works, so they go through the planning interview first.
