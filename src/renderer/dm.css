@@ -134,6 +134,19 @@ body[data-panels="folded"] .side {
 }
 .side.right {
   border-left: 1px solid var(--line);
+  /* So the sheets' offsets are measured from the panel. */
+  position: relative;
+}
+.sticky-preview {
+  position: sticky;
+  top: -14px;
+  z-index: 2;
+  margin: -14px -14px 0;
+  padding: 14px 14px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
 }
 .empty {
   margin: 0 0 8px;
@@ -415,6 +428,22 @@ input[type="number"] {
   min-height: 240px;
   cursor: grab;
 }
+/* Zoom buttons over the map's top-right corner (D-030). */
+.map-frame {
+  position: relative;
+}
+.map-frame .zoom {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  gap: 6px;
+}
+.map-frame .zoom button {
+  min-width: var(--target);
+  font-size: 1.1rem;
+  background: rgba(28, 20, 16, 0.85);
+}
 #mapCanvas[data-tool="reveal"],
 #mapCanvas[data-tool="hide"],
 #mapCanvas[data-tool="marker"] {
@@ -681,6 +710,34 @@ button.eye {
   width: 260px !important;
 }
 .float.folded .float-actions {
+  display: none;
+}
+/* Docked in the right panel (D-030): no shadow or dragging; the tab above names it, so its own title hides. */
+.float.docked {
+  position: static;
+  border-color: var(--line);
+  box-shadow: none;
+  max-width: none;
+}
+.float.docked > header {
+  cursor: default;
+  min-height: 44px;
+  justify-content: flex-end;
+}
+.float.docked .float-title,
+.float.docked .fold {
+  display: none;
+}
+.float.docked .float-body {
+  padding: 10px;
+}
+.dock-tabs [role="tab"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+.dock-tabs:empty {
   display: none;
 }
 .float-title {

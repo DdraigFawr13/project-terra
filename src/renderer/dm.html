@@ -92,14 +92,22 @@
             <button id="turnMap" type="button">Turn</button>
             <button id="removeMap" type="button">Take off table</button>
           </div>
-          <canvas
-            id="mapCanvas"
-            tabindex="0"
-            aria-label="The map on the table. With Select, drag it or use the arrow keys to move it by whole inches. With Reveal or Hide, paint the fog."
-          ></canvas>
+          <div class="map-frame">
+            <canvas
+              id="mapCanvas"
+              tabindex="0"
+              aria-label="The map on the table. With Select, drag it or use the arrow keys to move it by whole inches. With Reveal or Hide, paint the fog. Pinch or use the mouse wheel to zoom."
+            ></canvas>
+            <div class="zoom" role="group" aria-label="Zoom the map">
+              <button id="zoomIn" type="button" aria-label="Zoom in">+</button>
+              <button id="zoomOut" type="button" aria-label="Zoom out">&minus;</button>
+              <button id="zoomFit" type="button" aria-label="Show the whole map">Fit</button>
+            </div>
+          </div>
           <p class="hint">
-            Select (V) moves the map by whole inches, or a disc by its squares; Lock keeps the map in place. Reveal (R) and Hide (H) paint
-            the fog; Marker (M) places discs. Two fingers cancel a stroke, and so does Esc. The dashed line is the edge of the table screen.
+            Select (V) moves the map by whole inches, or a disc by its squares; Lock keeps the map in place, and then dragging pans. Pinch,
+            the mouse wheel or + and &minus; zoom; Fit shows it all. Reveal (R) and Hide (H) paint the fog; Marker (M) places discs. Two
+            fingers cancel a stroke, and so does Esc. The dashed line is the edge of the table screen.
           </p>
         </section>
 
@@ -152,10 +160,13 @@
       </main>
 
       <aside class="side right" aria-label="Table preview and notes">
-        <h2>On the table now</h2>
-        <div class="preview">
-          <canvas id="tablePreview" aria-label="A live picture of what the table shows"></canvas>
-          <span id="previewText">Starting…</span>
+        <!-- The preview stays at the top while the sheets below it scroll (D-030). -->
+        <div class="sticky-preview">
+          <h2>On the table now</h2>
+          <div class="preview">
+            <canvas id="tablePreview" aria-label="A live picture of what the table shows"></canvas>
+            <span id="previewText">Starting…</span>
+          </div>
         </div>
         <p id="fogHint" class="hint">Black: never seen. Grey with lines: seen before. Clear: in view now.</p>
         <div class="fog-actions" role="group" aria-label="Fog on the whole map">
@@ -165,8 +176,10 @@
             <button id="fogCoverAll" type="button" disabled>Cover all</button>
           </div>
         </div>
-        <h2>Notes</h2>
-        <p class="empty">Notes for the DM only. Not built yet.</p>
+        <!-- Party and monster sheets dock here as tabs (D-030), so they never cover the map or the preview. -->
+        <div id="dockTabs" class="tabs dock-tabs" role="tablist" aria-label="Open sheets"></div>
+        <div id="dock"></div>
+        <p id="dockEmpty" class="empty">Party and monster sheets open here. Tap Party at the top, a group on the left, or a disc.</p>
       </aside>
     </div>
 

@@ -91,8 +91,17 @@ export function initMaps(
   let discSize = 1;
   /** Where the mouse or a hovering pen is over the map, in map inches, to show the brush ring. Fingers have no hover. */
   let hover: Point | null = null;
-  /** Fingers on the map now: a second one cancels the stroke. */
-  const touches = new Set<number>();
+  /** Fingers on the map now, where they are in canvas pixels: a second one cancels the stroke and pinches the view. */
+  const touches = new Map<number, Point>();
+  /** Two fingers zooming and panning: their spread and midpoint at the last move. */
+  let pinch: { dist: number; mid: Point } | null = null;
+  /** Panning the zoomed view by dragging: Select on a locked map, or the middle mouse button. Canvas pixels. */
+  let pan: { pointer: number; last: Point } | null = null;
+  /** The DM's own view of the map (D-030): zoom past fitting the whole map, and the table point at the canvas centre. */
+  let zoom = 1;
+  let centre: Point | null = null;
+  let viewOf: string | null = null;
+  const MAX_ZOOM = 8;
 
   const run = (c: Command) => terra.apply(c);
   const undo = () => terra.undo();
@@ -261,6 +270,59 @@ export function initMaps(
     return { s, ox: (w - (Math.max(...xs) + 2 - x0) * s) / 2 - x0 * s, oy: (h - (Math.max(...ys) + 2 - y0) * s) / 2 - y0 * s };
   }
 
+  function outlineNow(): Quad | null {
+    const cal = status && state ? (state.calibrations[status.surfaceKey] ?? defaultCalibration(status.surface)) : null;
+    return cal && status ? screenOutline(cal, status.surface) : null;
+  }
+
+  /** Inches → canvas pixels for the DM's view: the fit view, zoomed about the chosen centre. A new map starts fitted. */
+  function viewport(map: PlacedMap, w: number, h: number) {
+    if (viewOf !== map.id) [viewOf, zoom, centre] = [map.id, 1, null];
+    const fit = mapViewport(map, outlineNow(), w, h);
+    if (zoom === 1) return fit;
+    const s = fit.s * zoom;
+    const c = centre ?? { x: (w / 2 - fit.ox) / fit.s, y: (h / 2 - fit.oy) / fit.s };
+    return { s, ox: w / 2 - c.x * s, oy: h / 2 - c.y * s };
+  }
+
+  /** Keep the view's centre over what the fitted view shows, so the map can't be panned out of sight. */
+  function setCentre(c: Point, map: PlacedMap, w: number, h: number): void {
+    const fit = mapViewport(map, outlineNow(), w, h);
+    const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+    centre = { x: clamp(c.x, -fit.ox / fit.s, (w - fit.ox) / fit.s), y: clamp(c.y, -fit.oy / fit.s, (h - fit.oy) / fit.s) };
+  }
+
+  /** Zoom by `factor`, keeping the table point under `at` (canvas pixels) where it is. */
+  function zoomAt(factor: number, at: Point): void {
+    const map = state?.map;
+    if (!map) return;
+    const [w, h] = [mapCanvas.clientWidth, mapCanvas.clientHeight];
+    const v = viewport(map, w, h);
+    const p = { x: (at.x - v.ox) / v.s, y: (at.y - v.oy) / v.s };
+    zoom = Math.min(MAX_ZOOM, Math.max(1, zoom * factor));
+    if (zoom === 1) centre = null;
+    else {
+      const s = mapViewport(map, outlineNow(), w, h).s * zoom;
+      setCentre({ x: p.x - (at.x - w / 2) / s, y: p.y - (at.y - h / 2) / s }, map, w, h);
+    }
+    render();
+  }
+
+  /** Move the zoomed view by canvas pixels, the way a finger drags it. */
+  function panBy(dx: number, dy: number): void {
+    const map = state?.map;
+    if (!map || zoom === 1) return;
+    const [w, h] = [mapCanvas.clientWidth, mapCanvas.clientHeight];
+    const v = viewport(map, w, h);
+    setCentre({ x: (w / 2 - v.ox - dx) / v.s, y: (h / 2 - v.oy - dy) / v.s }, map, w, h);
+    render();
+  }
+
+  const canvasPoint = (e: PointerEvent | WheelEvent): Point => {
+    const r = mapCanvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+
   function drawMap(map: PlacedMap): void {
     $<HTMLHeadingElement>("mapTitle").textContent = map.name;
     const locked = !!state?.mapLocked;
@@ -276,9 +338,8 @@ export function initMaps(
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, w, h);
-    const cal = status && state ? (state.calibrations[status.surfaceKey] ?? defaultCalibration(status.surface)) : null;
-    const outline = cal && status ? screenOutline(cal, status.surface) : null;
-    const { s, ox, oy } = mapViewport(map, outline, w, h);
+    const outline = outlineNow();
+    const { s, ox, oy } = viewport(map, w, h);
     const shown = drag ? { ...map, x: map.x + drag.dx, y: map.y + drag.dy } : map;
 
     ctx.save();
@@ -362,9 +423,8 @@ export function initMaps(
     const map = state?.map;
     if (!map) return null;
     const r = mapCanvas.getBoundingClientRect();
-    const cal = status && state ? (state.calibrations[status.surfaceKey] ?? defaultCalibration(status.surface)) : null;
-    const { s, ox, oy } = mapViewport(map, cal && status ? screenOutline(cal, status.surface) : null, r.width, r.height);
-    const p = { x: e.clientX - r.left, y: e.clientY - r.top };
+    const { s, ox, oy } = viewport(map, r.width, r.height);
+    const p = canvasPoint(e);
     let best: { d: Disc; dist: number } | null = null;
     for (const d of map.discs) {
       const t = mapToTable(map, d);
@@ -379,9 +439,9 @@ export function initMaps(
     const map = state?.map;
     const r = mapCanvas.getBoundingClientRect();
     if (!map) return { x: 0, y: 0 };
-    const cal = status && state ? (state.calibrations[status.surfaceKey] ?? defaultCalibration(status.surface)) : null;
-    const { s, ox, oy } = mapViewport(map, cal && status ? screenOutline(cal, status.surface) : null, r.width, r.height);
-    return { x: (e.clientX - r.left - ox) / s, y: (e.clientY - r.top - oy) / s };
+    const { s, ox, oy } = viewport(map, r.width, r.height);
+    const p = canvasPoint(e);
+    return { x: (p.x - ox) / s, y: (p.y - oy) / s };
   };
   const mapInchesAt = (e: PointerEvent): Point | null => (state?.map ? tableToMap(state.map, inchesAt(e)) : null);
 
@@ -408,16 +468,17 @@ export function initMaps(
 
   /** Esc or a second finger: drop the stroke, drag or placement before it reaches the table. */
   function cancel(): boolean {
-    if (!stroke && !drag && !discDrag && !placing) return false;
+    if (!stroke && !drag && !discDrag && !placing && !pan) return false;
     stroke = null;
     drag = null;
     discDrag = null;
     placing = null;
+    pan = null;
     render();
     return true;
   }
   /** Whether a gesture is under way, and whether the pen is making it (then touches are a resting palm). */
-  const busy = () => !!(stroke || drag || discDrag || placing);
+  const busy = () => !!(stroke || drag || discDrag || placing || pan);
   const penBusy = () => !!(stroke?.pen || drag?.pen || discDrag?.pen || placing?.pen);
 
   mapCanvas.addEventListener("pointerdown", (e) => {
@@ -425,11 +486,23 @@ export function initMaps(
     // A palm resting on the screen while the pen draws is ignored; a second finger cancels a finger's stroke.
     if (e.pointerType === "touch") {
       if (penBusy()) return;
-      touches.add(e.pointerId);
+      touches.set(e.pointerId, canvasPoint(e));
       if (touches.size > 1) {
+        // Two fingers: drop what the first one started, and pinch to zoom and pan instead (D-030).
         cancel();
+        mapCanvas.setPointerCapture(e.pointerId);
+        const [a, b] = [...touches.values()];
+        pinch =
+          touches.size === 2 ? { dist: Math.hypot(a!.x - b!.x, a!.y - b!.y), mid: { x: (a!.x + b!.x) / 2, y: (a!.y + b!.y) / 2 } } : null;
         return;
       }
+    }
+    // The middle mouse button pans the zoomed view, whatever the tool.
+    if (e.pointerType === "mouse" && e.button === 1) {
+      e.preventDefault();
+      pan = { pointer: e.pointerId, last: canvasPoint(e) };
+      mapCanvas.setPointerCapture(e.pointerId);
+      return;
     }
     // The pen wins over a palm that landed first: drop the touch's gesture and start the pen's (D-027).
     if (e.pointerType === "pen" && busy() && !penBusy()) cancel();
@@ -446,8 +519,9 @@ export function initMaps(
       }
     }
     if (tool === "select") {
-      // A locked map stays put: a drag that misses every disc does nothing.
+      // A locked map stays put: a drag that misses every disc pans the zoomed view instead.
       if (!state.mapLocked) drag = { pointer: e.pointerId, pen, start: inchesAt(e), dx: 0, dy: 0 };
+      else pan = { pointer: e.pointerId, last: canvasPoint(e) };
       return;
     }
     if (tool === "marker") {
@@ -463,6 +537,24 @@ export function initMaps(
     render();
   });
   mapCanvas.addEventListener("pointermove", (e) => {
+    if (e.pointerType === "touch" && touches.has(e.pointerId)) {
+      touches.set(e.pointerId, canvasPoint(e));
+      if (pinch && touches.size === 2) {
+        const [a, b] = [...touches.values()];
+        const dist = Math.hypot(a!.x - b!.x, a!.y - b!.y);
+        const mid = { x: (a!.x + b!.x) / 2, y: (a!.y + b!.y) / 2 };
+        if (pinch.dist > 0) zoomAt(dist / pinch.dist, mid);
+        panBy(mid.x - pinch.mid.x, mid.y - pinch.mid.y);
+        pinch = { dist, mid };
+        return;
+      }
+    }
+    if (pan?.pointer === e.pointerId) {
+      const p = canvasPoint(e);
+      panBy(p.x - pan.last.x, p.y - pan.last.y);
+      pan.last = p;
+      return;
+    }
     if (drag?.pointer === e.pointerId) {
       const at = inchesAt(e);
       // The map snaps to whole inches so its squares stay on the table grid.
@@ -519,7 +611,13 @@ export function initMaps(
   }
   const endPointer = (e: PointerEvent, keep: boolean) => {
     touches.delete(e.pointerId);
+    // The finger left after a pinch stays inert until it lifts too.
+    if (touches.size < 2) pinch = null;
     if (e.pointerType === "touch") hover = null;
+    if (pan?.pointer === e.pointerId) {
+      pan = null;
+      return;
+    }
     if (discDrag?.pointer === e.pointerId) return endDisc(keep);
     if (placing?.pointer === e.pointerId) return endPlacing(keep);
     if (drag?.pointer === e.pointerId) {
@@ -623,6 +721,23 @@ export function initMaps(
   $<HTMLButtonElement>("turnMap").addEventListener("click", () => run({ type: "turnMap" }));
   $<HTMLButtonElement>("removeMap").addEventListener("click", () => run({ type: "removeMap" }));
   lockBtn.addEventListener("click", () => run({ type: "lockMap", on: !state?.mapLocked }));
+  // Zoom (D-030): the mouse wheel about the pointer; + and - about the middle; Fit shows the whole map again.
+  mapCanvas.addEventListener(
+    "wheel",
+    (e) => {
+      if (!state?.map) return;
+      e.preventDefault();
+      zoomAt(Math.exp(-e.deltaY * 0.0015), canvasPoint(e));
+    },
+    { passive: false },
+  );
+  const middle = () => ({ x: mapCanvas.clientWidth / 2, y: mapCanvas.clientHeight / 2 });
+  $<HTMLButtonElement>("zoomIn").addEventListener("click", () => zoomAt(1.5, middle()));
+  $<HTMLButtonElement>("zoomOut").addEventListener("click", () => zoomAt(1 / 1.5, middle()));
+  $<HTMLButtonElement>("zoomFit").addEventListener("click", () => {
+    [zoom, centre] = [1, null];
+    render();
+  });
 
   $<HTMLButtonElement>("importMap").addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => {

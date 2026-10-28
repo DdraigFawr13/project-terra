@@ -274,6 +274,24 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.click("#lockMap");
     await dm.waitForSelector("button.move[data-dx='1']:enabled");
     assert.equal((await table.evaluate(() => window.terra.getView())).map.x, 0);
+
+    // Zoom (D-030): + zooms about the middle, so a tap there still lands on the same square.
+    await dm.click("button[data-tool='marker']");
+    const placeAtMiddle = async () => {
+      const now = await dm.locator("#mapCanvas").boundingBox();
+      await dm.mouse.click(now.x + now.width / 2, now.y + now.height / 2);
+      await dm.waitForFunction(async () => (await window.terra.getState()).map.discs.length === 1);
+      const { x, y } = (await dm.evaluate(() => window.terra.getState())).map.discs[0];
+      await dm.keyboard.press("Control+z");
+      await dm.waitForFunction(async () => (await window.terra.getState()).map.discs.length === 0);
+      return [x, y];
+    };
+    const unzoomed = await placeAtMiddle();
+    await dm.click("#zoomIn");
+    await dm.click("#zoomIn");
+    assert.deepEqual(await placeAtMiddle(), unzoomed);
+    await dm.click("#zoomFit");
+    await dm.click("button[data-tool='select']");
   } finally {
     await app.close();
   }
