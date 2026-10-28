@@ -42,12 +42,9 @@ const colourBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data
 const discSizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-disc-size]")];
 const fogBtns = ["fogDim", "fogRevealAll", "fogCoverAll"].map((id) => $<HTMLButtonElement>(id));
 const lockBtn = $<HTMLButtonElement>("lockMap");
-/** Buttons that move the map; a locked map keeps them off (D-029). */
-const placeBtns = [
-  ...document.querySelectorAll<HTMLButtonElement>("button.move"),
-  $<HTMLButtonElement>("turnMap"),
-  $<HTMLButtonElement>("removeMap"),
-];
+/** Buttons that change where the map is; a locked map keeps them off (D-029). */
+const placeBtns = [$<HTMLButtonElement>("turnMap"), $<HTMLButtonElement>("removeMap")];
+const zoomLevel = $<HTMLElement>("zoomLevel");
 
 /** Outline colour while the marked corners fold over each other. */
 const FOLDED = "#ff6b5a";
@@ -138,6 +135,7 @@ export function initMaps(
     mapActions.hidden = !map || !!importing;
     if (mapTitle.textContent !== (map?.name ?? "Map")) mapTitle.textContent = map?.name ?? "Map";
     zoomState.textContent = map && !importing && zoom > 1 ? `Zoom ${Math.round(zoom * 100)}%` : "";
+    zoomLevel.textContent = `${Math.round(zoom * 100)}%`;
     renderTools(!!map && !importing);
     if (importing) drawImport(importing);
     else if (map) drawMap(map);
@@ -337,6 +335,9 @@ export function initMaps(
     lockBtn.setAttribute("aria-pressed", String(locked));
     lockBtn.innerHTML = `${icon(locked ? "lock" : "unlock")}${locked ? "Locked" : "Lock"}`;
     for (const b of placeBtns) b.disabled = locked;
+    lockBtn.title = locked
+      ? "Locked: dragging pans the view. Unlock to move the map on the table."
+      : "Unlocked: dragging moves the map on the table. Lock it to pan by dragging.";
     const dpr = window.devicePixelRatio || 1;
     const w = mapCanvas.clientWidth;
     const h = mapCanvas.clientHeight;
@@ -731,8 +732,6 @@ export function initMaps(
     e.preventDefault();
     run({ type: "moveMap", dx: m[0], dy: m[1] });
   });
-  for (const b of document.querySelectorAll<HTMLButtonElement>("button.move"))
-    b.addEventListener("click", () => run({ type: "moveMap", dx: Number(b.dataset.dx), dy: Number(b.dataset.dy) }));
   $<HTMLButtonElement>("turnMap").addEventListener("click", () => run({ type: "turnMap" }));
   $<HTMLButtonElement>("removeMap").addEventListener("click", () => run({ type: "removeMap" }));
   lockBtn.addEventListener("click", () => run({ type: "lockMap", on: !state?.mapLocked }));

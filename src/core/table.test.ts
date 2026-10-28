@@ -39,6 +39,7 @@ test("curtain wins over calibration, then the map, then the test grid", () => {
     { type: "calibrating", on: true },
     { type: "curtain", on: true },
     { type: "placeMap", map },
+    { type: "lockMap", on: false },
   ]);
   assert.equal(viewOf(s), "curtain");
   assert.equal(viewOf(run([{ type: "curtain", on: false }], s)), "calibrate");
@@ -65,6 +66,7 @@ test("the table window gets only the player view: no map name, the calibration f
     { type: "playerDisplay", id: 7 },
     { type: "calibrations", value: { "display:7": cal } },
     { type: "placeMap", map },
+    { type: "lockMap", on: false },
   ]);
   assert.deepEqual(playerViewOf(s, "display:7"), {
     view: "curtain",
@@ -82,6 +84,7 @@ test("the table window gets only the player view: no map name, the calibration f
 test("maps move by whole inches and turn in quarter turns", () => {
   const s = run([
     { type: "placeMap", map },
+    { type: "lockMap", on: false },
     { type: "moveMap", dx: -1, dy: 2 },
     { type: "turnMap" },
     { type: "turnMap" },
@@ -105,8 +108,17 @@ test("maps move by whole inches and turn in quarter turns", () => {
   for (const c of [{ type: "moveMap", dx: 1, dy: 0 }, { type: "turnMap" }, { type: "removeMap" }] as const)
     assert.equal(apply(locked, c), locked);
   assert.equal(run([{ type: "lockMap", on: false }, { type: "removeMap" }], locked).map, null);
-  // Placing a map from the library leaves it free to be put in place.
-  assert.equal(run([{ type: "placeMap", map }], locked).mapLocked, false);
+  // A newly placed map starts locked, so dragging pans the view (D-032).
+  assert.equal(
+    run(
+      [
+        { type: "lockMap", on: false },
+        { type: "placeMap", map },
+      ],
+      locked,
+    ).mapLocked,
+    true,
+  );
 });
 
 test("commands with wrong parts are refused", () => {
@@ -257,7 +269,11 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
   assert.equal(parseSave("[]").ok, false);
   // A version 3 map has no fog: it loads all black.
   const v3 = { ...v2, version: 3, map: { id: "map-1", name: map.name, bounds: map.bounds, x: 4, y: 5, turns: 0 } };
-  assert.deepEqual(parseSave(JSON.stringify(v3)), { ok: true, state: { ...defaultState(), calibrations: { window: cal }, map } });
+  // A save from before the lock loads its map locked, as a newly placed map is (D-032).
+  assert.deepEqual(parseSave(JSON.stringify(v3)), {
+    ok: true,
+    state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
+  });
   assert.equal(parseSave(JSON.stringify({ version: 8, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });

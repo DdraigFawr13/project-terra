@@ -28,9 +28,8 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 1. Press **Import map…** and pick a picture or a phone photo of a map.
 2. Drag corners 1–4 onto the corners of a block of grid squares (or any rectangle you know the size of), and enter its size in squares.
 3. Press **Straighten and place**. A slanted photo comes out square, with each square 1 inch on the table.
-4. Move the map with the arrows or by dragging it (whole inches, so the squares stay on the grid), turn it, or take it off the table. Ctrl+Z undoes map changes.
-5. Once it sits right, press **Lock**: a stray drag mid-game can't shift it under the minis. Discs still move.
-6. Zoom in to paint fog or place discs precisely: pinch, the mouse wheel, or + and − at the map's corner; **Fit** shows it all. With the map locked, dragging pans.
+4. A new map starts **locked**: dragging pans the view. To line it up under the projector, press **Lock** to unlock it, drag it into place (whole inches, so the squares stay on the grid), **Turn** it if needed, and lock it again. Ctrl+Z undoes map changes.
+5. Zoom in to paint fog or place discs precisely: pinch, the mouse wheel, or − and + in the map's button row; **Fit** shows it all. Two fingers or a drag pan.
 
 ### The DM window
 

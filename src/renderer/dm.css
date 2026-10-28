@@ -738,10 +738,6 @@ input[type="number"] {
 .maptools button {
   white-space: nowrap;
 }
-.maptools .move {
-  min-width: var(--target);
-  font-size: 1.1rem;
-}
 #importCanvas,
 #mapCanvas {
   width: 100%;
@@ -773,24 +769,25 @@ input[type="number"] {
   min-height: 0;
 }
 .map-frame {
+  position: relative;
   flex: 1;
   min-height: 240px;
 }
-/* Zoom buttons over the map's top-right corner (D-031). */
-.map-frame {
-  position: relative;
+/* Zoom, at the right of the map's button row (D-032). */
+.maptools .zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-.map-frame .zoom {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: grid;
-  gap: 6px;
-}
-.map-frame .zoom button {
+.maptools .zoom button {
   min-width: var(--target);
-  font-size: 1.1rem;
-  background: rgba(28, 20, 16, 0.85);
+  font-size: 1.05rem;
+}
+#zoomLevel {
+  min-width: 3.2em;
+  text-align: center;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 #mapCanvas[data-tool="reveal"],
 #mapCanvas[data-tool="hide"],
@@ -1365,4 +1362,13 @@ button.pop-close {
   .tool-sub {
     gap: 3px;
   }
+}
+/* A window that scrolls shows its scrollbar, so content cut at its foot reads as more below, not as overlap. */
+.dock-body {
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+/* The narrow Tools strip has no room for the Select tip; Select's tooltip says it instead. */
+.tool-sub.tool-hint {
+  display: none;
 }

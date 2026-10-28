@@ -267,23 +267,24 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.keyboard.press("Control+z");
     await dm.click("button[data-tool='select']");
 
-    // Move right by one inch, then take it back with Ctrl+Z.
-    await dm.click("button.move[data-dx='1']");
-    await table.waitForFunction(async () => (await window.terra.getView()).map?.x === 1);
+    // A new map starts locked (D-032): Turn is off, and a drag on the map pans the view rather than moving the map.
+    await dm.waitForSelector("#turnMap:disabled");
+    const dragAcross = async () => {
+      await dm.mouse.move(box.x + 20, box.y + 20);
+      await dm.mouse.down();
+      await dm.mouse.move(box.x + box.width / 2, box.y + 20, { steps: 4 });
+      await dm.mouse.up();
+    };
+    await dragAcross();
+    assert.equal((await table.evaluate(() => window.terra.getView())).map.x, 0);
+    // Unlocked, a drag moves the map on the table by whole inches, and Ctrl+Z takes it back.
+    await dm.click("#lockMap");
+    await dm.waitForSelector("#turnMap:enabled");
+    await dragAcross();
+    await table.waitForFunction(async () => (await window.terra.getView()).map?.x > 0);
     await dm.evaluate(() => document.activeElement.blur());
     await dm.keyboard.press("Control+z");
     await table.waitForFunction(async () => (await window.terra.getView()).map?.x === 0);
-
-    // Locked, the map stays put: its move buttons are off and a drag on the map moves nothing (D-029).
-    await dm.click("#lockMap");
-    await dm.waitForSelector("button.move[data-dx='1']:disabled");
-    await dm.mouse.move(box.x + 20, box.y + 20);
-    await dm.mouse.down();
-    await dm.mouse.move(box.x + box.width - 20, box.y + 20, { steps: 4 });
-    await dm.mouse.up();
-    await dm.click("#lockMap");
-    await dm.waitForSelector("button.move[data-dx='1']:enabled");
-    assert.equal((await table.evaluate(() => window.terra.getView())).map.x, 0);
 
     // Zoom (D-030): zooming keeps the square under the pointer where it is, so a tap there lands on the same square.
     await dm.click("button[data-tool='marker']");

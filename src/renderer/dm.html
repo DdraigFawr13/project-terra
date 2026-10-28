@@ -57,12 +57,16 @@
         <button id="lockMap" type="button" aria-pressed="false" title="Keep the map where it is: no moving, turning or taking it off">
           Lock
         </button>
-        <button type="button" class="move" data-dx="-1" data-dy="0" aria-label="Move map left 1 inch">←</button>
-        <button type="button" class="move" data-dx="0" data-dy="-1" aria-label="Move map up 1 inch">↑</button>
-        <button type="button" class="move" data-dx="0" data-dy="1" aria-label="Move map down 1 inch">↓</button>
-        <button type="button" class="move" data-dx="1" data-dy="0" aria-label="Move map right 1 inch">→</button>
         <button id="turnMap" type="button">Turn</button>
         <button id="removeMap" type="button">Take off table</button>
+        <span class="spacer"></span>
+        <!-- Zoom: also pinch, the mouse wheel, and drag to pan once zoomed (D-030). -->
+        <div class="zoom" role="group" aria-label="Zoom the map">
+          <button id="zoomOut" type="button" aria-label="Zoom out" title="Zoom out">&minus;</button>
+          <span id="zoomLevel" aria-live="polite">100%</span>
+          <button id="zoomIn" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+          <button id="zoomFit" type="button" title="Show the whole map">Fit</button>
+        </div>
       </div>
       <div id="mapPanel" class="stage">
         <section id="emptyMap" class="card lead" aria-labelledby="map-heading">
@@ -103,11 +107,6 @@
               tabindex="0"
               aria-label="The map on the table. With Select, drag it or use the arrow keys to move it by whole inches. With Reveal or Hide, paint the fog. Pinch or use the mouse wheel to zoom."
             ></canvas>
-            <div class="zoom" role="group" aria-label="Zoom the map">
-              <button id="zoomIn" type="button" aria-label="Zoom in">+</button>
-              <button id="zoomOut" type="button" aria-label="Zoom out">&minus;</button>
-              <button id="zoomFit" type="button" aria-label="Show the whole map">Fit</button>
-            </div>
           </div>
         </section>
       </div>
@@ -119,7 +118,9 @@
           <select id="display"></select>
           <div class="row">
             <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
-            <button id="flipLetters" type="button" aria-pressed="false">Flip disc letters</button>
+            <button id="flipLetters" type="button" aria-pressed="false" title="Turn the disc letters to face the far side">
+              Flip letters
+            </button>
           </div>
           <p class="hint">
             The test grid shows 1-inch squares. Disc letters read upright from the bottom edge of the picture; Flip turns them to face the
@@ -163,7 +164,14 @@
       <!-- Tools (D-032): one column. The main tools on top; below them, the options for the tool picked; Undo at the foot. -->
       <div id="toolsPanel" class="tools" aria-label="Map tools">
         <div class="tool-main" role="group" aria-label="Tool">
-          <button type="button" data-tool="select" data-icon="select" aria-pressed="true" disabled title="Move the map, or a disc (V)">
+          <button
+            type="button"
+            data-tool="select"
+            data-icon="select"
+            aria-pressed="true"
+            disabled
+            title="Select (V): drag to pan, or drag a disc; tap a disc for its HP"
+          >
             Select<kbd>V</kbd>
           </button>
           <button type="button" data-tool="reveal" data-icon="reveal" aria-pressed="false" disabled title="Paint to reveal (R)">

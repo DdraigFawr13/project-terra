@@ -36,6 +36,7 @@ const yellowB = (t: TableState) => t.map!.discs.find((d) => d.colour === "yellow
 test("discs snap to squares, take the next letter, start hidden, and reach the table only when shown and not down", () => {
   const s = run([
     { type: "placeMap", map },
+    { type: "lockMap", on: false },
     { type: "placeDisc", colour: "yellow", x: 4.2, y: 1.9, size: 1 },
     { type: "placeDisc", colour: "yellow", x: 6, y: 6, size: 2 },
     { type: "placeDisc", colour: "red", x: 0.1, y: 0.1, size: 1 },
@@ -77,6 +78,7 @@ test("discs snap to squares, take the next letter, start hidden, and reach the t
 test("initiative: ties keep typed order, arrows swap only ties, turns skip the down and count rounds", () => {
   let s = run([
     { type: "placeMap", map },
+    { type: "lockMap", on: false },
     { type: "addCharacter", character: { name: "Ash", ...card } },
     { type: "addCharacter", character: { name: "Bryn", ...card } },
     { type: "placeDisc", colour: "yellow", x: 1, y: 1, size: 1 },
@@ -116,6 +118,7 @@ test("initiative: ties keep typed order, arrows swap only ties, turns skip the d
 test("the turn strip starts at the current turn and holds only what players may see (D-002, D-026)", () => {
   const s = run([
     { type: "placeMap", map },
+    { type: "lockMap", on: false },
     { type: "addCharacter", character: { name: "Ash", ...card } },
     { type: "placeDisc", colour: "yellow", x: 1, y: 1, size: 1 },
     { type: "placeDisc", colour: "yellow", x: 3, y: 1, size: 1 },
@@ -171,6 +174,7 @@ test("cards and the fight save and load; a hand-edited party or fight that doesn
 test("HP: the condition word follows HP once there is an HP max; damage takes temp HP first (D-028)", () => {
   let s = run([
     { type: "placeMap", map },
+    { type: "lockMap", on: false },
     { type: "placeDisc", colour: "yellow", x: 1, y: 1, size: 1 },
     { type: "placeDisc", colour: "yellow", x: 3, y: 1, size: 1 },
     { type: "discHp", colour: "yellow", letter: "B", change: -5 },
