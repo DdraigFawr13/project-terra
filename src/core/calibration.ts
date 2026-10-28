@@ -96,20 +96,26 @@ const MAX_LAYER_PX = 4096;
 const MARGIN_IN = 48;
 
 /** Lay out the table layer so it covers the whole screen, sharp enough for the screen's pixels and no larger than a canvas allows. */
-export function layerFor(cal: Calibration, surface: Surface): Layer {
+/** Where the table screen's corners land on the table, in inches; null if one falls beyond the horizon (the screen then shows table without end). */
+export function screenOutline(cal: Calibration, surface: Surface): Quad | null {
   const m = tableToScreen(cal, surface);
   const inv = invert(m);
-  const { widthIn: w, heightIn: h } = cal;
-  // The screen's corners on the table. If one falls beyond the horizon, the screen shows table without end: use a fixed margin.
-  const screenCorners = [
+  const corners = [
     { x: 0, y: 0 },
     { x: surface.width, y: 0 },
     { x: surface.width, y: surface.height },
     { x: 0, y: surface.height },
   ].map((p) => apply(inv, p));
-  const visible = screenCorners.every((p) => depth(m, p) > 0 && Number.isFinite(p.x) && Number.isFinite(p.y));
-  const xs = visible ? screenCorners.map((p) => p.x) : [-MARGIN_IN, w + MARGIN_IN];
-  const ys = visible ? screenCorners.map((p) => p.y) : [-MARGIN_IN, h + MARGIN_IN];
+  return corners.every((p) => depth(m, p) > 0 && Number.isFinite(p.x) && Number.isFinite(p.y)) ? (corners as Quad) : null;
+}
+
+export function layerFor(cal: Calibration, surface: Surface): Layer {
+  const m = tableToScreen(cal, surface);
+  const { widthIn: w, heightIn: h } = cal;
+  // Cover the whole screen; if it shows table without end, use a fixed margin.
+  const outline = screenOutline(cal, surface);
+  const xs = outline ? outline.map((p) => p.x) : [-MARGIN_IN, w + MARGIN_IN];
+  const ys = outline ? outline.map((p) => p.y) : [-MARGIN_IN, h + MARGIN_IN];
   const x0 = Math.floor(Math.max(-MAX_INCHES, Math.min(...xs)));
   const y0 = Math.floor(Math.max(-MAX_INCHES, Math.min(...ys)));
   const x1 = Math.ceil(Math.min(w + MAX_INCHES, Math.max(...xs)));

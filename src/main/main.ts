@@ -1,11 +1,24 @@
 // Electron main process: opens the DM window and the player (table) window, keeps the table
 // state, and saves it after every change so a crash or restart reopens where it was.
-import { app, BrowserWindow, ipcMain, screen, type Display } from "electron";
+import { app, BrowserWindow, ipcMain, net, protocol, screen, type Display } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import type { Surface } from "../core/calibration.ts";
 import { laptopDisplay, playerPlacement, type DisplayInfo } from "../core/displays.ts";
-import { applyPatch, defaultState, parseSave, playerViewOf, serialize, type TableState } from "../core/table.ts";
+import { apply, defaultState, parseCommand, parseSave, playerViewOf, serialize, UNDOABLE, type TableState } from "../core/table.ts";
+import { listMaps, mapFile, saveMap } from "./library.ts";
+
+/** Undo takes back map changes only: switches like the curtain and the screen choice stay as the DM last set them. */
+function keepOnUndo(s: TableState): Partial<TableState> {
+  return {
+    curtain: s.curtain,
+    calibrating: s.calibrating,
+    testGrid: s.testGrid,
+    playerDisplayId: s.playerDisplayId,
+    calibrations: s.calibrations,
+  };
+}
 
 // Tests point this at a temporary folder so they never touch real saves.
 if (process.env.TERRA_USER_DATA) app.setPath("userData", process.env.TERRA_USER_DATA);
@@ -14,6 +27,9 @@ let state: TableState = defaultState();
 let dmWindow: BrowserWindow | null = null;
 let playerWindow: BrowserWindow | null = null;
 let quitting = false;
+/** States before each undoable command, newest last (D-024). Kept for this session only. */
+const history: TableState[] = [];
+const MAX_HISTORY = 100;
 /** A problem the DM should see, such as a save that couldn't be read. The packaged app has no console. */
 let notice: string | null = null;
 
@@ -138,6 +154,22 @@ function createWindows(): void {
   playerWindow.webContents.once("did-finish-load", placePlayerWindow);
 }
 
+// Map images reach both windows through terra-map://<id>, which serves only PNGs from the personal library (D-010).
+protocol.registerSchemesAsPrivileged([
+  { scheme: "terra-map", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
+
+/** Make the new state current: tell both windows, save, and move the table window if its screen changed. */
+function commit(next: TableState): void {
+  const before = state.playerDisplayId;
+  state = next;
+  send(dmWindow, "state:changed", state);
+  send(dmWindow, "history:changed", history.length > 0);
+  sendPlayerView();
+  saveSoon();
+  if (state.playerDisplayId !== before) placePlayerWindow();
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -158,14 +190,32 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle("state:get", () => state);
     ipcMain.handle("player:get", () => playerViewOf(state, placement().surfaceKey));
     ipcMain.handle("table:status", () => tableStatus());
-    ipcMain.handle("state:patch", (_e, patch: unknown) => {
-      const before = state.playerDisplayId;
-      state = applyPatch(state, patch);
-      send(dmWindow, "state:changed", state);
-      sendPlayerView();
-      saveSoon();
-      if (state.playerDisplayId !== before) placePlayerWindow();
+    ipcMain.handle("state:apply", (_e, raw: unknown) => {
+      const command = parseCommand(raw);
+      if (!command) return state;
+      if (UNDOABLE.has(command.type)) {
+        history.push(state);
+        if (history.length > MAX_HISTORY) history.shift();
+      }
+      commit(apply(state, command));
       return state;
+    });
+    ipcMain.handle("state:undo", () => {
+      const previous = history.pop();
+      if (previous) commit({ ...previous, ...keepOnUndo(state) });
+      return state;
+    });
+    ipcMain.handle("history:get", () => history.length > 0);
+    ipcMain.handle("library:list", () => listMaps(app.getPath("userData")));
+    ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown) =>
+      saveMap(app.getPath("userData"), name, png, bounds),
+    );
+    protocol.handle("terra-map", async (req) => {
+      const file = mapFile(app.getPath("userData"), new URL(req.url).hostname);
+      if (!file || !fs.existsSync(file)) return new Response("Not found", { status: 404 });
+      // Readable by the app's own pages, so a canvas with a map on it can still be read back (the e2e tests do).
+      const png = await net.fetch(pathToFileURL(file).toString());
+      return new Response(png.body, { headers: { "content-type": "image/png", "access-control-allow-origin": "*" } });
     });
     screen.on("display-added", placePlayerWindow);
     screen.on("display-removed", placePlayerWindow);

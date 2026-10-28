@@ -1,9 +1,13 @@
-// DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004).
-import { defaultCalibration, moveCorner, nudgeCorner, type Calibration } from "../core/calibration.ts";
+// DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004). The right panel
+// shows a live picture of the table, drawn by the table's own drawing code (D-025).
+import { defaultCalibration, layerFor, moveCorner, nudgeCorner, type Calibration } from "../core/calibration.ts";
 import { describeDisplay } from "../core/displays.ts";
-import { viewOf, type TableState } from "../core/table.ts";
+import { playerViewOf, viewOf, type TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
+import { initMaps } from "./dm-map.ts";
+import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
+import { drawTable, mapImages } from "./table-draw.ts";
 
 const terra = (window as unknown as { terra: DmApi }).terra;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -21,6 +25,7 @@ const preview = $<HTMLCanvasElement>("calPreview");
 const cornerBtns = [...document.querySelectorAll<HTMLButtonElement>("button.corner")];
 const panelsBtn = $<HTMLButtonElement>("panels");
 const previewText = $<HTMLSpanElement>("previewText");
+const tablePreview = $<HTMLCanvasElement>("tablePreview");
 
 // Icons go in front of each labelled control.
 for (const el of document.querySelectorAll<HTMLElement>("[data-icon]"))
@@ -31,6 +36,7 @@ const FOCUS = css.getPropertyValue("--focus").trim();
 const PREVIEW_TEXT = {
   curtain: "Curtain: the table is blank",
   calibrate: "Calibration pattern",
+  map: "",
   testGrid: "Test grid",
   idle: "Title only",
 } as const;
@@ -55,7 +61,7 @@ function saveCalibration(cal: Calibration): void {
   state = { ...state, calibrations: { ...state.calibrations, [status.surfaceKey]: cal } };
   renderCalibration();
   pending++;
-  terra.patch({ calibrations: state.calibrations }).then((s) => {
+  terra.apply({ type: "calibrations", value: state.calibrations }).then((s) => {
     if (--pending === 0) renderState(s);
   });
 }
@@ -66,8 +72,28 @@ function renderState(s: TableState): void {
   testGridBtn.setAttribute("aria-pressed", String(s.testGrid));
   curtainBtn.setAttribute("aria-pressed", String(s.curtain));
   calibrateBtn.setAttribute("aria-pressed", String(s.calibrating));
-  previewText.textContent = PREVIEW_TEXT[viewOf(s)];
   renderCalibration();
+  drawTablePreview();
+}
+
+/** The table in miniature: the same drawing as the table window, without the projector's warp. */
+function drawTablePreview(): void {
+  if (!state || !status) return;
+  const view = playerViewOf(state, status.surfaceKey);
+  previewText.textContent = PREVIEW_TEXT[view.view];
+  const mode = view.view === "curtain" || view.view === "idle" ? null : view.view;
+  tablePreview.hidden = !mode;
+  if (!mode) return;
+  const cal = view.calibration ?? defaultCalibration(status.surface);
+  const layer = layerFor(cal, status.surface);
+  const dpr = window.devicePixelRatio || 1;
+  const w = tablePreview.clientWidth;
+  const k = w / (layer.box.width * layer.pxPerInch);
+  const h = Math.round(layer.box.height * layer.pxPerInch * k);
+  tablePreview.style.height = `${h}px`;
+  tablePreview.width = Math.round(w * dpr);
+  tablePreview.height = Math.round(h * dpr);
+  drawTable(tablePreview.getContext("2d")!, { cal, layer, mode, calibrated: !!view.calibration, view, image, fog }, dpr * k);
 }
 
 function renderStatus(st: TableStatus): void {
@@ -91,6 +117,7 @@ function renderStatus(st: TableStatus): void {
   noticeEl.hidden = !st.notice;
   noticeEl.textContent = st.notice ?? "";
   renderCalibration();
+  drawTablePreview();
 }
 
 function renderCalibration(): void {
@@ -208,9 +235,11 @@ calWidth.addEventListener("change", sizeChanged);
 calHeight.addEventListener("change", sizeChanged);
 
 $<HTMLButtonElement>("calReset").addEventListener("click", () => status && saveCalibration(defaultCalibration(status.surface)));
-$<HTMLButtonElement>("calDone").addEventListener("click", () => terra.patch({ calibrating: false }));
-calibrateBtn.addEventListener("click", () => terra.patch({ calibrating: calibrateBtn.getAttribute("aria-pressed") !== "true" }));
-const toggleCurtain = () => terra.patch({ curtain: curtainBtn.getAttribute("aria-pressed") !== "true" });
+$<HTMLButtonElement>("calDone").addEventListener("click", () => terra.apply({ type: "calibrating", on: false }));
+calibrateBtn.addEventListener("click", () =>
+  terra.apply({ type: "calibrating", on: calibrateBtn.getAttribute("aria-pressed") !== "true" }),
+);
+const toggleCurtain = () => terra.apply({ type: "curtain", on: curtainBtn.getAttribute("aria-pressed") !== "true" });
 function togglePanels(): void {
   const open = panelsBtn.getAttribute("aria-pressed") !== "true";
   panelsBtn.setAttribute("aria-pressed", String(open));
@@ -218,24 +247,44 @@ function togglePanels(): void {
   panelsBtn.querySelector("svg")?.remove();
   panelsBtn.insertAdjacentHTML("afterbegin", icon(open ? "panelsClose" : "panelsOpen"));
   renderCalibration();
+  maps.render();
+  drawTablePreview();
 }
 
-testGridBtn.addEventListener("click", () => terra.patch({ testGrid: testGridBtn.getAttribute("aria-pressed") !== "true" }));
+testGridBtn.addEventListener("click", () => terra.apply({ type: "testGrid", on: testGridBtn.getAttribute("aria-pressed") !== "true" }));
 curtainBtn.addEventListener("click", toggleCurtain);
 panelsBtn.addEventListener("click", togglePanels);
 
 // Shortcuts (D-023). They never fire while typing, and Tab folds the panels only when no control has focus, so
 // Tab still moves between controls.
+// One fog painter and one image cache serve the map view and the preview.
+const fog = new FogPainter();
+const image = mapImages(() => {
+  maps.render();
+  drawTablePreview();
+});
+const maps = initMaps(terra, ACCENT, fog, image);
 window.addEventListener("keydown", (e) => {
   const t = e.target as HTMLElement;
+  if (t.closest("input, textarea, select, [contenteditable]")) return;
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    maps.undo();
+    return;
+  }
   if (e.ctrlKey || e.altKey || e.metaKey || t.closest("input, textarea, select, [contenteditable]")) return;
   if (e.key === "Tab" && !e.shiftKey && (t === document.body || t === document.documentElement)) {
     e.preventDefault();
     togglePanels();
   } else if (e.key === "b" || e.key === "B") toggleCurtain();
+  else if (e.key === "Escape") maps.cancel();
+  else maps.shortcut(e.key);
 });
-displaySelect.addEventListener("change", () => terra.patch({ playerDisplayId: Number(displaySelect.value) }));
-window.addEventListener("resize", renderCalibration);
+displaySelect.addEventListener("change", () => terra.apply({ type: "playerDisplay", id: Number(displaySelect.value) }));
+window.addEventListener("resize", () => {
+  renderCalibration();
+  drawTablePreview();
+});
 
 terra.onState(renderState);
 terra.onStatus(renderStatus);

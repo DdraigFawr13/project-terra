@@ -37,12 +37,17 @@
   --focus: #f0d3a8;
   --display: "Alegreya SC", Georgia, serif;
   --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
-  /* Touch and mouse both: no target smaller than 40 px (D-023). */
+  /* Touch and mouse both: no target smaller than 40 px (D-023); the bottom tools, used mid-fight, are bigger (D-025). */
   --target: 40px;
+  --tool: 56px;
   color-scheme: dark;
 }
 * {
   box-sizing: border-box;
+}
+/* Elements with display set (cards, grids) would otherwise ignore the hidden attribute. */
+[hidden] {
+  display: none !important;
 }
 html,
 body {
@@ -139,14 +144,31 @@ body[data-panels="folded"] .side {
   font-size: 0.9rem;
 }
 .preview {
-  aspect-ratio: 16 / 9;
   background: #000;
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
   place-items: center;
+  min-height: 120px;
+  overflow: hidden;
   color: var(--muted);
   font-weight: 600;
+}
+/* The canvas and the label share one grid cell; the label shows when the table has no picture (curtain, title). */
+.preview > * {
+  grid-area: 1 / 1;
+}
+#tablePreview {
+  width: 100%;
+  display: block;
+}
+#previewText:empty {
+  display: none;
+}
+.fog-actions {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 .stage {
   overflow: auto;
@@ -264,11 +286,53 @@ input[type="number"] {
   padding: 8px 12px;
   background: var(--surface);
   border-top: 1px solid var(--line);
+  overflow-x: auto;
 }
-.tools-note {
-  margin-left: auto;
-  color: var(--muted);
+/* Icon above the name, as in the approved sketch: big enough for a finger, narrow enough to fit the row. */
+.tools button {
+  flex-direction: column;
+  gap: 2px;
+  min-height: var(--tool);
+  min-width: var(--tool);
+  padding: 4px 10px;
   font-size: 0.85rem;
+  line-height: 1.1;
+}
+.tools kbd {
+  font-size: 0.65rem;
+}
+.tool-group {
+  display: flex;
+  gap: 6px;
+}
+.tool-group.off {
+  visibility: hidden;
+}
+.tool-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 4px;
+  background: var(--line);
+}
+.tools .undo {
+  margin-left: auto;
+}
+.dot {
+  display: block;
+  border-radius: 50%;
+  background: currentColor;
+}
+.dot.s1 {
+  width: 7px;
+  height: 7px;
+}
+.dot.s2 {
+  width: 12px;
+  height: 12px;
+}
+.dot.s4 {
+  width: 20px;
+  height: 20px;
 }
 .cal-tools {
   display: grid;
@@ -290,4 +354,68 @@ input[type="number"] {
   border-radius: 6px;
   touch-action: none;
   cursor: crosshair;
+}
+.card.wide {
+  grid-column: 1 / -1;
+}
+.setup {
+  display: contents;
+}
+.setup[hidden] {
+  display: none;
+}
+.lead-body {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.library {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.maptools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.maptools h2 {
+  flex: 1;
+  color: var(--ink);
+}
+.maptools .move {
+  min-width: var(--target);
+  font-size: 1.1rem;
+}
+#importCanvas,
+#mapCanvas {
+  width: 100%;
+  background: #000;
+  border-radius: 6px;
+  touch-action: none;
+}
+#importCanvas {
+  cursor: crosshair;
+}
+#mapCanvas {
+  height: calc(100vh - 320px);
+  min-height: 240px;
+  cursor: grab;
+}
+#mapCanvas[data-tool="reveal"],
+#mapCanvas[data-tool="hide"] {
+  cursor: crosshair;
+}
+input[type="text"] {
+  font: inherit;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: var(--target);
+  padding: 0 8px;
+  width: 16em;
 }

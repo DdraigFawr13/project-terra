@@ -7,7 +7,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 ## D-001 A Windows desktop app built with Electron and TypeScript
 
 - **Status:** Accepted (2026-10-28)
-- **Decision:** Project Terra is an Electron app written in TypeScript. Morgan starts it by double-clicking a program on a Windows laptop. It works offline and uses no paid services. Map drawing moves to WebGL (PixiJS) when maps arrive; step 1 draws its test grid with Canvas 2D.
+- **Decision:** Project Terra is an Electron app written in TypeScript. Morgan starts it by double-clicking a program on a Windows laptop. It works offline and uses no paid services. Step 1 drew with Canvas 2D; maps and fog are Canvas 2D too; the step 5 speed measurement kept Canvas 2D, without PixiJS (D-024, D-025).
 - **Why:** Morgan wanted a program to double-click, offline, with a budget under 50 one-off. Electron handles two screens and offline use well, and agents build with it reliably.
 
 ## D-002 Two windows: the table shows only the player view
@@ -80,7 +80,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 - **Status:** Accepted (2026-10-28)
 - **Decision:** Enemies in session 1 are coloured discs with a letter; Morgan tracks HP on paper. The turn strip shows turn order, whose turn it is, and enemy condition in words (bloodied, near death), never enemy names. Players roll physical dice.
-- **Why:** it keeps session 1 small. After session 1, the library phase links a disc to a stat block and tracks HP on it: tap the disc, type damage or healing, with temp HP, each disc separate. The condition word is then worked out from HP on the DM side, and only the word reaches the table (D-024).
+- **Why:** it keeps session 1 small. After session 1, the library phase links a disc to a stat block and tracks HP on it: tap the disc, type damage or healing, with temp HP, each disc separate. The condition word is then worked out from HP on the DM side, and only the word reaches the table (D-026).
 
 ## D-014 Effects spread each round; the DM decides damage
 
@@ -149,7 +149,32 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   - Step 3 builds the styled shell: theme, fonts, layout with empty panels, toolbar, folding, and the curtain and next-turn keys. Steps 4–6 fill it.
 - **Why:** Morgan wants a clean tool with a light fantasy touch that reads fast mid-fight, in a dark room, on a 1080p laptop with mouse and touch. On a projector, strong colours and plain bold text survive best.
 
-## D-024 Book library: data track and first features
+## D-024 Map import, undo and the library
+
+- **Status:** Accepted (2026-10-28), Morgan chose all five recommendations in chat.
+- **Decision:**
+  1. Import straightens: the DM drags four corners onto a rectangle of known size on the picture (for example 8 × 6 grid squares), the same gesture as calibration. One square becomes 1 inch (D-005). The picture is straightened once at import; the parts of a slanted photo squashed more than 4 times are left out.
+  2. Imported maps go to the personal library, `<app data>/library/maps/` on the laptop, as a straightened PNG plus a JSON file with its name and extent (D-010). Saves hold only the map's id and place. Windows load maps through `terra-map://<id>/`, which serves only library files.
+  3. The table window gets the whole map image. From step 5, fog is drawn over the hidden parts. The map's name stays DM-only.
+  4. Every change is a command applied by one function in `src/core/table.ts`. Map commands (place, move, turn, take off) can be undone with Ctrl+Z or the Undo button; switches such as the curtain, and calibration, are not part of undo. The undo history lasts for the session.
+  5. Maps are drawn with Canvas 2D on the calibrated table layer (D-021). PixiJS is reconsidered at step 5, with a speed measurement, before adding it (SAFE-03).
+- **Why:** a phone photo of a book page is never square on, so one marked square can't fix it; four corners fix scale and slant together and reuse the calibration maths. Commands give undo and replayable, testable state (GAME-02, GAME-06). Sending only revealed parts to the table would be slower and more work; Morgan accepted fog over the whole map.
+
+## D-025 Fog
+
+- **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults.
+- **Decision:**
+  1. Three states on the table: never seen is black; seen before is the map in grey, darkened, with a line every half inch; in view now is the map itself (D-023). The DM sees the whole map, tinted where players can't see now and darker where they've never been.
+  2. Touch first. The bottom tools are 56 px buttons: Select (V), Reveal (R), Hide (H); draw with Brush (1, 2 or 4 inches), Outline (a freehand loop that fills) or Box (snaps to whole squares), with S stepping through them; Undo. Under the preview: "Party moves on" (in view becomes seen before), Reveal all and Cover all. One finger, the pen or the mouse paints; a second finger or Esc cancels the stroke. Morgan uses a stylus: touches are ignored while the pen draws (a resting palm), a hovering pen shows the brush ring, and the pen's eraser hides.
+  3. Hide turns in view back into seen before, never black. Cover all and Undo cover the black case.
+  4. A stroke reaches the table when the finger lifts, as one fog command that Undo takes back (D-024).
+  5. Fog is the list of strokes and shapes on the placed map, in the map's own inches, so it moves and turns with the map. A placed map starts all black; taking it off drops its fog. Points are kept to hundredths of an inch; at most 2,000 ops per map and 1,000 points per op. Save version 4; older saves load with all-black fog.
+  6. The DM's live preview at the top of the right panel is drawn by the table's own drawing code (`src/renderer/table-draw.ts`), without the projector's warp.
+  7. Canvas 2D stays; PixiJS is not added. Measured on a cloud machine with no GPU, on an 80 × 60 inch map with 500 strokes: a new stroke redraws the table in about 30 ms and the DM map in about 20 ms; Undo of the last stroke about 47 ms; loading the map with all 500 strokes about 0.2–0.3 s.
+  8. Rooms that reveal with one tap (D-007) wait for maps that know their rooms (the generator). Outline covers them until then.
+- **Why:** Morgan runs the game on a 14-inch touch laptop (HP Pavilion x360, 1920 × 1080) with a stylus, so the tools must work with a finger or a pen, without keys or modifiers. Lifting before sending lets the DM cancel a slip before players see it, and makes each stroke one undo step. Storing strokes rather than pixels keeps saves small and replayable (GAME-02, GAME-06).
+
+## D-026 Book library: data track and first features
 
 - **Status:** Accepted (2026-10-28), approved by Morgan in the book library interview ([round 1](https://claude.ai/artifact/FUAenSA2tNkCqRnp62DZ2v), [round 2](https://claude.ai/artifact/FJbNz8xutdeTdynbCB6gQT), [review and approval](https://claude.ai/artifact/DtmiYuaqWcob54HQt5rjpB)).
 - **Decision:**

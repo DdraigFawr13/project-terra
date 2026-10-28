@@ -1,6 +1,6 @@
 # Plan
 
-Approved by Morgan on 2026-10-28 after three planning rounds, a review and a final check. Step 3, UI design, was added at Morgan's request on 2026-10-28 (D-022). Character cards and the library phase were added in the book library interview on 2026-10-28 (D-024). The planning pages are linked in [HANDOFF.md](HANDOFF.md). Decisions are in [DECISIONS.md](DECISIONS.md).
+Approved by Morgan on 2026-10-28 after three planning rounds, a review and a final check. Step 3, UI design, was added at Morgan's request on 2026-10-28 (D-022). Character cards and the library phase were added in the book library interview on 2026-10-28 (D-026). The planning pages are linked in [HANDOFF.md](HANDOFF.md). Decisions are in [DECISIONS.md](DECISIONS.md).
 
 ## Goal for session 1
 
@@ -15,13 +15,13 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 3. **UI design.** Decide how the DM window and the table look and feel, through a planning interview with mockups (D-022). Settled layout and table rules (D-008, D-012, D-013) stay. Morgan tests: picks from mockups on the phone, then a styled DM window and table test screen in screenshots.
 4. **Map import.** Load an image or photo, mark one square, and the map snaps to 1-inch squares. Morgan tests: the Thundertree map photographed from the book.
 5. **Fog.** Brush and shapes to reveal; explored areas stay dimmed. The table preview sits at the top of the DM window's right panel. Morgan tests: reveal a building and check the table matches the preview.
-6. **Initiative, markers and character cards.** Coloured discs with letters, and a turn strip on both long edges showing order, current turn and enemy condition in words. Character cards hold each player's name, AC, HP, passive Perception and speed, typed in by Morgan (D-024). Morgan tests: enter the party, then a mock round with dice.
+6. **Initiative, markers and character cards.** Coloured discs with letters, and a turn strip on both long edges showing order, current turn and enemy condition in words. Character cards hold each player's name, AC, HP, passive Perception and speed, typed in by Morgan (D-026). Morgan tests: enter the party, then a mock round with dice.
 7. **Ping, autosave, curtain.** Tap to pulse, long press to pin. The app reopens exactly where it was after a crash. Morgan tests: close the app mid-fight and reopen it.
 8. **Rehearsal.** A full dry run of Thundertree at home, then fixes.
 
 ## After session 1, in order
 
-1. **Library.** Import the library file from the private repo, monster search, stat block and HP on a disc, portrait reveal, spell lookup, treasure roller (D-024). Room notes, story tracker, Far Realm tracker, encounter builder and item handouts follow it.
+1. **Library.** Import the library file from the private repo, monster search, stat block and HP on a disc, portrait reveal, spell lookup, treasure roller (D-026). Room notes, story tracker, Far Realm tracker, encounter builder and item handouts follow it.
 2. **Battle drama.** Conditions, light sources, doors, automatic line of sight where Morgan moves markers, spell templates, ruler, weather, the dice roller, scene switching.
 3. **Generator.** Ruined town and interiors first in the pencil style, then dungeon and cave. Edit after generating.
 4. **Living effects.** Fire first, then ice, water, lightning and collapse, spreading each round.
