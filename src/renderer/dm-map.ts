@@ -420,6 +420,8 @@ export function initMaps(
         return;
       }
     }
+    // The pen wins over a palm that landed first: drop the touch's gesture and start the pen's (D-027).
+    if (e.pointerType === "pen" && busy() && !penBusy()) cancel();
     if (busy()) return;
     mapCanvas.setPointerCapture(e.pointerId);
     const pen = e.pointerType === "pen";

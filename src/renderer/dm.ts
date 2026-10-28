@@ -293,7 +293,8 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     togglePanels();
   } else if (e.key === "b" || e.key === "B") toggleCurtain();
-  else if (e.key === "n" || e.key === "N") fight.next();
+  // A held N would skip turns.
+  else if ((e.key === "n" || e.key === "N") && !e.repeat) fight.next();
   else if (e.key === "Escape") maps.cancel();
   else maps.shortcut(e.key);
 });

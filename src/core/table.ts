@@ -420,9 +420,12 @@ export function parseSave(text: string): ParsedSave {
     return c ? apply(s, c) : s;
   }, defaultState());
   // Character cards and the fight have no command that sets them whole; they get the same checks through their parsers.
+  // A typed party is never dropped quietly: a bad one keeps the whole file aside (GAME-05).
   const party = raw.party === undefined ? [] : parseParty(raw.party);
   const fight = raw.fight === undefined || raw.fight === null ? null : parseFight(raw.fight);
-  return { ok: true, state: { ...state, party: party ?? [], fight } };
+  if (!party) return { ok: false, reason: "the character cards can't be read" };
+  if (fight === null && raw.fight != null) return { ok: false, reason: "the initiative order can't be read" };
+  return { ok: true, state: { ...state, party, fight } };
 }
 
 export function serialize(state: TableState): string {

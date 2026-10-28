@@ -131,7 +131,7 @@ test("the turn strip starts at the current turn and holds only what players may 
   for (const secret of ["Secret", "Ruins", "hp", "ac", "passive", "speed", "init", "shown"]) assert.ok(!json.includes(secret), secret);
 });
 
-test("cards and the fight save and load; a hand-edited fight out of order is dropped, not trusted", () => {
+test("cards and the fight save and load; a hand-edited party or fight that doesn't read keeps the file aside", () => {
   const s = run([
     { type: "addCharacter", character: { name: "Ash", ...card, hp: 99 } },
     { type: "startFight" },
@@ -151,5 +151,6 @@ test("cards and the fight save and load; a hand-edited fight out of order is dro
       round: 0,
     },
   };
-  assert.deepEqual(parseSave(JSON.stringify(bad)), { ok: true, state: { ...s, fight: null } });
+  assert.equal(parseSave(JSON.stringify(bad)).ok, false);
+  assert.equal(parseSave(JSON.stringify({ ...s, party: [{ ...s.party[0], ac: 99 }] })).ok, false);
 });

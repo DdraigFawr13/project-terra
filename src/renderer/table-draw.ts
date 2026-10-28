@@ -94,6 +94,7 @@ function drawStripSide(ctx: CanvasRenderingContext2D, strip: Strip, length: numb
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
   ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.font = `700 ${t}px ${FONT}`;
   ctx.fillText(roundText, x, -h * 0.65);
   x += lead;
   strip.chips.slice(0, fits).forEach((chip, i) => {
