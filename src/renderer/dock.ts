@@ -164,10 +164,11 @@ export function initDock(onLayout: () => void) {
     return [...specs.get(id)!.title.childNodes].map((n) => n.cloneNode(true));
   }
 
-  function button(name: Parameters<typeof icon>[0], label: string, press: () => void, pressed?: boolean): HTMLButtonElement {
+  /** A window button on a bar; `kind` (fold, pin, pop, close) lets a narrow window show only some of them. */
+  function button(kind: string, name: Parameters<typeof icon>[0], label: string, press: () => void, pressed?: boolean): HTMLButtonElement {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "icon";
+    b.className = `icon win-${kind}`;
     b.setAttribute("aria-label", label);
     b.title = label;
     if (pressed !== undefined) b.setAttribute("aria-pressed", String(pressed));
@@ -217,7 +218,7 @@ export function initDock(onLayout: () => void) {
     tools.className = "dock-tools";
     if (g)
       tools.append(
-        button(g.folded ? "down" : "minus", g.folded ? "Unfold" : "Fold to the bar", () => {
+        button("fold", g.folded ? "down" : "minus", g.folded ? "Unfold" : "Fold to the bar", () => {
           g.folded = !g.folded;
           save();
           render();
@@ -226,6 +227,7 @@ export function initDock(onLayout: () => void) {
     else
       tools.append(
         button(
+          "pin",
           "pin",
           pinned ? "Unpin" : "Pin: keep on top and in place across layouts",
           () => {
@@ -240,7 +242,7 @@ export function initDock(onLayout: () => void) {
         ),
       );
     tools.append(
-      button(g ? "popOut" : "dockIn", g ? "Float this window" : "Dock this window", () => {
+      button("pop", g ? "popOut" : "dockIn", g ? "Float this window" : "Dock this window", () => {
         const r = f.getBoundingClientRect();
         detach(id);
         if (g)
@@ -256,7 +258,7 @@ export function initDock(onLayout: () => void) {
         render();
       }),
     );
-    if (spec.closable !== false) tools.append(button("close", "Close", () => api(id).close()));
+    if (spec.closable !== false) tools.append(button("close", "close", "Close", () => api(id).close()));
     bar.append(strip, tools);
     // The bar's empty space moves the window too: the biggest target for a pen (D-032).
     grab(bar, id, () => undefined);

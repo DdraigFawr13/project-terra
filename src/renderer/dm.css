@@ -574,12 +574,15 @@ input[type="number"] {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
-/* ---- Tools (D-032): one column, the same width all the way down ---- */
+/* ---- Tools (D-032): a narrow column of icons, names in tooltips. The main tools on top; under a rule, only the
+   options for the tool picked; Undo at the foot. Every button is the same width. ---- */
 #toolsPanel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  width: 42px;
   min-height: 100%;
+  margin: 0 auto;
 }
 .tool-main,
 .tool-group {
@@ -589,91 +592,81 @@ input[type="number"] {
 .tools button {
   width: 100%;
   min-width: 0;
+  min-height: 40px;
+  padding: 0;
+  gap: 0;
+  /* Icons only: the names stay in the markup for tooltips and screen readers. */
+  font-size: 0;
 }
-/* The main tools, and Undo at the foot: icon above the name, all one size. */
-.tool-main button,
-.tools .undo {
-  flex-direction: column;
-  gap: 1px;
-  min-height: 46px;
-  padding: 4px 2px;
-  font-size: 0.8rem;
-  line-height: 1.1;
+.tools button svg {
+  width: 20px;
+  height: 20px;
 }
-.tool-main kbd,
-.tools .undo kbd {
-  font-size: 0.6rem;
+.tools kbd,
+.tool-sub h4,
+.tool-hint {
+  display: none;
 }
 .tools .undo {
   margin-top: auto;
 }
-/* The options for the tool picked, under a rule: slimmer rows, a mark then the name, lined up on the left. */
 .tool-sub {
   display: grid;
   gap: 4px;
-  padding-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid var(--line);
 }
-.tool-sub h4 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 2px 0 0;
-  font: 600 0.66rem var(--body);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.tool-sub h4 + .tool-group {
-  margin-bottom: 4px;
-}
-.tool-sub h4 kbd {
-  font-size: 0.6rem;
+/* Within the options, a dashed rule between groups (how to draw, then the brush size; colour, then size). */
+.tool-sub .tool-group ~ .tool-group {
+  padding-top: 4px;
+  border-top: 1px dashed var(--line);
 }
 .tool-sub button {
-  justify-content: flex-start;
-  gap: 8px;
   min-height: 30px;
-  padding: 0 8px;
-  font-size: 0.8rem;
 }
 .tool-sub button svg {
+  width: 17px;
+  height: 17px;
+}
+.tool-sub button > b {
+  font-size: 0.8rem;
+}
+.tool-sub .swatch {
   width: 16px;
   height: 16px;
 }
-/* Every mark sits in the same 20 px slot, so the names after it line up. */
-.tool-sub button > svg,
-.tool-sub button > b {
-  flex: none;
-  width: 20px;
-  text-align: center;
-}
-.tool-sub .swatch {
-  width: 14px;
-  height: 14px;
-  margin-inline: 3px;
-}
-.tool-sub .dot.s1 {
-  margin-inline: 6.5px;
-}
-.tool-sub .dot.s2 {
-  margin-inline: 4px;
-}
-.tool-hint {
-  margin: 0;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-/* Beside the map, a narrow strip; its window buttons squeeze to fit. */
+/* Beside the map: the bar keeps a small label to grab and the float button; close and fold are in the View menu. */
 .dock-area[data-area="mapside"] .dock-frame {
-  width: 140px;
+  width: 60px;
+}
+.dock-area[data-area="mapside"] .win-fold,
+.dock-area[data-area="mapside"] .win-close {
+  display: none;
+}
+.dock-area[data-area="mapside"] .dock-bar {
+  padding: 0 2px;
+  gap: 0;
+}
+.dock-area[data-area="mapside"] .dock-tab {
+  padding: 0 2px;
+  font-size: 0.6rem;
 }
 .dock-area[data-area="mapside"] .dock-tools .icon {
-  min-width: 26px;
+  min-width: 22px;
   padding: 0;
+}
+.dock-area[data-area="mapside"] .dock-tools svg {
+  width: 15px;
+  height: 15px;
+}
+.dock-area[data-area="mapside"] .dock-body {
+  padding: 6px 0;
+  scrollbar-width: none;
+}
+/* Floating, the palette stays slim too. */
+.dock-float[data-panel="tools"] {
+  min-width: 0;
+  width: 132px !important;
 }
 .dot {
   display: block;
@@ -1358,33 +1351,18 @@ button.pop-close {
   width: 100%;
   min-width: 0;
 }
-/* The Tools strip keeps its width when it scrolls, so the buttons never shift. */
-.dock-area[data-area="mapside"] .dock-body {
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-}
 /* On a short window (the 14-inch laptop at 150%, about 1280 x 680), the column tightens so Marker's options fit. */
 @media (max-height: 760px) {
-  .tool-main button,
-  .tools .undo {
+  .tools button {
     min-height: 34px;
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 8px;
-    padding: 0 8px;
-  }
-  .tool-main kbd,
-  .tools .undo kbd {
-    display: none;
   }
   .tool-sub button {
-    min-height: 25px;
+    min-height: 26px;
   }
-  .tool-sub,
-  .tool-hint {
-    padding-top: 6px;
-  }
-  #toolsPanel {
-    gap: 6px;
+  #toolsPanel,
+  .tool-main,
+  .tool-group,
+  .tool-sub {
+    gap: 3px;
   }
 }
