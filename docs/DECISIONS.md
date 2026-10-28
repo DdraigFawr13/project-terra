@@ -239,3 +239,19 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   3. The layout is kept on this laptop (browser storage); it is not part of the table's save. Everything stays inside the DM window, so nothing DM-only can reach the projector (D-002).
   4. Sizes: 32 px buttons, 36 px list rows, 44 px bottom tools, 14 px text.
 - **Why:** Morgan's instruction on 2026-10-28, after the audit showed the old floating windows covering the map and the table preview. Docking keeps both in view by default, and Morgan can arrange the rest. At 1920 × 1080 (the size the tests now run at) the map fills most of the window and a monster sheet fits without scrolling.
+
+## D-032 DM window redesign
+
+- **Status:** Accepted (2026-10-28), from the UI review ([round 1](https://claude.ai/artifact/N2LH9mtnUHNT5QydAdB8Zz), [round 2 and draft](https://claude.ai/artifact/To2kRT3RWFcb16mti3cDov)): "Approved with the changes I wrote". Builds on D-031; changes D-023 (top bar, bottom tools) and D-028 (a tap on a disc).
+- **Decision:** all of it before step 7 (Morgan: "we have time to do all of these").
+  1. Window look: framed windows on a dark ground with a 6–8 px gap, slightly rounded corners; the window last touched has a copper outline. Headers stay plain until the colour round (Morgan liked none of the three header colours). A window slides into place in about 0.15 s when it docks or floats.
+  2. Window bars: grab a window anywhere on its bar that isn't a button; its own buttons sit in a second row under the tabs, so tab names stay whole; a window folds to its bar; a floating window can be pinned, staying above other floating windows and in place when presets change.
+  3. Tools: one Tools window, docked as a strip directly beside the map by default, or floated as a palette.
+  4. The map is a window: it moves and tabs but never closes; its own buttons (Lock, arrows, Turn, Take off) are its second row. Table setup is a window too.
+  5. Presets: Prep, Explore and Fight, each remembering its own arrangement; Reset puts one back.
+  6. Menus on the top bar (Table, Fight, View); Curtain and Next turn stay as buttons. A status bar at the bottom: saved, table screen, round, zoom, notices.
+  7. A tap on a disc opens a small HP pad beside it (amount, Damage, Heal, Sheet); dragging still moves it.
+  8. Initiative rolls with a number pad (no on-screen keyboard).
+  9. Unbuilt features are hidden (Ping, the scene name) until they work.
+  10. Later: a colour round (Ember and a light theme designed together), higher contrast, a compact/comfortable switch, a shortcut sheet.
+- **Why:** Morgan found the movable windows blended in and wanted the DM window rethought around them, from a stylus on a 14-inch screen.

@@ -4,7 +4,7 @@ Updated: 2026-10-28. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–6 are merged (step 6: [PR #12](https://github.com/DdraigFawr13/project-terra/pull/12)). Tested in the cloud, plus one install test on Morgan's Windows PC (not the laptop, no projector). The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1); Morgan doesn't have it yet, so projected steps stay "built, awaiting Morgan's check" (VER-07).
+Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–6 are merged, plus hardening (D-029), zoom (D-030) and movable windows (D-031) (step 6: [PR #12](https://github.com/DdraigFawr13/project-terra/pull/12)). Tested in the cloud, plus one install test on Morgan's Windows PC (not the laptop, no projector). The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1); Morgan doesn't have it yet, so projected steps stay "built, awaiting Morgan's check" (VER-07).
 
 ## Just done
 
@@ -15,7 +15,7 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–6 are mer
 
 ## Next
 
-1. Merge the `windows-and-zoom` PR once CI is green (Morgan approved merging, 2026-10-28).
+1. DM window redesign (D-032) on branch `ui-redesign`, all of it before step 7. UI review pages: [round 1](https://claude.ai/artifact/N2LH9mtnUHNT5QydAdB8Zz), [round 2 and draft](https://claude.ai/artifact/To2kRT3RWFcb16mti3cDov). After it, a colour round (Ember and a light theme).
 2. Step 7, ping and autosave (PLAN.md). Still open from the audit: Remove on a character card is one tap and outside undo; initiative rolls need the on-screen keyboard (no number pad); the turn strip covers about 1 inch of map along each long edge; calibration is keyed to the Windows display id (check with the real projector); unplugging the projector drops the table window over the DM window; placeholders show ("No scene yet", Ping); the test grid is on by default over a new map; no Windows CI run of the app.
 - **Book library** (separate thread; D-010, D-026). Data track done 2026-10-28 in private repo `project-terra-library` (attach with add_repo; its README lists every file and how it was checked): 503 MM creatures, 35 Phandelver creatures, 391 PHB spells, 39 DMG treasure tables, 17 Phandelver magic items with placements, MM habitat lists, Lost Mine maps. Only the 6 Thundertree creatures are `pageChecked`. Next: the app's library import (first phase after session 1), then a portrait test before cropping art; DMG traps, hazards, weather and other magic items after session 1. The MM and DMG PDFs lived only in the old container: to re-read pages, Morgan sets Drive `_AI_Directories` files to link sharing, then download via drive.usercontent.google.com (MM id 1lAzOxqwZfoT_STKHNaUQpcshncj_2z7v, DMG id 18XP8iND9a59QWK9Tc3US0KyyPIw-guLg; both domains are allowed in the environment). Never use 5e.tools.
 - **Map scale** (for step 4 follow-up): Thundertree is 1 square = 10 ft (28 × 19 squares = 56 × 38 in at 5 ft per inch); Cragmaw Hideout, Redbrand Hideout and Cragmaw Castle are 5 ft. Import (D-024) makes one picture square 1 inch, so it needs a feet-per-square choice. A map bigger than the projected area needs panning or sections (Morgan to measure the table). Where only a keyed DM map exists, Morgan covers the area numbers and legend with hide shapes.
