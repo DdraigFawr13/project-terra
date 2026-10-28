@@ -26,15 +26,16 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are mer
 
 ## Next
 
-1. **Step 5 PR**: Morgan gets the summary; on approval open the PR from `ccr-9aae693d-a3httu`, merge when green (D-018). Then restart the branch from main.
-2. Then step 6, initiative and markers, and step 7, ping, autosave and curtain (PLAN.md).
-- **Book library** (separate thread, D-010 changed 2026-10-28). In private repo `project-terra-library`: Phandelver and Below and PHB 2024 as Markdown (PHB lacks subclass features). MM and DMG PDFs come from Drive `_AI_Directories` via drive.usercontent.google.com: MM is a scan with an error-filled OCR layer, DMG is images only. Round 1 answered (form under Planning pages, collection `books1`): next is round 2 or a review page, then extraction. Never use 5e.tools. Book data never enters this public repo.
+1. **Step 5 merged** ([PR #8](https://github.com/DdraigFawr13/project-terra/pull/8)).
+2. Then step 6, initiative, markers and character cards (D-026), and step 7, ping, autosave and curtain (PLAN.md).
+- **Book library** (separate thread; D-010, D-026, approved 2026-10-28). Private repo `project-terra-library`: PHB and Phandelver and Below as Markdown, 23 MM creatures (6 Thundertree ones checked against the page) and 35 Phandelver creatures under `data/monsters/`, extract tools under `tools/`, the Lost Mine map pack under `maps/lmop/`. Next: PHB spells, DMG treasure tables, then all MM creatures transcribed from page images (PDFs: Drive `_AI_Directories`, via drive.usercontent.google.com while Morgan has link sharing on). Never use 5e.tools. Book data never enters this public repo.
+- **Map scale** (for step 4 follow-up): Thundertree is 1 square = 10 ft (28 × 19 squares = 56 × 38 in at 5 ft per inch); Cragmaw Hideout, Redbrand Hideout and Cragmaw Castle are 5 ft. Import (D-024) makes one picture square 1 inch, so it needs a feet-per-square choice. A map bigger than the projected area needs panning or sections (Morgan to measure the table). Where only a keyed DM map exists, Morgan covers the area numbers and legend with hide shapes.
 3. When Morgan has a Windows laptop: run "Build Windows app", then the README checks in order: two windows, calibration with a ruler, map import with the Thundertree photo, then the projector photo. Confirm the built-in screen says "this laptop" (`Display.internal`) and the display scale: a 14" 1080p screen usually defaults to 150%, leaving the DM window about 1280 × 680 (checked in screenshots: the step 5 layout fits). Try fog with a finger.
 
 ## Open questions
 
 - Windows SmartScreen warns on the unsigned app ("More info" → "Run anyway"). Recommended: accept for now; code signing costs money.
-- Morgan still has to find and set up the projector.
+- Morgan expects the Windows laptop and projector the week of 2026-11-02 (said 2026-10-28).
 - CI logs warn that the pinned `actions/checkout` and `actions/setup-node` target Node.js 20, which GitHub is retiring. Bump both with the `efficient-github-actions` skill when convenient.
 
 ## How to work here
@@ -47,7 +48,7 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are mer
 ## Planning pages (Morgan's answers are saved in each)
 
 - Plan: [round 1](https://claude.ai/artifact/KbAFZXKteAj4mrahwNW2S3), [review](https://claude.ai/artifact/Abqb6FvUU9G1tq3KUYyhBG), [round 2](https://claude.ai/artifact/Y1ync7v4p39K8rmimHFXsb), [round 3](https://claude.ai/artifact/5KrYHjTNJAUPdLi7ppmTdq), [final](https://claude.ai/artifact/VeuLsTvhYKxm3C6d6rVZ5e)
-- Book library: [round 1](https://claude.ai/artifact/FUAenSA2tNkCqRnp62DZ2v)
+- Book library: [round 1](https://claude.ai/artifact/FUAenSA2tNkCqRnp62DZ2v), [round 2](https://claude.ai/artifact/FJbNz8xutdeTdynbCB6gQT), [final](https://claude.ai/artifact/DtmiYuaqWcob54HQt5rjpB)
 - UI design: [round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)
 
 ## Decisions since the last plan update
@@ -55,3 +56,4 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are mer
 - 2026-10-28 D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep.
 - 2026-10-28 D-010 changed: book data goes in the private repo `project-terra-library`, never in this public repo.
 - 2026-10-28 D-021 calibration; D-022 UI design step; D-023 UI design; D-024 map import, undo, library; D-025 fog.
+- 2026-10-28 D-026 book library; D-003 adds character cards, no fixed date; D-013 HP on discs after session 1.
