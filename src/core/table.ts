@@ -1,9 +1,10 @@
 // What the table shows. Pure data and functions: no Electron, no clock, no randomness (GAME-01).
 // Every change is a command applied by `apply` (D-024), so the same commands always give the same state (GAME-02).
 import { parseCalibration, type Calibration } from "./calibration.ts";
+import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import type { Bounds } from "./map.ts";
 
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 
 /** A straightened map from the personal library (D-010), placed on the table. Positions are in inches (D-005). */
 export type PlacedMap = {
@@ -18,6 +19,8 @@ export type PlacedMap = {
   y: number;
   /** Quarter turns clockwise around that corner. */
   turns: 0 | 1 | 2 | 3;
+  /** Fog strokes and shapes in the map's own inches, oldest first (D-025). A newly placed map starts all black. */
+  fog: FogOp[];
 };
 
 export type TableState = {
@@ -44,10 +47,11 @@ export type Command =
   | { type: "placeMap"; map: PlacedMap }
   | { type: "moveMap"; dx: number; dy: number }
   | { type: "turnMap" }
-  | { type: "removeMap" };
+  | { type: "removeMap" }
+  | { type: "fog"; op: FogOp };
 
 /** Commands the DM can take back with Undo. Switches such as the curtain, and calibration drags, are not kept. */
-export const UNDOABLE: ReadonlySet<Command["type"]> = new Set(["placeMap", "moveMap", "turnMap", "removeMap"]);
+export const UNDOABLE: ReadonlySet<Command["type"]> = new Set(["placeMap", "moveMap", "turnMap", "removeMap", "fog"]);
 
 export type TableView = "curtain" | "calibrate" | "map" | "testGrid" | "idle";
 
@@ -76,7 +80,7 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
   return {
     view: viewOf(state),
     calibration: state.calibrations[surfaceKey] ?? null,
-    map: m && { id: m.id, bounds: m.bounds, x: m.x, y: m.y, turns: m.turns },
+    map: m && { id: m.id, bounds: m.bounds, x: m.x, y: m.y, turns: m.turns, fog: m.fog },
     grid: state.testGrid,
   };
 }
@@ -106,12 +110,14 @@ function parseCalibrations(raw: unknown): Record<string, Calibration> | null {
 export function parsePlacedMap(raw: unknown): PlacedMap | null {
   if (!isObject(raw) || !isObject(raw.bounds)) return null;
   const { id, name, x, y, turns } = raw;
+  // Maps saved before fog existed, and maps just placed from the library, start with no fog ops: all black.
+  const fog = raw.fog === undefined ? [] : parseFog(raw.fog);
   const b = raw.bounds;
   const bounds = { x: inches(b.x), y: inches(b.y), width: inches(b.width, 1), height: inches(b.height, 1) };
   if (typeof id !== "string" || !MAP_ID.test(id) || typeof name !== "string" || name.length > 120) return null;
   if (bounds.x === null || bounds.y === null || bounds.width === null || bounds.height === null) return null;
-  if (inches(x) === null || inches(y) === null || !(turns === 0 || turns === 1 || turns === 2 || turns === 3)) return null;
-  return { id, name, bounds: bounds as Bounds, x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"] };
+  if (inches(x) === null || inches(y) === null || !(turns === 0 || turns === 1 || turns === 2 || turns === 3) || !fog) return null;
+  return { id, name, bounds: bounds as Bounds, x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"], fog };
 }
 
 /** A command from the DM window, or null if any part is wrong. */
@@ -144,6 +150,10 @@ export function parseCommand(raw: unknown): Command | null {
     case "turnMap":
     case "removeMap":
       return { type: raw.type };
+    case "fog": {
+      const op = parseFogOp(raw.op);
+      return op && { type: "fog", op };
+    }
     default:
       return null;
   }
@@ -174,6 +184,8 @@ export function apply(state: TableState, c: Command): TableState {
       return state.map ? { ...state, map: { ...state.map, turns: ((state.map.turns + 1) % 4) as PlacedMap["turns"] } } : state;
     case "removeMap":
       return { ...state, map: null };
+    case "fog":
+      return state.map ? { ...state, map: { ...state.map, fog: addFog(state.map.fog, c.op) } } : state;
   }
 }
 
@@ -188,8 +200,8 @@ export function parseSave(text: string): ParsedSave {
     return { ok: false, reason: "not valid JSON" };
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
-  // Versions 1 and 2 read the same; fields they lack (calibrations, map) start at their defaults.
-  if (raw.version !== 1 && raw.version !== 2 && raw.version !== SAVE_VERSION) {
+  // Older versions read the same; fields they lack (calibrations, map, a map's fog) start at their defaults.
+  if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3 && raw.version !== SAVE_VERSION) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.

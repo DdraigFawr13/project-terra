@@ -5,6 +5,8 @@ import { defaultCalibration, layerFor, type Calibration, type Surface } from "..
 import { cssMatrix3d } from "../core/homography.ts";
 import type { PlayerView } from "../core/table.ts";
 import type { PlayerApi } from "../main/player-preload.ts";
+import { FogPainter } from "./fog-draw.ts";
+import { ACCENT, drawTable, FONT, mapImages, textBothSides, type TableMode } from "./table-draw.ts";
 
 const terra = (window as unknown as { terra: PlayerApi }).terra;
 const screenCanvas = document.getElementById("table") as HTMLCanvasElement;
@@ -15,52 +17,15 @@ const overlayCanvas = document.getElementById("overlay") as HTMLCanvasElement;
 const octx = overlayCanvas.getContext("2d")!;
 let player: PlayerView | null = null;
 
-// Plain bold lettering on the table, from the bundled font, so it reads at an angle and upside down (D-023).
-const FONT = `"Source Sans 3", "Segoe UI", system-ui, sans-serif`;
-const ACCENT = "#6cb8a4";
-
-/** Text centred at (x, y) and again rotated half a turn about the centre of `rect`, so both long sides can read it. */
-function textBothSides(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  rect: { x: number; y: number; w: number; h: number },
-  inset: number,
-  size: number,
-): void {
-  ctx.font = `700 ${size}px ${FONT}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  const cx = rect.x + rect.w / 2;
-  ctx.fillText(text, cx, rect.y + rect.h - inset, rect.w * 0.9);
-  ctx.save();
-  ctx.translate(cx, rect.y + inset);
-  ctx.rotate(Math.PI);
-  ctx.fillText(text, 0, 0, rect.w * 0.9);
-  ctx.restore();
-}
+const fog = new FogPainter();
+const image = mapImages(draw);
 
 function surfaceNow(): Surface {
   return { width: window.innerWidth, height: window.innerHeight, scale: window.devicePixelRatio || 1 };
 }
 
-const images = new Map<string, HTMLImageElement>();
-/** A library map, loaded once and drawn again when it arrives. */
-function mapImage(id: string): HTMLImageElement {
-  let img = images.get(id);
-  if (!img) {
-    img = new Image();
-    img.src = `terra-map://${id}/`;
-    img.onload = draw;
-    images.set(id, img);
-  }
-  return img;
-}
-
-type TableMode = "calibrate" | "testGrid" | "map";
-
-/** Draw on the layer in inches (the map, the 1-inch grid, the measured rectangle), then warp the layer onto the screen. */
-function drawTable(cal: Calibration, mode: TableMode, calibrated: boolean): void {
-  const calibrating = mode === "calibrate";
+/** Size the layer canvas to the table's box in inches, warp it onto the screen, and draw the table on it. */
+function drawLayer(cal: Calibration, mode: TableMode, calibrated: boolean): void {
   const layer = layerFor(cal, surfaceNow());
   const ppi = layer.pxPerInch;
   layerCanvas.width = Math.round(layer.box.width * ppi);
@@ -69,47 +34,7 @@ function drawTable(cal: Calibration, mode: TableMode, calibrated: boolean): void
   layerCanvas.style.height = `${layerCanvas.height}px`;
   layerCanvas.style.transform = `matrix3d(${cssMatrix3d(layer.transform).join(",")})`;
   layerCanvas.hidden = false;
-
-  // Work in layer pixels with the table's origin (the rectangle's top-left corner) at (0, 0).
-  const ctx = lctx;
-  const X = (inches: number) => inches * ppi;
-  ctx.setTransform(1, 0, 0, 1, -layer.box.x * ppi, -layer.box.y * ppi);
-  ctx.clearRect(X(layer.box.x), X(layer.box.y), layerCanvas.width, layerCanvas.height);
-  const { x: bx, y: by, width: bw, height: bh } = layer.box;
-  const map = player?.map;
-  if (mode === "map" && map) {
-    const img = mapImage(map.id);
-    if (img.complete && img.naturalWidth) {
-      ctx.save();
-      ctx.translate(X(map.x), X(map.y));
-      ctx.rotate((map.turns * Math.PI) / 2);
-      ctx.drawImage(img, X(map.bounds.x), X(map.bounds.y), X(map.bounds.width), X(map.bounds.height));
-      ctx.restore();
-    }
-    // Over a map, the grid is only for checking that the map's squares line up with the table's.
-    if (!player?.grid) return;
-  }
-  ctx.strokeStyle = mode === "map" ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.55)";
-  ctx.lineWidth = Math.max(1, ppi / 24);
-  ctx.beginPath();
-  for (let x = bx; x <= bx + bw; x++) (ctx.moveTo(X(x), X(by)), ctx.lineTo(X(x), X(by + bh)));
-  for (let y = by; y <= by + bh; y++) (ctx.moveTo(X(bx), X(y)), ctx.lineTo(X(bx + bw), X(y)));
-  ctx.stroke();
-  if (mode === "map") return;
-
-  const rect = { x: 0, y: 0, w: X(cal.widthIn), h: X(cal.heightIn) };
-  ctx.strokeStyle = calibrating ? ACCENT : "#ffffff";
-  ctx.lineWidth = Math.max(2, ppi / 10);
-  ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
-  ctx.fillStyle = "#ffffff";
-  const size = Math.min(X(0.45), rect.w / 14);
-  if (calibrating) {
-    ctx.fillStyle = "#ffffff";
-    textBothSides(ctx, `Calibrating: put corners 1–4 on your ${cal.widthIn} × ${cal.heightIn} inch marks`, rect, X(1.2), size);
-  } else {
-    const label = calibrated ? `1-inch squares · ${cal.widthIn} × ${cal.heightIn} inch check` : "1-inch squares · not calibrated yet";
-    textBothSides(ctx, label, rect, X(1.2), size);
-  }
+  if (player) drawTable(lctx, { cal, layer, mode, calibrated, view: player, image, fog }, 1);
 }
 
 /**
@@ -159,7 +84,7 @@ function draw(): void {
   octx.setTransform(s.scale, 0, 0, s.scale, 0, 0);
   if (view === "testGrid" || view === "calibrate" || view === "map") {
     const cal = calibration ?? defaultCalibration(s);
-    drawTable(cal, view, !!calibration);
+    drawLayer(cal, view, !!calibration);
     if (view === "calibrate") drawCornerMarks(cal, s);
   } else if (view === "idle") {
     sctx.fillStyle = "rgba(255,255,255,0.35)";

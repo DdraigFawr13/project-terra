@@ -78,10 +78,11 @@
           <canvas
             id="mapCanvas"
             tabindex="0"
-            aria-label="The map on the table. Drag it, or use the arrow keys, to move it by whole inches."
+            aria-label="The map on the table. With Select, drag it or use the arrow keys to move it by whole inches. With Reveal or Hide, paint the fog."
           ></canvas>
           <p class="hint">
-            Drag the map or use the arrow keys to move it by whole inches. The dashed line is the edge of the table screen.
+            Select (V) moves the map by whole inches. Reveal (R) and Hide (H) paint the fog; two fingers cancel a stroke, and so does Esc.
+            The dashed line is the edge of the table screen.
           </p>
         </section>
 
@@ -131,24 +132,58 @@
 
       <aside class="side right" aria-label="Table preview and notes">
         <h2>On the table now</h2>
-        <div class="preview"><span id="previewText">Starting…</span></div>
-        <p class="hint">A live picture of the table arrives with fog in step 5.</p>
+        <div class="preview">
+          <canvas id="tablePreview" aria-label="A live picture of what the table shows"></canvas>
+          <span id="previewText">Starting…</span>
+        </div>
+        <p id="fogHint" class="hint">Black: never seen. Grey with lines: seen before. Clear: in view now.</p>
+        <div class="fog-actions" role="group" aria-label="Fog on the whole map">
+          <button id="fogDim" type="button" disabled>Party moves on: grey out what's in view</button>
+          <div class="row">
+            <button id="fogRevealAll" type="button" disabled>Reveal all</button>
+            <button id="fogCoverAll" type="button" disabled>Cover all</button>
+          </div>
+        </div>
         <h2>Notes</h2>
         <p class="empty">Notes for the DM only. Not built yet.</p>
       </aside>
     </div>
 
     <footer class="tools" aria-label="Map tools">
-      <button type="button" data-icon="select" disabled title="Arrives with maps in step 4">Select<kbd>V</kbd></button>
-      <button type="button" data-icon="reveal" disabled title="Arrives with fog in step 5">Reveal<kbd>R</kbd></button>
-      <button type="button" data-icon="shape" disabled title="Arrives with fog in step 5">Shape<kbd>S</kbd></button>
-      <button type="button" data-icon="hide" disabled title="Arrives with fog in step 5">Hide<kbd>H</kbd></button>
+      <button type="button" data-tool="select" data-icon="select" aria-pressed="true" disabled title="Move the map (V)">
+        Select<kbd>V</kbd>
+      </button>
+      <span class="tool-sep" aria-hidden="true"></span>
+      <button type="button" data-tool="reveal" data-icon="reveal" aria-pressed="false" disabled title="Paint to reveal (R)">
+        Reveal<kbd>R</kbd>
+      </button>
+      <button
+        type="button"
+        data-tool="hide"
+        data-icon="hide"
+        aria-pressed="false"
+        disabled
+        title="Paint to grey out what players see now (H)"
+      >
+        Hide<kbd>H</kbd>
+      </button>
+      <span class="tool-sep" aria-hidden="true"></span>
+      <div class="tool-group" role="group" aria-label="Draw with (S switches)">
+        <button type="button" data-draw="brush" data-icon="brush" aria-pressed="true" disabled>Brush<kbd>S</kbd></button>
+        <button type="button" data-draw="outline" data-icon="outline" aria-pressed="false" disabled>Outline<kbd>S</kbd></button>
+        <button type="button" data-draw="box" data-icon="box" aria-pressed="false" disabled>Box<kbd>S</kbd></button>
+      </div>
+      <div id="brushSizes" class="tool-group" role="group" aria-label="Brush size">
+        <button type="button" data-size="1" aria-pressed="false" aria-label="1-inch brush" disabled><span class="dot s1"></span>1″</button>
+        <button type="button" data-size="2" aria-pressed="true" aria-label="2-inch brush" disabled><span class="dot s2"></span>2″</button>
+        <button type="button" data-size="4" aria-pressed="false" aria-label="4-inch brush" disabled><span class="dot s4"></span>4″</button>
+      </div>
+      <span class="tool-sep" aria-hidden="true"></span>
       <button type="button" data-icon="marker" disabled title="Arrives with markers in step 6">Marker<kbd>M</kbd></button>
       <button type="button" data-icon="ping" disabled title="Arrives in step 7">Ping<kbd>P</kbd></button>
-      <button id="undo" type="button" data-icon="undo" disabled title="Take back the last map change (Ctrl+Z)">
+      <button id="undo" type="button" class="undo" data-icon="undo" disabled title="Take back the last map or fog change (Ctrl+Z)">
         Undo<kbd>Ctrl+Z</kbd>
       </button>
-      <span class="tools-note">Other tools switch on as their steps arrive.</span>
     </footer>
     <script src="dm.js"></script>
   </body>

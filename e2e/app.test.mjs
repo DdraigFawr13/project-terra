@@ -161,7 +161,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     id = view.map.id;
     assert.deepEqual(
       { ...view.map, id: undefined },
-      { id: undefined, bounds: { x: -3, y: -3, width: 8, height: 8 }, x: 0, y: 0, turns: 0 },
+      { id: undefined, bounds: { x: -3, y: -3, width: 8, height: 8 }, x: 0, y: 0, turns: 0, fog: [] },
     );
     assert.ok(!JSON.stringify(view).includes("board"));
     // The picture is in the personal library, and terra-map:// serves only library maps.
@@ -178,6 +178,44 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     }, id);
     // 400 × 400 picture at 50 pixels a square, straightened at the same 50 pixels per inch.
     assert.deepEqual(served, [400, 0]);
+
+    // Fog (D-025): a new map is all black on the table. Paint a box with Reveal, and the table and the DM's preview
+    // show the map there; Ctrl+Z covers it again.
+    await dm.evaluate(() => window.terra.apply({ type: "testGrid", on: false }));
+    const lit = (page, id) =>
+      page.evaluate((canvasId) => {
+        const c = document.getElementById(canvasId);
+        const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+        let n = 0;
+        for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 60) n++;
+        return n;
+      }, id);
+    await table.waitForFunction(async () => (await window.terra.getView()).grid === false);
+    assert.equal(await lit(table, "layer"), 0);
+    await dm.click("button[data-tool='reveal']");
+    await dm.click("button[data-draw='box']");
+    const box = await dm.locator("#mapCanvas").boundingBox();
+    await dm.mouse.move(box.x + box.width / 2 - 30, box.y + box.height / 2 - 30);
+    await dm.mouse.down();
+    await dm.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2 + 30, { steps: 3 });
+    await dm.mouse.up();
+    await table.waitForFunction(async () => (await window.terra.getView()).map?.fog.length === 1);
+    await table.waitForFunction(() => {
+      const c = document.getElementById("layer");
+      const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+      return d.some((v, i) => i % 4 !== 3 && v > 60);
+    });
+    assert.ok((await lit(dm, "tablePreview")) > 0);
+    await dm.keyboard.press("Control+z");
+    await table.waitForFunction(async () => (await window.terra.getView()).map?.fog.length === 0);
+    await table.waitForFunction(() => {
+      const c = document.getElementById("layer");
+      return !c
+        .getContext("2d")
+        .getImageData(0, 0, c.width, c.height)
+        .data.some((v, i) => i % 4 !== 3 && v > 60);
+    });
+    await dm.click("button[data-tool='select']");
 
     // Move right by one inch, then take it back with Ctrl+Z.
     await dm.click("button.move[data-dx='1']");

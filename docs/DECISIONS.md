@@ -7,7 +7,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 ## D-001 A Windows desktop app built with Electron and TypeScript
 
 - **Status:** Accepted (2026-10-28)
-- **Decision:** Project Terra is an Electron app written in TypeScript. Morgan starts it by double-clicking a program on a Windows laptop. It works offline and uses no paid services. Step 1 drew with Canvas 2D; maps are Canvas 2D too, and PixiJS (WebGL) is reconsidered at step 5 with a speed measurement (D-024).
+- **Decision:** Project Terra is an Electron app written in TypeScript. Morgan starts it by double-clicking a program on a Windows laptop. It works offline and uses no paid services. Step 1 drew with Canvas 2D; maps and fog are Canvas 2D too; the step 5 speed measurement kept Canvas 2D, without PixiJS (D-024, D-025).
 - **Why:** Morgan wanted a program to double-click, offline, with a budget under 50 one-off. Electron handles two screens and offline use well, and agents build with it reliably.
 
 ## D-002 Two windows: the table shows only the player view
@@ -159,4 +159,18 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   4. Every change is a command applied by one function in `src/core/table.ts`. Map commands (place, move, turn, take off) can be undone with Ctrl+Z or the Undo button; switches such as the curtain, and calibration, are not part of undo. The undo history lasts for the session.
   5. Maps are drawn with Canvas 2D on the calibrated table layer (D-021). PixiJS is reconsidered at step 5, with a speed measurement, before adding it (SAFE-03).
 - **Why:** a phone photo of a book page is never square on, so one marked square can't fix it; four corners fix scale and slant together and reuse the calibration maths. Commands give undo and replayable, testable state (GAME-02, GAME-06). Sending only revealed parts to the table would be slower and more work; Morgan accepted fog over the whole map.
+
+## D-025 Fog
+
+- **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults.
+- **Decision:**
+  1. Three states on the table: never seen is black; seen before is the map in grey, darkened, with a line every half inch; in view now is the map itself (D-023). The DM sees the whole map, tinted where players can't see now and darker where they've never been.
+  2. Touch first. The bottom tools are 56 px buttons: Select (V), Reveal (R), Hide (H); draw with Brush (1, 2 or 4 inches), Outline (a freehand loop that fills) or Box (snaps to whole squares), with S stepping through them; Undo. Under the preview: "Party moves on" (in view becomes seen before), Reveal all and Cover all. One finger paints; a second finger or Esc cancels the stroke.
+  3. Hide turns in view back into seen before, never black. Cover all and Undo cover the black case.
+  4. A stroke reaches the table when the finger lifts, as one fog command that Undo takes back (D-024).
+  5. Fog is the list of strokes and shapes on the placed map, in the map's own inches, so it moves and turns with the map. A placed map starts all black; taking it off drops its fog. Points are kept to hundredths of an inch; at most 2,000 ops per map and 1,000 points per op. Save version 4; older saves load with all-black fog.
+  6. The DM's live preview at the top of the right panel is drawn by the table's own drawing code (`src/renderer/table-draw.ts`), without the projector's warp.
+  7. Canvas 2D stays; PixiJS is not added. Measured on a cloud machine with no GPU, on an 80 × 60 inch map with 500 strokes: a new stroke redraws the table in about 30 ms and the DM map in about 20 ms; Undo of the last stroke about 47 ms; loading the map with all 500 strokes about 0.2–0.3 s.
+  8. Rooms that reveal with one tap (D-007) wait for maps that know their rooms (the generator). Outline covers them until then.
+- **Why:** Morgan runs the game on a 14-inch touch laptop (HP Pavilion x360, 1920 × 1080), so the tools must work with a finger, without keys or modifiers. Lifting before sending lets the DM cancel a slip before players see it, and makes each stroke one undo step. Storing strokes rather than pixels keeps saves small and replayable (GAME-02, GAME-06).
 

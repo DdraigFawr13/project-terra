@@ -1,11 +1,13 @@
 // DM window, maps (step 4, D-024): import a picture, mark a rectangle of known size, straighten it into 1-inch
 // squares, and place, move and turn it on the table. Straightening runs here, in the DM window; the main process only
-// stores the result in the personal library (D-010).
+// stores the result in the personal library (D-010). Fog (step 5, D-025) is painted here with Reveal and Hide.
 import { defaultCalibration, screenOutline } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
-import { parseMarking, placedExtent, planRectify, rectify, type Bounds } from "../core/map.ts";
+import { MAX_FOG_OPS, MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
+import { parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
 import type { Command, PlacedMap, TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
+import { fillFog, type FogPainter } from "./fog-draw.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const emptyMap = $<HTMLElement>("emptyMap");
@@ -22,34 +24,50 @@ const markW = $<HTMLInputElement>("markW");
 const markH = $<HTMLInputElement>("markH");
 const mapCanvas = $<HTMLCanvasElement>("mapCanvas");
 const undoBtn = $<HTMLButtonElement>("undo");
+const toolBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-tool]")];
+const drawBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-draw]")];
+const sizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-size]")];
+const brushSizes = $<HTMLDivElement>("brushSizes");
+const fogBtns = ["fogDim", "fogRevealAll", "fogCoverAll"].map((id) => $<HTMLButtonElement>(id));
+const fogHint = $<HTMLParagraphElement>("fogHint");
+const FOG_HINT = fogHint.textContent;
 
 /** Outline colour while the marked corners fold over each other. */
 const FOLDED = "#ff6b5a";
 
 type Importing = { bitmap: ImageBitmap; corners: Quad; selected: number; busy: boolean };
+type Tool = "select" | FogMode;
+type DrawWith = "brush" | "outline" | "box";
+const DRAW_ORDER: DrawWith[] = ["brush", "outline", "box"];
+/** Ghost colours while painting: warm light to reveal, copper to hide. */
+const GHOST = { reveal: "rgba(240, 211, 168, 0.5)", hide: "rgba(200, 98, 63, 0.55)" };
 
-export function initMaps(terra: DmApi, accent: string): { undo: () => void } {
+/** One finger (or the mouse) painting fog, in map inches. Strokes reach the table only when lifted (D-025). */
+type Stroke = { pointer: number; points: Point[] };
+
+export function initMaps(
+  terra: DmApi,
+  accent: string,
+  fog: FogPainter,
+  image: (id: string) => HTMLImageElement,
+): { undo: () => void; render: () => void; cancel: () => boolean; shortcut: (key: string) => boolean } {
   let state: TableState | null = null;
   let status: TableStatus | null = null;
   let importing: Importing | null = null;
   let setupOpen = false;
   /** While dragging the map: how far it has moved so far, in inches. */
   let drag: { start: Point; dx: number; dy: number } | null = null;
-  const images = new Map<string, HTMLImageElement>();
+  let tool: Tool = "select";
+  let drawWith: DrawWith = "brush";
+  let brushIn = 2;
+  let stroke: Stroke | null = null;
+  /** Where the mouse is over the map, in map inches, to show the brush ring. Touch has no hover. */
+  let hover: Point | null = null;
+  /** Fingers on the map now: a second one cancels the stroke. */
+  const fingers = new Set<number>();
 
   const run = (c: Command) => terra.apply(c);
   const undo = () => terra.undo();
-
-  function image(id: string): HTMLImageElement {
-    let img = images.get(id);
-    if (!img) {
-      img = new Image();
-      img.src = `terra-map://${id}/`;
-      img.onload = render;
-      images.set(id, img);
-    }
-    return img;
-  }
 
   async function refreshLibrary(): Promise<void> {
     const maps = await terra.listMaps();
@@ -59,7 +77,7 @@ export function initMaps(terra: DmApi, accent: string): { undo: () => void } {
         const b = document.createElement("button");
         b.type = "button";
         b.textContent = `Place “${m.name}”`;
-        b.addEventListener("click", () => run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0 } }));
+        b.addEventListener("click", () => run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [] } }));
         li.append(b);
         return li;
       }),
@@ -74,6 +92,7 @@ export function initMaps(terra: DmApi, accent: string): { undo: () => void } {
     setupBtn.hidden = !map || !!importing;
     setupBtn.setAttribute("aria-pressed", String(setupOpen));
     setupPane.hidden = !!importing || (!!map && !setupOpen);
+    renderTools(!!map && !importing);
     if (importing) drawImport(importing);
     else if (map) drawMap(map);
   }
@@ -160,7 +179,7 @@ export function initMaps(terra: DmApi, accent: string): { undo: () => void } {
       const png = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
       const entry = await terra.saveMap(nameInput.value, png, plan.bounds);
       importing = null;
-      await run({ type: "placeMap", map: { ...entry, x: 0, y: 0, turns: 0 } });
+      await run({ type: "placeMap", map: { ...entry, x: 0, y: 0, turns: 0, fog: [] } });
       refreshLibrary();
     } catch (e) {
       im.busy = false;
@@ -235,7 +254,19 @@ export function initMaps(terra: DmApi, accent: string): { undo: () => void } {
     ctx.translate(shown.x, shown.y);
     ctx.rotate((shown.turns * Math.PI) / 2);
     const img = image(map.id);
-    if (img.complete && img.naturalWidth) ctx.drawImage(img, map.bounds.x, map.bounds.y, map.bounds.width, map.bounds.height);
+    if (img.complete && img.naturalWidth) fog.draw(ctx, img, map.bounds, map.fog, "dm");
+    const ghost = stroke && strokeOp(stroke);
+    if (ghost) {
+      ctx.fillStyle = ctx.strokeStyle = GHOST[ghost.mode];
+      fillFog(ctx, ghost);
+    }
+    if (hover && !stroke && tool !== "select" && drawWith === "brush") {
+      ctx.strokeStyle = tool === "reveal" ? "#f0d3a8" : accent;
+      ctx.lineWidth = 2 / s;
+      ctx.beginPath();
+      ctx.arc(hover.x, hover.y, brushIn / 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.restore();
 
     if (outline) {
@@ -258,28 +289,161 @@ export function initMaps(terra: DmApi, accent: string): { undo: () => void } {
     const { s, ox, oy } = mapViewport(map, cal && status ? screenOutline(cal, status.surface) : null, r.width, r.height);
     return { x: (e.clientX - r.left - ox) / s, y: (e.clientY - r.top - oy) / s };
   };
+  const mapInchesAt = (e: PointerEvent): Point | null => (state?.map ? tableToMap(state.map, inchesAt(e)) : null);
+
+  /** The fog op a stroke makes so far, or null if it doesn't make one yet. */
+  function strokeOp(st: Stroke): FogShape | null {
+    if (tool === "select") return null;
+    const pts = st.points;
+    if (drawWith === "brush") return { kind: "brush", mode: tool, r: brushIn / 2, points: pts };
+    if (drawWith === "outline") return pts.length >= 3 ? { kind: "outline", mode: tool, points: pts } : null;
+    // A box snaps outwards to whole squares of the map, at least one square.
+    const a = pts[0]!;
+    const b = pts[pts.length - 1]!;
+    const x = Math.floor(Math.min(a.x, b.x));
+    const y = Math.floor(Math.min(a.y, b.y));
+    const width = Math.max(1, Math.ceil(Math.max(a.x, b.x)) - x);
+    const height = Math.max(1, Math.ceil(Math.max(a.y, b.y)) - y);
+    return { kind: "box", mode: tool, x, y, width, height };
+  }
+
+  function sendStroke(st: Stroke): void {
+    const op = strokeOp(st);
+    if (op) void run({ type: "fog", op });
+  }
+
+  /** Esc or a second finger: drop the stroke before it reaches the table. */
+  function cancel(): boolean {
+    if (!stroke && !drag) return false;
+    stroke = null;
+    drag = null;
+    render();
+    return true;
+  }
+
   mapCanvas.addEventListener("pointerdown", (e) => {
     if (!state?.map) return;
-    drag = { start: inchesAt(e), dx: 0, dy: 0 };
+    fingers.add(e.pointerId);
+    if (fingers.size > 1) {
+      cancel();
+      return;
+    }
     mapCanvas.setPointerCapture(e.pointerId);
-  });
-  mapCanvas.addEventListener("pointermove", (e) => {
-    if (!drag) return;
-    const at = inchesAt(e);
-    // The map snaps to whole inches so its squares stay on the table grid.
-    drag.dx = Math.round(at.x - drag.start.x);
-    drag.dy = Math.round(at.y - drag.start.y);
+    if (tool === "select") {
+      drag = { start: inchesAt(e), dx: 0, dy: 0 };
+      return;
+    }
+    const at = mapInchesAt(e)!;
+    stroke = { pointer: e.pointerId, points: [at] };
+    hover = e.pointerType === "mouse" ? at : null;
     render();
   });
-  const endDrag = () => {
-    if (!drag) return;
-    const { dx, dy } = drag;
-    drag = null;
-    if (dx || dy) run({ type: "moveMap", dx, dy });
-    else render();
+  mapCanvas.addEventListener("pointermove", (e) => {
+    if (drag) {
+      const at = inchesAt(e);
+      // The map snaps to whole inches so its squares stay on the table grid.
+      drag.dx = Math.round(at.x - drag.start.x);
+      drag.dy = Math.round(at.y - drag.start.y);
+      render();
+      return;
+    }
+    const at = mapInchesAt(e);
+    if (!at) return;
+    if (e.pointerType === "mouse") hover = at;
+    if (stroke?.pointer === e.pointerId) {
+      const last = stroke.points[stroke.points.length - 1]!;
+      // Keep points about a quarter of the brush apart: smooth enough, and saves stay small.
+      const gap = drawWith === "brush" ? Math.max(0.1, brushIn / 8) : 0.1;
+      if (drawWith === "box") stroke.points = [stroke.points[0]!, at];
+      else if (Math.hypot(at.x - last.x, at.y - last.y) >= gap) stroke.points.push(at);
+      if (stroke.points.length >= MAX_FOG_POINTS) {
+        // A very long stroke goes to the table in parts; an outline stops growing at its limit.
+        if (drawWith === "brush") {
+          sendStroke(stroke);
+          stroke = { pointer: stroke.pointer, points: [at] };
+        } else stroke.points.length = MAX_FOG_POINTS;
+      }
+    }
+    if (tool !== "select") render();
+  });
+  const endPointer = (e: PointerEvent, keep: boolean) => {
+    fingers.delete(e.pointerId);
+    if (e.pointerType !== "mouse") hover = null;
+    if (drag) {
+      const { dx, dy } = drag;
+      drag = null;
+      if (keep && (dx || dy)) run({ type: "moveMap", dx, dy });
+      else render();
+      return;
+    }
+    if (stroke?.pointer !== e.pointerId) return;
+    const st = stroke;
+    stroke = null;
+    if (keep) sendStroke(st);
+    render();
   };
-  mapCanvas.addEventListener("pointerup", endDrag);
-  mapCanvas.addEventListener("pointercancel", endDrag);
+  mapCanvas.addEventListener("pointerup", (e) => endPointer(e, true));
+  mapCanvas.addEventListener("pointercancel", (e) => endPointer(e, false));
+  mapCanvas.addEventListener("pointerleave", (e) => {
+    if (e.pointerType === "mouse" && hover && !stroke) {
+      hover = null;
+      render();
+    }
+  });
+
+  // ---- Fog tools (D-025): big buttons for touch, with the D-023 keys alongside ----
+
+  function renderTools(on: boolean): void {
+    if (!on) tool = "select";
+    const press = (bs: HTMLButtonElement[], pressed: (b: HTMLButtonElement) => boolean) =>
+      bs.forEach((b) => {
+        b.disabled = !on;
+        b.setAttribute("aria-pressed", String(pressed(b)));
+      });
+    press(toolBtns, (b) => b.dataset.tool === tool);
+    press(drawBtns, (b) => b.dataset.draw === drawWith);
+    press(sizeBtns, (b) => Number(b.dataset.size) === brushIn);
+    brushSizes.classList.toggle("off", drawWith !== "brush");
+    fogBtns.forEach((b) => (b.disabled = !on));
+    const full = (state?.map?.fog.length ?? 0) >= MAX_FOG_OPS;
+    fogHint.textContent = full
+      ? `The fog holds ${MAX_FOG_OPS} strokes, its most. Use Reveal all or Cover all to start it afresh.`
+      : FOG_HINT;
+    mapCanvas.dataset.tool = tool;
+  }
+  function setTool(t: Tool): void {
+    tool = t;
+    render();
+  }
+  /** Picking how to draw, or a brush size, also picks Reveal if the map was on Select. */
+  function setDraw(d: DrawWith): void {
+    drawWith = d;
+    if (tool === "select") tool = "reveal";
+    render();
+  }
+  toolBtns.forEach((b) => b.addEventListener("click", () => setTool(b.dataset.tool as Tool)));
+  drawBtns.forEach((b) => b.addEventListener("click", () => setDraw(b.dataset.draw as DrawWith)));
+  sizeBtns.forEach((b) =>
+    b.addEventListener("click", () => {
+      brushIn = Number(b.dataset.size);
+      setDraw("brush");
+    }),
+  );
+  const fogAll: FogOp[] = [{ kind: "dimSeen" }, { kind: "revealAll" }, { kind: "coverAll" }];
+  fogBtns.forEach((b, i) => b.addEventListener("click", () => run({ type: "fog", op: fogAll[i]! })));
+
+  /** V, R, H pick the tool; S steps through brush, outline and box. Returns whether the key was used. */
+  function shortcut(key: string): boolean {
+    if (!state?.map || importing) return false;
+    const k = key.toLowerCase();
+    if (k === "v") setTool("select");
+    else if (k === "r") setTool("reveal");
+    else if (k === "h") setTool("hide");
+    else if (k === "s") setDraw(DRAW_ORDER[(DRAW_ORDER.indexOf(drawWith) + 1) % DRAW_ORDER.length]!);
+    else return false;
+    return true;
+  }
+
   const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   mapCanvas.addEventListener("keydown", (e) => {
     const m = ARROWS[e.key];
@@ -329,5 +493,5 @@ export function initMaps(terra: DmApi, accent: string): { undo: () => void } {
   });
   terra.canUndo().then((can) => (undoBtn.disabled = !can));
   refreshLibrary();
-  return { undo };
+  return { undo, render, cancel, shortcut };
 }
