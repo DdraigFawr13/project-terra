@@ -1,6 +1,6 @@
 // The Party window (D-028): a floating window with a tab per character, the numbers the DM checks mid-fight, and a
 // number pad for HP and temp HP. An Edit view sets everything else. Cards stay between sessions and outside undo (D-027).
-import { MAX_PARTY, parseCharacterFields, type Character, type CharacterFields } from "../core/fight.ts";
+import { conditionFromHp, MAX_PARTY, parseCharacterFields, type Character, type CharacterFields, type Condition } from "../core/fight.ts";
 import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { button, el, field, NUMBER, stat, wholeOrNull } from "./dom.ts";
@@ -9,6 +9,7 @@ import { numpad } from "./numpad.ts";
 
 const KEYS = ["name", "ac", "hpMax", "speed", "passive", "insight", "investigation", "spellDc", "notes"] as const;
 type Draft = Record<(typeof KEYS)[number], string>;
+const WORD: Record<Condition, string> = { fine: "Fine", bloodied: "Bloodied", nearDeath: "Near death", down: "Down" };
 
 export function initParty(terra: DmApi): { show: () => void } {
   let state: TableState | null = null;
@@ -156,6 +157,7 @@ export function initParty(terra: DmApi): { show: () => void } {
     else {
       pad.setTarget(pc.name);
       const opt = (v: number | null) => (v === null ? "—" : String(v));
+      const word = conditionFromHp(pc.hp, pc.hpMax);
       win.body.replaceChildren(
         tabs,
         el(
@@ -170,13 +172,12 @@ export function initParty(terra: DmApi): { show: () => void } {
           stat("Investig.", opt(pc.investigation)),
           stat("Save DC", opt(pc.spellDc)),
         ),
+        // The word beside the bar, so the state never rests on red or green alone (D-033).
         el(
           "span",
-          { class: "hp-bar wide" },
-          el("i", {
-            class: pc.hp * 2 <= pc.hpMax ? (pc.hp * 4 <= pc.hpMax ? "nearDeath" : "bloodied") : "fine",
-            style: `width:${Math.round((pc.hp / pc.hpMax) * 100)}%`,
-          }),
+          { class: `hp-line ${word}` },
+          el("span", { class: "hp-bar" }, el("i", { class: word, style: `width:${Math.round((pc.hp / pc.hpMax) * 100)}%` })),
+          el("span", { class: "hp-word" }, WORD[word]),
         ),
         pad.el,
         ...(pc.notes ? [el("p", { class: "notes" }, pc.notes)] : []),

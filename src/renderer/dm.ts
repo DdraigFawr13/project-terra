@@ -1,5 +1,6 @@
 // DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004). Its windows dock
 // around the map (D-031); one shows a live picture of the table, drawn by the table's own drawing code (D-025).
+import { DARK_LOOKS, LIGHT_LOOKS, LOOK_NAME, lookOf, parseAppearance, type Appearance, type Look } from "../core/appearance.ts";
 import { defaultCalibration, layerFor, moveCorner, nudgeCorner, visibleRect, type Calibration } from "../core/calibration.ts";
 import { describeDisplay } from "../core/displays.ts";
 import { playerViewOf, viewOf, type TableState } from "../core/table.ts";
@@ -15,6 +16,25 @@ import { useDock } from "./float-win.ts";
 import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
 import { drawTable, mapImages } from "./table-draw.ts";
+
+// ---- Appearance (D-033): this laptop's own, like the layouts; set first so the window never flashes another look ----
+const APPEARANCE_KEY = "terra.appearance.v1";
+let appearance: Appearance = parseAppearance(null);
+try {
+  appearance = parseAppearance(JSON.parse(localStorage.getItem(APPEARANCE_KEY) ?? "null"));
+} catch {
+  // An unreadable choice starts from Ember.
+}
+document.documentElement.dataset.look = lookOf(appearance);
+function setAppearance(a: Appearance): void {
+  appearance = a;
+  document.documentElement.dataset.look = lookOf(a);
+  try {
+    localStorage.setItem(APPEARANCE_KEY, JSON.stringify(a));
+  } catch {
+    // Not remembering the look is harmless.
+  }
+}
 
 const bridge = (window as unknown as { terra: DmApi }).terra;
 // The bridge copies a state every time it hands one to the page, and with a long fog list that copy is the slow part.
@@ -51,8 +71,9 @@ const tablePreview = $<HTMLCanvasElement>("tablePreview");
 for (const el of document.querySelectorAll<HTMLElement>("[data-icon]"))
   el.insertAdjacentHTML("afterbegin", icon(el.dataset.icon as IconName));
 const css = getComputedStyle(document.documentElement);
-const ACCENT = css.getPropertyValue("--accent").trim();
-const FOCUS = css.getPropertyValue("--focus").trim();
+// The map and the previews are black in every look, so they keep Ember's copper (D-033).
+const ACCENT = css.getPropertyValue("--map-accent").trim();
+const FOCUS = css.getPropertyValue("--map-focus").trim();
 const PREVIEW_TEXT = {
   curtain: "Curtain: the table is blank",
   calibrate: "Calibration pattern",
@@ -377,7 +398,7 @@ const PRESET_NAME: Record<Preset, string> = { prep: "Prep", explore: "Explore", 
 for (const b of document.querySelectorAll<HTMLButtonElement>("[data-preset]"))
   b.addEventListener("click", () => dock.usePreset(b.dataset.preset as Preset));
 
-type Item = { text: string; act: () => void; checked?: boolean; disabled?: boolean; id?: string } | "-";
+type Item = { text: string; act: () => void; checked?: boolean; disabled?: boolean; id?: string } | { label: string } | "-";
 const pressed = (id: string) => $(id).getAttribute("aria-pressed") === "true";
 /** What each menu offers, worked out when it opens so ticks match the table now. */
 function menuItems(name: string): Item[] {
@@ -417,6 +438,22 @@ function menuItems(name: string): Item[] {
           },
       { text: "Party", id: "partyBtn", act: party.show },
     ];
+  if (name === "appearance") {
+    const a = appearance;
+    // Picking a look also switches to its mode, so the pick shows at once.
+    const look = (l: Look, next: Appearance) => ({ text: LOOK_NAME[l], checked: a[next.mode] === l, act: () => setAppearance(next) });
+    return [
+      { label: "Mode" },
+      { text: "Dark", checked: a.mode === "dark", act: () => setAppearance({ ...a, mode: "dark" }) },
+      { text: "Light", checked: a.mode === "light", act: () => setAppearance({ ...a, mode: "light" }) },
+      "-",
+      { label: "Dark look" },
+      ...DARK_LOOKS.map((l) => look(l, { ...a, mode: "dark", dark: l })),
+      "-",
+      { label: "Light look" },
+      ...LIGHT_LOOKS.map((l) => look(l, { ...a, mode: "light", light: l })),
+    ];
+  }
   return [
     ...(Object.keys(PRESET_NAME) as Preset[]).map((p) => ({
       text: `${PRESET_NAME[p]} layout`,
@@ -428,6 +465,16 @@ function menuItems(name: string): Item[] {
     "-",
     { text: "Fold the windows (Tab)", checked: document.body.dataset.panels === "folded", act: togglePanels },
     { text: "Reset this layout", act: () => dock.reset() },
+    "-",
+    // Opens in place of this menu, so the View menu stays short enough for the laptop screen.
+    {
+      text: "Appearance…",
+      act: () =>
+        openMenu(
+          menuBtns.find((b) => b.dataset.menu === "view")!,
+          "appearance",
+        ),
+    },
   ];
 }
 const menuEl = $<HTMLDivElement>("menu");
@@ -436,9 +483,10 @@ function closeMenu(): void {
   menuEl.hidden = true;
   for (const b of menuBtns) b.setAttribute("aria-expanded", "false");
 }
-function openMenu(btn: HTMLButtonElement): void {
-  const items = menuItems(btn.dataset.menu!).map((it) => {
+function openMenu(btn: HTMLButtonElement, name = btn.dataset.menu!): void {
+  const items = menuItems(name).map((it) => {
     if (it === "-") return Object.assign(document.createElement("hr"), { className: "menu-sep" });
+    if ("label" in it) return Object.assign(document.createElement("div"), { className: "menu-label", textContent: it.label });
     const b = Object.assign(document.createElement("button"), { type: "button", textContent: it.text, disabled: !!it.disabled });
     if (it.id) b.id = it.id;
     b.setAttribute("role", it.checked === undefined ? "menuitem" : "menuitemcheckbox");

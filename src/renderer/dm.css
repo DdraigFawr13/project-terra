@@ -1,4 +1,5 @@
-/* Ember look (D-023): dark warm brown, copper-red highlight, Alegreya SC headings, Source Sans 3 for everything read mid-fight. */
+/* The DM window's looks (D-023, D-033): Alegreya SC headings, Source Sans 3 for everything read mid-fight, a copper-red
+   highlight in every look. Colours live only in the look blocks below; the rest of this file uses the tokens. */
 @font-face {
   font-family: "Alegreya SC";
   font-weight: 500;
@@ -24,27 +25,148 @@
   font-weight: 700;
   src: url("assets/fonts/source-sans-3-latin-700-normal.woff2") format("woff2");
 }
-:root {
-  --bg: #17120f;
-  --surface: #211a15;
-  --raised: #2c231c;
-  --ink: #efe6da;
-  --muted: #a8998a;
-  --line: #3a2e25;
-  /* Copper-red, not amber, so it can't be mistaken for the yellow enemy disc (D-023). */
-  --accent: #c8623f;
-  --accent-ink: #1a0e09;
+/* Every look sets every colour token. looks.test.ts checks them: text and grey text at least 7:1, copper at least 4.5:1.
+   --ground: the gap between windows (D-032). --bg: wells inside a window (stat boxes, bar tracks). --line: rules inside a
+   window; --frame: window edges and the line under each header. --accent: copper-red, not amber, so it can't be mistaken
+   for the yellow enemy disc (D-023). --warn, --danger: Bloodied and Near death; --danger-ink: red text. --current: the
+   initiative row whose turn it is. --rim: the edge of a disc colour swatch. The map and previews stay black in every look:
+   they show the table. */
+:root,
+:root[data-look="ember"] {
+  --ground: #050404;
+  --bg: #0d0b0a;
+  --surface: #14110f;
+  --raised: #1f1a17;
+  --line: #352c26;
+  --frame: #4a3e35;
+  --ink: #f3ece4;
+  --muted: #b8ac9f;
+  --accent: #d8653d;
+  --accent-ink: #140a06;
   --focus: #f0d3a8;
-  /* The dark ground between windows, so each reads as its own object (D-032). */
-  --ground: #0f0b09;
-  --frame: #4a3a2e;
+  --ok: #5fb865;
+  --warn: #f0a27c;
+  --danger: #ff6b5a;
+  --danger-ink: #ff8a7a;
+  --notice: #ffb59c;
+  --current: #4a2618;
+  --damage-bg: #6b2318;
+  --heal-bg: #1f4a26;
+  --rim: #ffffff;
+  --shade: rgba(0, 0, 0, 0.6);
+  --drop: rgba(216, 101, 61, 0.25);
+  color-scheme: dark;
+}
+:root[data-look="deepwater"] {
+  --ground: #050909;
+  --bg: #0b1112;
+  --surface: #101819;
+  --raised: #172223;
+  --line: #2a393a;
+  --frame: #3e5455;
+  --ink: #ecf2f1;
+  --muted: #adbdbc;
+  --accent: #d9714a;
+  --accent-ink: #160b07;
+  --focus: #f0d3a8;
+  --ok: #5fb865;
+  --warn: #f0a27c;
+  --danger: #ff6b5a;
+  --danger-ink: #ff8a7a;
+  --notice: #ffb59c;
+  --current: #46281c;
+  --damage-bg: #6b2318;
+  --heal-bg: #1f4a26;
+  --rim: #ffffff;
+  --shade: rgba(0, 0, 0, 0.6);
+  --drop: rgba(217, 113, 74, 0.25);
+  color-scheme: dark;
+}
+:root[data-look="soot"] {
+  --ground: #070707;
+  --bg: #0f0f0e;
+  --surface: #161515;
+  --raised: #201f1e;
+  --line: #353331;
+  --frame: #4c4845;
+  --ink: #f2efeb;
+  --muted: #b8b2ab;
+  --accent: #d8704a;
+  --accent-ink: #160b07;
+  --focus: #f0d3a8;
+  --ok: #5fb865;
+  --warn: #f0a27c;
+  --danger: #ff6b5a;
+  --danger-ink: #ff8a7a;
+  --notice: #ffb59c;
+  --current: #46271b;
+  --damage-bg: #6b2318;
+  --heal-bg: #1f4a26;
+  --rim: #ffffff;
+  --shade: rgba(0, 0, 0, 0.6);
+  --drop: rgba(216, 112, 74, 0.25);
+  color-scheme: dark;
+}
+:root[data-look="parchment"] {
+  --ground: #d9cfbf;
+  --bg: #e9e0d1;
+  --surface: #f4ede1;
+  --raised: #ebe2d3;
+  --line: #cdbda6;
+  --frame: #8f7a62;
+  --ink: #2a1d14;
+  --muted: #554334;
+  --accent: #9a3f24;
+  --accent-ink: #ffffff;
+  --focus: #1d5f86;
+  --ok: #2f7d3a;
+  --warn: #8a4a00;
+  --danger: #b3261e;
+  --danger-ink: #8f1d16;
+  --notice: #8c2f17;
+  --current: #f0d4c4;
+  --damage-bg: #f5d6d0;
+  --heal-bg: #d6ead6;
+  --rim: #2a1d14;
+  --shade: rgba(60, 40, 20, 0.28);
+  --drop: rgba(154, 63, 36, 0.2);
+  color-scheme: light;
+}
+:root[data-look="linen"] {
+  --ground: #c9c6c1;
+  --bg: #e7e5e1;
+  --surface: #f2f1ee;
+  --raised: #e6e4e0;
+  --line: #c6c2bb;
+  --frame: #8a847c;
+  --ink: #1f1c19;
+  --muted: #4c4741;
+  --accent: #a8462a;
+  --accent-ink: #ffffff;
+  --focus: #1d5f86;
+  --ok: #2f7d3a;
+  --warn: #8a4a00;
+  --danger: #b3261e;
+  --danger-ink: #8f1d16;
+  --notice: #8c2f17;
+  --current: #f1d7cb;
+  --damage-bg: #f5d6d0;
+  --heal-bg: #d6ead6;
+  --rim: #1f1c19;
+  --shade: rgba(0, 0, 0, 0.22);
+  --drop: rgba(168, 70, 42, 0.2);
+  color-scheme: light;
+}
+:root {
+  /* The map, the calibration and the table preview are always black, so what is drawn on them keeps Ember's colours. */
+  --map-accent: #d8653d;
+  --map-focus: #f0d3a8;
   --display: "Alegreya SC", Georgia, serif;
   --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   /* Smaller since D-031 (Morgan uses a stylus): 32 px targets, 36 px list rows, 44 px bottom tools. */
   --target: 32px;
   --row: 36px;
   --tool: 44px;
-  color-scheme: dark;
 }
 * {
   box-sizing: border-box;
@@ -152,7 +274,7 @@ button.menu-btn:hover {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #ffb59c;
+  color: var(--notice);
   font-weight: 600;
 }
 /* ---- Docked windows around the map (D-031) ---- */
@@ -254,7 +376,7 @@ body[data-panels="folded"] .area-split {
   border-color: var(--accent);
   box-shadow:
     0 0 0 1px var(--accent),
-    0 8px 24px rgba(0, 0, 0, 0.5);
+    0 8px 24px var(--shade);
 }
 .dock-group {
   flex: 1 1 0;
@@ -310,9 +432,28 @@ body[data-panels="folded"] .area-split {
   min-height: var(--target);
   padding: 0 2px 0 4px;
   background: var(--raised);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--frame);
   touch-action: none;
   user-select: none;
+}
+/* The window in use has a copper header as well as its copper outline (D-033). */
+.dock-frame.is-active > .dock-bar {
+  background: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.dock-frame.is-active > .dock-bar button.dock-tab,
+.dock-frame.is-active > .dock-bar button.icon {
+  color: var(--accent-ink);
+}
+.dock-frame.is-active > .dock-bar button.dock-tab[aria-selected="true"] {
+  box-shadow: inset 0 -2px 0 var(--accent-ink);
+}
+.dock-frame.is-active > .dock-bar button.icon {
+  background: transparent;
+  border-color: transparent;
+}
+.dock-frame.is-active > .dock-bar button.icon[aria-pressed="true"] {
+  border-color: var(--accent-ink);
 }
 .dock-tabs {
   flex: 1;
@@ -372,9 +513,10 @@ button.dock-tab[aria-selected="true"] {
   min-width: 240px;
   min-height: 140px;
   max-width: calc(100vw - 16px);
-  border: 1px solid var(--accent);
+  /* Copper only on the window in use (.is-active), as for docked windows. */
+  border: 1px solid var(--frame);
   border-radius: 8px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 14px 36px var(--shade);
   overflow: hidden;
   /* Drag the corner to size it. */
   resize: both;
@@ -390,7 +532,7 @@ button.dock-tab[aria-selected="true"] {
   position: fixed;
   z-index: 50;
   pointer-events: none;
-  background: rgba(200, 98, 63, 0.25);
+  background: var(--drop);
   border: 2px solid var(--accent);
   border-radius: 6px;
 }
@@ -421,7 +563,7 @@ button.dock-tab[aria-selected="true"] {
   background: var(--raised);
   border: 1px solid var(--accent);
   border-radius: 8px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 14px 36px var(--shade);
 }
 .menu button {
   justify-content: flex-start;
@@ -846,7 +988,7 @@ h3 {
   background: var(--raised);
 }
 .entry.current {
-  background: #4a2618;
+  background: var(--current);
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 .entry.picked {
@@ -892,7 +1034,7 @@ button.icon {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 2px solid #fff;
+  border: 2px solid var(--rim);
 }
 /* The disc colours, as on the table (table-draw.ts DISC_HEX). */
 .yellow {
@@ -928,7 +1070,7 @@ button.badge {
   border-radius: 50%;
   background: var(--disc);
   color: var(--disc-ink);
-  border: 2px solid #fff;
+  border: 2px solid var(--rim);
   font-weight: 700;
 }
 button.condition {
@@ -937,10 +1079,10 @@ button.condition {
   padding: 0 6px;
 }
 button.condition.bloodied {
-  color: #f0a27c;
+  color: var(--warn);
 }
 button.condition.nearDeath {
-  color: #ff6b5a;
+  color: var(--danger-ink);
 }
 button.condition.down {
   color: var(--muted);
@@ -972,7 +1114,7 @@ button.condition.down {
   padding: 0 6px;
 }
 button.danger {
-  color: #ff8a7a;
+  color: var(--danger-ink);
 }
 /* Grid tracks would otherwise grow to an input's natural width and push the panel sideways. */
 .panel,
@@ -1096,7 +1238,7 @@ button.hp-pick.down {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 2px solid #fff;
+  border: 2px solid var(--rim);
   background: var(--disc);
   color: var(--disc-ink);
   font-weight: 700;
@@ -1119,14 +1261,14 @@ button.hp-pick.down {
 .hp-bar i {
   display: block;
   height: 100%;
-  background: #57a35c;
+  background: var(--ok);
 }
 .hp-bar i.bloodied {
-  background: #f0a27c;
+  background: var(--warn);
 }
 .hp-bar i.nearDeath,
 .hp-bar i.down {
-  background: #ff6b5a;
+  background: var(--danger);
 }
 .hp-word {
   font-size: 0.82rem;
@@ -1134,10 +1276,19 @@ button.hp-pick.down {
   font-weight: 600;
 }
 .bloodied .hp-word {
-  color: #f0a27c;
+  color: var(--warn);
 }
 .nearDeath .hp-word {
-  color: #ff6b5a;
+  color: var(--danger-ink);
+}
+/* The Party sheet: the bar with its word beside it. */
+.hp-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hp-line .hp-bar {
+  flex: 1;
 }
 .hp-num {
   font-variant-numeric: tabular-nums;
@@ -1181,12 +1332,12 @@ button.hp-pick.down {
   font-size: 1rem;
 }
 .pad .damage {
-  background: #6b2318;
-  border-color: #ff6b5a;
+  background: var(--damage-bg);
+  border-color: var(--danger);
 }
 .pad .heal {
-  background: #1f4a26;
-  border-color: #57a35c;
+  background: var(--heal-bg);
+  border-color: var(--ok);
 }
 .notes {
   margin: 0;
@@ -1270,7 +1421,7 @@ input[type="search"] {
   color: var(--muted);
 }
 .hits .warn {
-  color: #f0a27c;
+  color: var(--warn);
   text-align: right;
 }
 .statblock {
@@ -1319,6 +1470,13 @@ input[type="search"] {
 .menu button:disabled {
   opacity: 0.45;
 }
+/* A heading inside a menu (Appearance: Mode, Dark look, Light look). */
+.menu-label {
+  padding: 6px 12px 2px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
 
 /* ---- Pop-up pads beside a tap (D-032): a disc's HP, an initiative roll ---- */
 .pop {
@@ -1332,7 +1490,7 @@ input[type="search"] {
   background: var(--raised);
   border: 1px solid var(--accent);
   border-radius: 10px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 14px 36px var(--shade);
 }
 button.pop-close {
   position: absolute;

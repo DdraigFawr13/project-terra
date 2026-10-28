@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blankGroup, conditionOf } from "./fight.ts";
+import { blankGroup, conditionFromHp, conditionOf } from "./fight.ts";
 import {
   apply,
   defaultState,
@@ -250,4 +250,11 @@ test("a version 5 save upgrades: group names become group info, discs and cards 
     spellDc: null,
     notes: "",
   });
+});
+
+test("the condition word from HP: Bloodied at half, Near death at a quarter, Down at 0", () => {
+  assert.deepEqual(
+    [31, 16, 15, 8, 7, 1, 0].map((hp) => conditionFromHp(hp, 31)),
+    ["fine", "fine", "bloodied", "bloodied", "nearDeath", "nearDeath", "down"],
+  );
 });

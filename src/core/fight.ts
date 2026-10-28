@@ -218,15 +218,19 @@ export function discHp(d: Disc, groups: Groups): number | null {
   return max === null ? null : Math.min(d.hp ?? max, max);
 }
 
-/** The condition word: from HP when the HP max is known (Bloodied at half, Near death at a quarter), else as set by hand. */
-export function conditionOf(d: Disc, groups: Groups): Condition {
-  const max = discMax(d, groups);
-  const hp = discHp(d, groups);
-  if (max === null || hp === null) return d.condition;
+/** The condition word from HP: Bloodied at half, Near death at a quarter, Down at 0 (D-028). */
+export function conditionFromHp(hp: number, max: number): Condition {
   if (hp <= 0) return "down";
   if (hp * 4 <= max) return "nearDeath";
   if (hp * 2 <= max) return "bloodied";
   return "fine";
+}
+
+/** A disc's condition word: from HP when the HP max is known, else as set by hand. */
+export function conditionOf(d: Disc, groups: Groups): Condition {
+  const max = discMax(d, groups);
+  const hp = discHp(d, groups);
+  return max === null || hp === null ? d.condition : conditionFromHp(hp, max);
 }
 
 /** Damage (a negative change) or healing, kept between 0 and the HP max. Unknown HP max: no change. */
