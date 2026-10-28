@@ -44,9 +44,7 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
 
 ## Planning pages (Morgan's answers are saved in each)
 
-- UI design round 1: https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx
-- UI design round 2: https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2
-- UI design final: https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re
+- UI design: [round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)
 
 - Round 1: https://claude.ai/artifact/KbAFZXKteAj4mrahwNW2S3
 - Review: https://claude.ai/artifact/Abqb6FvUU9G1tq3KUYyhBG
