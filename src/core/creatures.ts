@@ -62,12 +62,13 @@ export function parseCreature(raw: unknown): StatBlock | null {
   const id = raw.id;
   const book = raw.source.book;
   const name = str(raw.name, 120);
-  const ac = num(raw.ac);
-  const hp = num(raw.hp.avg);
+  // The same limits a colour group's AC and HP max have, so linking never fails (D-028).
+  const ac = num(raw.ac) !== null && num(raw.ac)! >= 0 && num(raw.ac)! <= 40 ? num(raw.ac) : null;
+  const hp = num(raw.hp.avg) !== null && num(raw.hp.avg)! >= 1 && num(raw.hp.avg)! <= 999 ? num(raw.hp.avg) : null;
   if (typeof id !== "string" || !ID.test(id) || typeof book !== "string" || !BOOK.test(book) || !name || ac === null || hp === null)
     return null;
   const speed = isObject(raw.speed) ? raw.speed : {};
-  const walk = num(speed.walk);
+  const walk = num(speed.walk) !== null && num(speed.walk)! >= 0 && num(speed.walk)! <= 999 ? num(speed.walk) : null;
   const speedText = [
     walk === null ? null : `${walk} ft.`,
     ...SPEEDS.map((k) => (num(speed[k]) === null ? null : `${k[0]!.toUpperCase()}${k.slice(1)} ${num(speed[k])} ft.`)),

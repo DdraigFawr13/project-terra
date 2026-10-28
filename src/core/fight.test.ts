@@ -1,7 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { blankGroup, conditionOf } from "./fight.ts";
-import { apply, defaultState, parseCommand, parseSave, playerViewOf, serialize, type PlacedMap, type TableState } from "./table.ts";
+import {
+  apply,
+  defaultState,
+  dropMissingCharacters,
+  parseCommand,
+  parseSave,
+  playerViewOf,
+  serialize,
+  type PlacedMap,
+  type TableState,
+} from "./table.ts";
 
 const map: PlacedMap = {
   id: "map-1",
@@ -188,7 +198,8 @@ test("HP: the condition word follows HP once there is an HP max; damage takes te
     s = run([{ type: "discHp", colour: "yellow", letter: "B", change }], s);
     assert.equal(word(s), expected, String(change));
   }
-  assert.equal(yellowB(s).hp, 40);
+  // Back to full is stored as "full", so the disc follows a later change to its HP max.
+  assert.equal(yellowB(s).hp, null);
 
   let pc = run([
     { type: "addCharacter", character: { name: "Ash", ...card } },
@@ -198,6 +209,19 @@ test("HP: the condition word follows HP once there is an HP max; damage takes te
   assert.deepEqual([pc.party[0]!.tempHp, pc.party[0]!.hp], [0, 17]);
   pc = run([{ type: "characterHp", id: "pc-1", change: 100 }], pc);
   assert.deepEqual([pc.party[0]!.tempHp, pc.party[0]!.hp], [0, 24]);
+  // A removed character's id is never given out again, and an undo that brings back their roll drops it.
+  pc = run([{ type: "startFight" }, { type: "initiative", who: "pc-1", init: 12 }], pc);
+  const rolled = pc;
+  pc = run(
+    [
+      { type: "removeCharacter", id: "pc-1" },
+      { type: "addCharacter", character: { name: "Bryn", ...card } },
+    ],
+    pc,
+  );
+  assert.equal(pc.party[0]!.id, "pc-2");
+  const undone = dropMissingCharacters({ ...rolled, party: pc.party, lastCharacter: pc.lastCharacter });
+  assert.deepEqual(undone.fight!.entries, []);
 });
 
 test("a version 5 save upgrades: group names become group info, discs and cards gain their new fields", () => {

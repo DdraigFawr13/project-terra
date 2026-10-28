@@ -1,7 +1,17 @@
 // Monster windows (D-028): one floating window per colour group with AC, speed, HP max, each disc's HP and a number pad,
 // an Edit view for the group and its discs, and a Book view with the stat block from the private library. DM-only.
 import type { CreatureHit, StatBlock } from "../core/creatures.ts";
-import { blankGroup, conditionOf, discHp, discMax, type Condition, type Disc, type DiscColour, type GroupInfo } from "../core/fight.ts";
+import {
+  blankGroup,
+  conditionOf,
+  parseGroupInfo,
+  discHp,
+  discMax,
+  type Condition,
+  type Disc,
+  type DiscColour,
+  type GroupInfo,
+} from "../core/fight.ts";
 import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { discKey } from "./dm-map.ts";
@@ -18,8 +28,11 @@ type Panel = {
   win: FloatWin;
   pad: Numpad;
   view: View;
+  /** The map this panel's view and draft belong to; another map starts the panel afresh. */
+  mapId: string | null;
   draft: Draft | null;
-  book: { query: string; hits: CreatureHit[]; block: StatBlock | null; status: string };
+  /** `choosing`: the DM asked to pick a different creature, so the linked one isn't loaded back. `loading`: the key on its way. */
+  book: { query: string; hits: CreatureHit[]; block: StatBlock | null; status: string; choosing: boolean; loading: string | null };
 };
 
 export function initMonsters(
@@ -52,7 +65,14 @@ export function initMonsters(
         if (d) run({ type: "discHp", colour: c, letter: d.letter, change: kind === "damage" ? -amount : amount });
       },
     );
-    p = { win, pad, view: "hp", draft: null, book: { query: "", hits: [], block: null, status: "" } };
+    p = {
+      win,
+      pad,
+      view: "hp",
+      draft: null,
+      mapId: null,
+      book: { query: "", hits: [], block: null, status: "", choosing: false, loading: null },
+    };
     panels.set(c, p);
     return p;
   }
@@ -67,12 +87,25 @@ export function initMonsters(
     const g = groupOf(s, c);
     const discs = discsOf(s, c);
     if (!discs.length && !s.map) return p.win.close();
+    // A new map, or an undo of the link, mustn't leave an old draft or stat block showing (D-028).
+    if (p.mapId !== (s.map?.id ?? null)) {
+      p.mapId = s.map?.id ?? null;
+      p.view = "hp";
+      p.draft = null;
+      p.book = { query: "", hits: [], block: null, status: "", choosing: false, loading: null };
+    }
+    if (p.book.block && p.book.block.key !== g.creature) p.book.block = null;
+    // The Book view shows the linked stat block once the link is in the state, however it got there (Use, undo).
+    if (p.view === "book" && g.creature && !p.book.choosing && !p.book.block && p.book.loading !== g.creature) void openBook(c, p, g);
     p.win.title.replaceChildren(swatch(c), el("b", {}, g.name || COLOUR_NAME[c]));
     const tab = (v: View, label: string) =>
       button(label, { "aria-pressed": String(p.view === v) }, () => {
         p.view = p.view === v ? "hp" : v;
         if (p.view === "edit") p.draft = draftOf(g, discs);
-        if (p.view === "book") void openBook(c, p, g);
+        if (p.view === "book") {
+          p.book.choosing = false;
+          void openBook(c, p, g);
+        }
         render();
       });
     p.win.actions.replaceChildren(tab("book", "Book"), tab("edit", "Edit"));
@@ -162,24 +195,19 @@ export function initMonsters(
     const d = (p.draft ??= draftOf(g, discs));
     const status = el("p", { class: "hint", role: "status" });
     const save = () => {
-      const n = (k: "ac" | "speed" | "hpMax") => wholeOrNull(d.info[k]);
-      const info: GroupInfo = {
-        ...g,
-        name: d.info.name.trim(),
-        ac: n("ac"),
-        speed: n("speed"),
-        hpMax: n("hpMax"),
-        notes: d.info.notes.trim(),
-      };
-      const bad = (["ac", "speed", "hpMax"] as const).some((k) => d.info[k].trim() !== "" && n(k) === null);
-      if (bad || (info.hpMax !== null && info.hpMax < 1) || (info.ac !== null && info.ac > 40)) {
-        status.textContent = "Use whole numbers: AC 0–40, HP max 1–999, speed in feet.";
+      const n = (k: "ac" | "speed" | "hpMax") => (d.info[k].trim() === "" ? null : (wholeOrNull(d.info[k]) ?? NaN));
+      // The same checks the main process makes, so a slip is explained and the typing kept.
+      const info = parseGroupInfo({ ...g, name: d.info.name, ac: n("ac"), speed: n("speed"), hpMax: n("hpMax"), notes: d.info.notes });
+      const own = discs.map((disc) =>
+        (d.discMax[disc.letter] ?? "").trim() === "" ? null : (wholeOrNull(d.discMax[disc.letter]!) ?? NaN),
+      );
+      if (!info || own.some((v) => v !== null && !(v >= 1 && v <= 999))) {
+        status.textContent = "Use whole numbers: AC 0–40, speed 0–999 ft, HP max 1–999.";
         return;
       }
       run({ type: "group", colour: c, info });
-      for (const disc of discs) {
-        const own = wholeOrNull(d.discMax[disc.letter] ?? "");
-        if (own !== disc.hpMax && (own === null || own >= 1)) run({ type: "discMax", colour: c, letter: disc.letter, hpMax: own });
+      for (const [i, disc] of discs.entries()) {
+        if (own[i] !== disc.hpMax) run({ type: "discMax", colour: c, letter: disc.letter, hpMax: own[i]! });
       }
       p.view = "hp";
       p.draft = null;
@@ -204,7 +232,11 @@ export function initMonsters(
             { ...NUMBER, min: "1", max: "999", placeholder: g.hpMax === null ? "" : `${g.hpMax}` },
             (v) => (d.discMax[disc.letter] = v),
           ),
-          button("Remove", { class: "danger" }, () => run({ type: "removeDisc", colour: c, letter: disc.letter })),
+          button("Remove", { class: "danger" }, () => {
+            // A new disc given this letter later starts without this one's typed HP max.
+            delete d.discMax[disc.letter];
+            run({ type: "removeDisc", colour: c, letter: disc.letter });
+          }),
         ),
       ),
       field("Notes (only you see them)", d.info.notes, { type: "textarea", maxlength: "2000", rows: "3" }, (v) => (d.info.notes = v)),
@@ -228,7 +260,9 @@ export function initMonsters(
   }
 
   async function openBook(c: DiscColour, p: Panel, g: GroupInfo): Promise<void> {
+    p.book.loading = g.creature;
     p.book.block = g.creature ? await terra.getCreature(g.creature) : null;
+    p.book.loading = null;
     if (!p.book.block) {
       p.book.hits = await terra.searchCreatures(p.book.query);
       if (!p.book.hits.length && !p.book.query) p.book.status = (await terra.countCreatures()) ? "" : "empty";
@@ -243,11 +277,12 @@ export function initMonsters(
         "div",
         { class: "book" },
         statBlock(b.block),
-        button(
-          "Pick a different creature",
-          {},
-          () => ((b.block = null), (b.status = ""), render(), void openBook(c, p, { ...g, creature: null })),
-        ),
+        button("Pick a different creature", {}, () => {
+          b.choosing = true;
+          b.block = null;
+          b.status = "";
+          void openBook(c, p, { ...g, creature: null });
+        }),
       );
     const file = el("input", { type: "file", accept: "application/json,.json", hidden: true, "data-key": `lib-${c}` });
     file.addEventListener("change", async () => {
@@ -270,7 +305,10 @@ export function initMonsters(
     search.value = b.query;
     search.addEventListener("input", () => {
       b.query = search.value;
-      void terra.searchCreatures(b.query).then((hits) => {
+      const asked = b.query;
+      void terra.searchCreatures(asked).then((hits) => {
+        // A slower reply to an earlier search mustn't replace the newer one.
+        if (asked !== b.query) return;
         b.hits = hits;
         render();
       });
@@ -284,8 +322,7 @@ export function initMonsters(
           colour: c,
           info: { ...g, name: g.name || block.name, creature: block.key, ac: block.ac, hpMax: block.hp, speed: block.speed },
         });
-        b.block = block;
-        render();
+        b.choosing = false;
       });
     return el(
       "div",

@@ -6,7 +6,17 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Surface } from "../core/calibration.ts";
 import { laptopDisplay, playerPlacement, type DisplayInfo } from "../core/displays.ts";
-import { apply, defaultState, parseCommand, parseSave, playerViewOf, serialize, UNDOABLE, type TableState } from "../core/table.ts";
+import {
+  apply,
+  defaultState,
+  dropMissingCharacters,
+  parseCommand,
+  parseSave,
+  playerViewOf,
+  serialize,
+  UNDOABLE,
+  type TableState,
+} from "../core/table.ts";
 import { countCreatures, findCreatures, getCreature, importCreatures } from "./creatures.ts";
 import { listMaps, mapFile, saveMap } from "./library.ts";
 
@@ -21,6 +31,7 @@ function keepOnUndo(s: TableState): Partial<TableState> {
     // Character cards are typed, not drawn: an undo of a disc move must not take back HP typed since (D-027).
     party: s.party,
     flipLetters: s.flipLetters,
+    lastCharacter: s.lastCharacter,
   };
 }
 
@@ -206,7 +217,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     ipcMain.handle("state:undo", () => {
       const previous = history.pop();
-      if (previous) commit({ ...previous, ...keepOnUndo(state) });
+      if (previous) commit(dropMissingCharacters({ ...previous, ...keepOnUndo(state) }));
       return state;
     });
     ipcMain.handle("history:get", () => history.length > 0);

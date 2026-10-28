@@ -83,6 +83,8 @@ export type TableState = {
   fight: Fight | null;
   /** Turn the discs' single letters half round, when the bottom of the picture is the far side of the table (D-028). */
   flipLetters: boolean;
+  /** The highest character id number given out, so a removed character's id is never reused. */
+  lastCharacter: number;
 };
 
 export type Command =
@@ -158,6 +160,7 @@ export function defaultState(): TableState {
     party: [],
     fight: null,
     flipLetters: false,
+    lastCharacter: 0,
   };
 }
 
@@ -420,8 +423,8 @@ export function apply(state: TableState, c: Command): TableState {
       return { ...state, flipLetters: c.on };
     case "addCharacter": {
       if (state.party.length >= MAX_PARTY) return state;
-      const n = Math.max(0, ...state.party.map((p) => Number(p.id.slice(3)))) + 1;
-      return n > 999 ? state : { ...state, party: [...state.party, { id: `pc-${n}`, ...c.character }] };
+      const n = Math.max(state.lastCharacter, ...state.party.map((p) => Number(p.id.slice(3)))) + 1;
+      return n > 999 ? state : { ...state, party: [...state.party, { id: `pc-${n}`, ...c.character }], lastCharacter: n };
     }
     case "updateCharacter":
       return { ...state, party: state.party.map((p) => (p.id === c.character.id ? c.character : p)) };
@@ -440,6 +443,15 @@ export function apply(state: TableState, c: Command): TableState {
     case "nextTurn":
       return withFight(state, (f) => nextTurn(f, (who) => takesTurns(who, state.map?.discs ?? [], state.map?.groups ?? {}, state.party)));
   }
+}
+
+/**
+ * After an undo that kept today's party: drop initiative entries for characters who are no longer in it, handing on
+ * the turn if it was theirs (D-027: cards are outside undo, the fight is not).
+ */
+export function dropMissingCharacters(state: TableState): TableState {
+  const gone = (state.fight?.entries ?? []).filter((e) => !isColour(e.who) && !state.party.some((p) => p.id === e.who));
+  return gone.reduce((s, e) => withFight(s, (f) => setInitiative(f, e.who, null)), state);
 }
 
 export type ParsedSave = { ok: true; state: TableState } | { ok: false; reason: string };
@@ -479,7 +491,11 @@ export function parseSave(text: string): ParsedSave {
   // The map now carries typed group info and HP too, so it isn't dropped quietly either.
   if (raw.map != null && !state.map) return { ok: false, reason: "the map, its fog or its discs can't be read" };
   if (fight === null && raw.fight != null) return { ok: false, reason: "the initiative order can't be read" };
-  return { ok: true, state: { ...state, party, fight } };
+  const lastCharacter =
+    Number.isInteger(raw.lastCharacter) && (raw.lastCharacter as number) >= 0 && (raw.lastCharacter as number) <= 999
+      ? (raw.lastCharacter as number) + 0
+      : 0;
+  return { ok: true, state: { ...state, party, fight, lastCharacter } };
 }
 
 export function serialize(state: TableState): string {

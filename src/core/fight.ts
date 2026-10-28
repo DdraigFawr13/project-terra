@@ -233,7 +233,10 @@ export function conditionOf(d: Disc, groups: Groups): Condition {
 export function changeDiscHp(d: Disc, groups: Groups, change: number): Disc {
   const max = discMax(d, groups);
   const hp = discHp(d, groups);
-  return max === null || hp === null ? d : { ...d, hp: Math.max(0, Math.min(max, hp + change)) + 0 };
+  if (max === null || hp === null) return d;
+  const next = Math.max(0, Math.min(max, hp + change)) + 0;
+  // Full is stored as null, so a disc at full HP follows a later change to its HP max.
+  return { ...d, hp: next === max ? null : next };
 }
 
 /** Damage takes temporary HP first, then HP down to 0; healing raises HP up to the max and never adds temporary HP. */

@@ -61,6 +61,8 @@ export function numpad(actions: PadAction[], onAct: (kind: string, amount: numbe
   return {
     el,
     setTarget: (t) => {
+      // An amount typed for one creature never lands on another.
+      if (t !== target) amount = 0;
       target = t;
       render();
     },

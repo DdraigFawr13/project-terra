@@ -91,7 +91,7 @@ export function floatWin(id: string, opts: { width: number; at: { x: number; y: 
 
   let drag: { pointer: number; dx: number; dy: number } | null = null;
   head.addEventListener("pointerdown", (e) => {
-    if (drag || (e.target as HTMLElement).closest("button, input")) return;
+    if (drag || e.button !== 0 || (e.target as HTMLElement).closest("button, input")) return;
     drag = { pointer: e.pointerId, dx: e.clientX - place.x, dy: e.clientY - place.y };
     head.setPointerCapture(e.pointerId);
     el.classList.add("dragging");
@@ -110,6 +110,7 @@ export function floatWin(id: string, opts: { width: number; at: { x: number; y: 
   };
   head.addEventListener("pointerup", end);
   head.addEventListener("pointercancel", end);
+  head.addEventListener("lostpointercapture", end);
   window.addEventListener("resize", () => !el.hidden && clamp());
 
   return {
