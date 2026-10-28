@@ -1,7 +1,7 @@
 // Draws a map with its fog (D-025), for the table window, the DM's table preview and the DM's map view. The fog list
 // is replayed into two masks, seen and explored, at a modest resolution in the map's own inches; the map image itself
 // keeps its full detail. Both windows use this one file, so the preview can't drift from the table.
-import type { FogOp, FogShape } from "../core/fog.ts";
+import { baseCells, type FogBase, type FogOp, type FogShape } from "../core/fog.ts";
 import type { Bounds } from "../core/map.ts";
 
 /** Mask pixels per inch. Soft edges a twentieth of an inch wide don't show on a projector. */
@@ -228,6 +228,17 @@ export function fillFog(ctx: CanvasRenderingContext2D | Ctx, op: FogShape): void
   ctx.fill("evenodd");
 }
 
+/** A base's cells onto a mask, one mask pixel per cell, scaled to the base's inches. */
+function drawCells(ctx: Ctx, base: FogBase, cells: Uint8Array): void {
+  const img = new ImageData(base.cols, base.rows);
+  cells.forEach((on, k) => {
+    if (on) img.data.set([255, 255, 255, 255], k * 4);
+  });
+  const c = new OffscreenCanvas(base.cols, base.rows);
+  c.getContext("2d")!.putImageData(img, 0, 0);
+  ctx.drawImage(c, base.x, base.y, base.cols / base.ppi, base.rows / base.ppi);
+}
+
 function paint(op: FogOp, seen: Ctx, explored: Ctx, b: Bounds): void {
   const all = (ctx: Ctx, on: boolean) => (on ? ctx.fillRect(b.x, b.y, b.width, b.height) : ctx.clearRect(b.x, b.y, b.width, b.height));
   for (const ctx of [seen, explored]) ctx.fillStyle = ctx.strokeStyle = "#fff";
@@ -238,6 +249,13 @@ function paint(op: FogOp, seen: Ctx, explored: Ctx, b: Bounds): void {
       return (all(seen, false), all(explored, false));
     case "dimSeen":
       return all(seen, false);
+    case "base":
+      // Baked fog (D-029) replaces everything before it.
+      all(seen, false);
+      all(explored, false);
+      drawCells(seen, op, baseCells(op).seen);
+      drawCells(explored, op, baseCells(op).explored);
+      return;
   }
   if (op.mode === "reveal") {
     fillFog(seen, op);

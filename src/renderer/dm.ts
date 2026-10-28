@@ -13,7 +13,21 @@ import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
 import { drawTable, mapImages } from "./table-draw.ts";
 
-const terra = (window as unknown as { terra: DmApi }).terra;
+const bridge = (window as unknown as { terra: DmApi }).terra;
+// The bridge copies a state every time it hands one to the page, and with a long fog list that copy is the slow part.
+// So the window takes each new state once, here, and every panel listens to this copy (D-029).
+const listeners: ((s: TableState) => void)[] = [];
+let latest: TableState | null = null;
+bridge.onState((s) => {
+  latest = s;
+  for (const fn of listeners) fn(s);
+});
+const first = bridge.getState().then((s) => (latest ??= s));
+const terra: DmApi = {
+  ...bridge,
+  onState: (fn) => void listeners.push(fn),
+  getState: () => first.then(() => latest!),
+};
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const statusEl = $<HTMLParagraphElement>("status");
 const noticeEl = $<HTMLParagraphElement>("notice");
@@ -65,8 +79,8 @@ function saveCalibration(cal: Calibration): void {
   state = { ...state, calibrations: { ...state.calibrations, [status.surfaceKey]: cal } };
   renderCalibration();
   pending++;
-  terra.apply({ type: "calibrations", value: state.calibrations }).then((s) => {
-    if (--pending === 0) renderState(s);
+  terra.apply({ type: "calibrations", value: state.calibrations }).then(() => {
+    if (--pending === 0 && latest) renderState(latest);
   });
 }
 

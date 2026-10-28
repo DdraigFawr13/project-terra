@@ -82,6 +82,9 @@
         <section id="mapView" class="card wide" aria-labelledby="mapTitle" hidden>
           <div class="maptools">
             <h2 id="mapTitle">Map</h2>
+            <button id="lockMap" type="button" aria-pressed="false" title="Keep the map where it is: no moving, turning or taking it off">
+              Lock
+            </button>
             <button type="button" class="move" data-dx="-1" data-dy="0" aria-label="Move map left 1 inch">←</button>
             <button type="button" class="move" data-dx="0" data-dy="-1" aria-label="Move map up 1 inch">↑</button>
             <button type="button" class="move" data-dx="0" data-dy="1" aria-label="Move map down 1 inch">↓</button>
@@ -95,8 +98,8 @@
             aria-label="The map on the table. With Select, drag it or use the arrow keys to move it by whole inches. With Reveal or Hide, paint the fog."
           ></canvas>
           <p class="hint">
-            Select (V) moves the map by whole inches, or a disc by its squares. Reveal (R) and Hide (H) paint the fog; Marker (M) places
-            discs. Two fingers cancel a stroke, and so does Esc. The dashed line is the edge of the table screen.
+            Select (V) moves the map by whole inches, or a disc by its squares; Lock keeps the map in place. Reveal (R) and Hide (H) paint
+            the fog; Marker (M) places discs. Two fingers cancel a stroke, and so does Esc. The dashed line is the edge of the table screen.
           </p>
         </section>
 

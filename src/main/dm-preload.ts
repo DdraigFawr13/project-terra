@@ -21,8 +21,9 @@ export type TableStatus = {
 
 const api = {
   getState: (): Promise<TableState> => ipcRenderer.invoke("state:get"),
-  apply: (command: Command): Promise<TableState> => ipcRenderer.invoke("state:apply", command),
-  undo: (): Promise<TableState> => ipcRenderer.invoke("state:undo"),
+  /** Resolves once the main process has taken the command; the new state arrives through `onState` first. */
+  apply: (command: Command): Promise<void> => ipcRenderer.invoke("state:apply", command),
+  undo: (): Promise<void> => ipcRenderer.invoke("state:undo"),
   canUndo: (): Promise<boolean> => ipcRenderer.invoke("history:get"),
   onHistory: (fn: (canUndo: boolean) => void) => ipcRenderer.on("history:changed", (_e, can: boolean) => fn(can)),
   listMaps: (): Promise<LibraryMap[]> => ipcRenderer.invoke("library:list"),
@@ -32,7 +33,7 @@ const api = {
   searchCreatures: (query: string): Promise<CreatureHit[]> => ipcRenderer.invoke("creatures:search", query),
   getCreature: (key: string): Promise<StatBlock | null> => ipcRenderer.invoke("creatures:get", key),
   countCreatures: (): Promise<number> => ipcRenderer.invoke("creatures:count"),
-  onState: (fn: (s: TableState) => void) => ipcRenderer.on("state:changed", (_e, s: TableState) => fn(s)),
+  onState: (fn: (s: TableState) => void): void => void ipcRenderer.on("state:changed", (_e, s: TableState) => fn(s)),
   onStatus: (fn: (s: TableStatus) => void) => ipcRenderer.on("table:status", (_e, s: TableStatus) => fn(s)),
 };
 

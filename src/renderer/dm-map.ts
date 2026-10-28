@@ -5,11 +5,12 @@
 import { defaultCalibration, screenOutline } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
 import { conditionOf, nextLetter, snapDisc, type Disc, type DiscColour } from "../core/fight.ts";
-import { MAX_FOG_OPS, MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
+import { MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
 import { mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
 import type { Command, PlacedMap, TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
 import { fillFog, type FogPainter } from "./fog-draw.ts";
+import { icon } from "./icons.ts";
 import { drawDisc } from "./table-draw.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -36,8 +37,13 @@ const markerOpts = $<HTMLDivElement>("markerOpts");
 const colourBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-colour]")];
 const discSizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-disc-size]")];
 const fogBtns = ["fogDim", "fogRevealAll", "fogCoverAll"].map((id) => $<HTMLButtonElement>(id));
-const fogHint = $<HTMLParagraphElement>("fogHint");
-const FOG_HINT = fogHint.textContent;
+const lockBtn = $<HTMLButtonElement>("lockMap");
+/** Buttons that move the map; a locked map keeps them off (D-029). */
+const placeBtns = [
+  ...document.querySelectorAll<HTMLButtonElement>("button.move"),
+  $<HTMLButtonElement>("turnMap"),
+  $<HTMLButtonElement>("removeMap"),
+];
 
 /** Outline colour while the marked corners fold over each other. */
 const FOLDED = "#ff6b5a";
@@ -257,6 +263,10 @@ export function initMaps(
 
   function drawMap(map: PlacedMap): void {
     $<HTMLHeadingElement>("mapTitle").textContent = map.name;
+    const locked = !!state?.mapLocked;
+    lockBtn.setAttribute("aria-pressed", String(locked));
+    lockBtn.innerHTML = `${icon(locked ? "lock" : "unlock")}${locked ? "Locked" : "Lock"}`;
+    for (const b of placeBtns) b.disabled = locked;
     const dpr = window.devicePixelRatio || 1;
     const w = mapCanvas.clientWidth;
     const h = mapCanvas.clientHeight;
@@ -436,7 +446,8 @@ export function initMaps(
       }
     }
     if (tool === "select") {
-      drag = { pointer: e.pointerId, pen, start: inchesAt(e), dx: 0, dy: 0 };
+      // A locked map stays put: a drag that misses every disc does nothing.
+      if (!state.mapLocked) drag = { pointer: e.pointerId, pen, start: inchesAt(e), dx: 0, dy: 0 };
       return;
     }
     if (tool === "marker") {
@@ -552,10 +563,6 @@ export function initMaps(
     press(colourBtns, (b) => b.dataset.colour === colour);
     press(discSizeBtns, (b) => Number(b.dataset.discSize) === discSize);
     fogBtns.forEach((b) => (b.disabled = !on));
-    const full = (state?.map?.fog.length ?? 0) >= MAX_FOG_OPS;
-    fogHint.textContent = full
-      ? `The fog holds ${MAX_FOG_OPS} strokes, its most. Use Reveal all or Cover all to start it afresh.`
-      : FOG_HINT;
     mapCanvas.dataset.tool = tool;
   }
   function setTool(t: Tool): void {
@@ -607,7 +614,7 @@ export function initMaps(
   const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   mapCanvas.addEventListener("keydown", (e) => {
     const m = ARROWS[e.key];
-    if (!m) return;
+    if (!m || state?.mapLocked) return;
     e.preventDefault();
     run({ type: "moveMap", dx: m[0], dy: m[1] });
   });
@@ -615,6 +622,7 @@ export function initMaps(
     b.addEventListener("click", () => run({ type: "moveMap", dx: Number(b.dataset.dx), dy: Number(b.dataset.dy) }));
   $<HTMLButtonElement>("turnMap").addEventListener("click", () => run({ type: "turnMap" }));
   $<HTMLButtonElement>("removeMap").addEventListener("click", () => run({ type: "removeMap" }));
+  lockBtn.addEventListener("click", () => run({ type: "lockMap", on: !state?.mapLocked }));
 
   $<HTMLButtonElement>("importMap").addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => {
