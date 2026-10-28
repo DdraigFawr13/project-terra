@@ -126,6 +126,6 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-021 How calibration is stored and drawn
 
-- **Status:** Proposed (2026-10-28), for Morgan's approval with the step 2 pull request.
+- **Status:** Accepted (2026-10-28), approved by Morgan with the step 2 pull request after a walkthrough (https://claude.ai/artifact/Dk2LB8FkDL3Jaj7JExoqfY).
 - **Decision:** Calibration stores the measured rectangle's size in whole inches and where its four corners land, as fractions (0–1) of the table screen. There is one calibration per table surface: `display:<id>` for each projector, and `window` for the table window on the laptop (for ruler tests on the laptop screen). Everything on the table is drawn in inches on one layer canvas, and a single CSS `matrix3d` warp puts that layer onto the screen. Corners are dragged in the DM window; arrow keys move one physical pixel.
 - **Why:** fractions of the screen don't change with resolution or Windows display scaling, so no conversion between CSS and physical pixels can go wrong. Drawing in inches keeps D-005, and maps, fog and markers in steps 3–5 get the warp for free instead of each doing its own maths. The table window stays read-only (D-002): only the DM window changes the calibration.

@@ -11,6 +11,8 @@ const screenCanvas = document.getElementById("table") as HTMLCanvasElement;
 const layerCanvas = document.getElementById("layer") as HTMLCanvasElement;
 const sctx = screenCanvas.getContext("2d")!;
 const lctx = layerCanvas.getContext("2d")!;
+const overlayCanvas = document.getElementById("overlay") as HTMLCanvasElement;
+const octx = overlayCanvas.getContext("2d")!;
 let player: PlayerView | null = null;
 
 const FONT = `"Segoe UI", system-ui, sans-serif`;
@@ -71,30 +73,42 @@ function drawTable(cal: Calibration, calibrating: boolean, calibrated: boolean):
   ctx.fillStyle = "#ffffff";
   const size = Math.min(X(0.45), rect.w / 14);
   if (calibrating) {
-    // Numbered corners match the handles in the DM window.
-    const corners = [
-      [0, 0],
-      [rect.w, 0],
-      [rect.w, rect.h],
-      [0, rect.h],
-    ] as const;
-    corners.forEach(([x, y], i) => {
-      ctx.beginPath();
-      ctx.arc(x, y, X(0.35), 0, Math.PI * 2);
-      ctx.fillStyle = ACCENT;
-      ctx.fill();
-      ctx.fillStyle = "#0f1617";
-      ctx.font = `700 ${X(0.4)}px ${FONT}`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(String(i + 1), x, y);
-    });
     ctx.fillStyle = "#ffffff";
     textBothSides(ctx, `Calibrating: put corners 1–4 on your ${cal.widthIn} × ${cal.heightIn} inch marks`, rect, X(1.2), size);
   } else {
     const label = calibrated ? `1-inch squares · ${cal.widthIn} × ${cal.heightIn} inch check` : "1-inch squares · not calibrated yet";
     textBothSides(ctx, label, rect, X(1.2), size);
   }
+}
+
+/**
+ * The numbered corners, drawn unwarped on top so they keep the same size on screen however far a corner is from its
+ * mark. A ring with a cross marks the exact point; the number sits just outside the rectangle.
+ */
+function drawCornerMarks(cal: Calibration, s: Surface): void {
+  const pts = cal.corners.map((p) => ({ x: p.x * s.width, y: p.y * s.height }));
+  const mid = { x: pts.reduce((a, p) => a + p.x, 0) / 4, y: pts.reduce((a, p) => a + p.y, 0) / 4 };
+  const r = Math.max(14, Math.min(s.width, s.height) * 0.025);
+  octx.lineWidth = Math.max(2, r / 7);
+  octx.font = `700 ${Math.round(r * 1.1)}px ${FONT}`;
+  octx.textAlign = "center";
+  octx.textBaseline = "middle";
+  pts.forEach((p, i) => {
+    octx.strokeStyle = ACCENT;
+    octx.beginPath();
+    octx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    (octx.moveTo(p.x - r * 1.6, p.y), octx.lineTo(p.x + r * 1.6, p.y), octx.moveTo(p.x, p.y - r * 1.6), octx.lineTo(p.x, p.y + r * 1.6));
+    octx.stroke();
+    const d = Math.hypot(p.x - mid.x, p.y - mid.y) || 1;
+    const lx = p.x + ((p.x - mid.x) / d) * r * 2.6;
+    const ly = p.y + ((p.y - mid.y) / d) * r * 2.6;
+    octx.fillStyle = ACCENT;
+    octx.beginPath();
+    octx.arc(lx, ly, r * 0.95, 0, Math.PI * 2);
+    octx.fill();
+    octx.fillStyle = "#0f1617";
+    octx.fillText(String(i + 1), lx, ly + 1);
+  });
 }
 
 function draw(): void {
@@ -109,8 +123,14 @@ function draw(): void {
   document.body.dataset.view = view;
   document.body.dataset.calibrated = String(!!calibration);
   layerCanvas.hidden = true;
-  if (view === "testGrid" || view === "calibrate") drawTable(calibration ?? defaultCalibration(s), view === "calibrate", !!calibration);
-  else if (view === "idle") {
+  overlayCanvas.width = screenCanvas.width;
+  overlayCanvas.height = screenCanvas.height;
+  octx.setTransform(s.scale, 0, 0, s.scale, 0, 0);
+  if (view === "testGrid" || view === "calibrate") {
+    const cal = calibration ?? defaultCalibration(s);
+    drawTable(cal, view === "calibrate", !!calibration);
+    if (view === "calibrate") drawCornerMarks(cal, s);
+  } else if (view === "idle") {
     sctx.fillStyle = "rgba(255,255,255,0.35)";
     textBothSides(sctx, "Project Terra", { x: 0, y: 0, w: s.width, h: s.height }, 33, 22);
   }

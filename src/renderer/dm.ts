@@ -80,9 +80,11 @@ function renderCalibration(): void {
   const c = current();
   if (!c || !state || !status) return;
   const where = status.fullscreen ? "this projector" : "the table window on this laptop (for testing with a ruler on the screen)";
-  calState.textContent = c.saved
-    ? `Calibrated for ${where} with a ${c.cal.widthIn} × ${c.cal.heightIn} inch rectangle.`
-    : `Not calibrated for ${where} yet. Squares are close to 1 inch only on a normal screen.`;
+  calState.textContent = state.calibrating
+    ? `Calibrating ${where}. Press Done when all four corners sit on their marks.`
+    : c.saved
+      ? `Calibrated for ${where} with a ${c.cal.widthIn} × ${c.cal.heightIn} inch rectangle.`
+      : `Not calibrated for ${where} yet. Squares are close to 1 inch only on a normal screen.`;
   calTools.hidden = !state.calibrating;
   if (calTools.hidden) return;
   if (document.activeElement !== calWidth) calWidth.value = String(c.cal.widthIn);
