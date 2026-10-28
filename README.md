@@ -45,7 +45,7 @@ The picture at the top right is drawn by the same code as the table. Check it ma
 
 ## Develop
 
-Node 22.22.0 and npm 10.9.4.
+Node 22.22.0 and npm 10.9.4. On Windows, a version manager such as [fnm](https://github.com/Schniz/fnm) picks up `.nvmrc`; newer Node works but warns.
 
 ```bash
 npm ci
