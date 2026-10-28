@@ -37,7 +37,7 @@ Imported maps stay in the library on this laptop (`library/maps` in the app's da
 A map starts all black on the table. In the bottom toolbar:
 
 1. Tap **Reveal** (R) or **Hide** (H), then pick **Brush** (with a 1″, 2″ or 4″ size), **Outline** (draw a loop round a room) or **Box** (snaps to whole squares). S switches between them.
-2. Paint on the map with a finger or the mouse. The table changes when you lift. A second finger, or Esc, cancels the stroke.
+2. Paint on the map with the pen, a finger or the mouse. The table changes when you lift. A second finger, or Esc, cancels the stroke; a palm resting on the screen while the pen draws is ignored. The pen's eraser end hides.
 3. Hide turns "in view" back to grey with lines ("seen before"). **Party moves on** greys out everything in view; **Reveal all** and **Cover all** sit under the preview.
 4. Ctrl+Z or **Undo** takes back the last stroke. **Select** (V) goes back to moving the map.
 

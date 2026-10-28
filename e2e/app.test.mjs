@@ -215,6 +215,27 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
         .getImageData(0, 0, c.width, c.height)
         .data.some((v, i) => i % 4 !== 3 && v > 60);
     });
+    // Morgan uses a stylus: a palm touching the screen mid-stroke must not cancel the pen's stroke.
+    const cdp = await dm.context().newCDPSession(dm);
+    const pen = (type, dx) =>
+      cdp.send("Input.dispatchMouseEvent", {
+        type,
+        x: box.x + box.width / 2 + dx,
+        y: box.y + box.height / 2,
+        pointerType: "pen",
+        button: "left",
+        buttons: type === "mouseReleased" ? 0 : 1,
+        clickCount: 1,
+      });
+    await dm.click("button[data-draw='brush']");
+    await pen("mousePressed", -40);
+    await pen("mouseMoved", -20);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x + 10, y: box.y + 10 }] });
+    await pen("mouseMoved", 0);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await pen("mouseReleased", 20);
+    await table.waitForFunction(async () => (await window.terra.getView()).map?.fog[0]?.kind === "brush");
+    await dm.keyboard.press("Control+z");
     await dm.click("button[data-tool='select']");
 
     // Move right by one inch, then take it back with Ctrl+Z.

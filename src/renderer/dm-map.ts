@@ -42,8 +42,8 @@ const DRAW_ORDER: DrawWith[] = ["brush", "outline", "box"];
 /** Ghost colours while painting: warm light to reveal, copper to hide. */
 const GHOST = { reveal: "rgba(240, 211, 168, 0.5)", hide: "rgba(200, 98, 63, 0.55)" };
 
-/** One finger (or the mouse) painting fog, in map inches. Strokes reach the table only when lifted (D-025). */
-type Stroke = { pointer: number; points: Point[] };
+/** One finger, pen or mouse painting fog, in map inches. Strokes reach the table only when lifted (D-025). */
+type Stroke = { pointer: number; pen: boolean; mode: FogMode; points: Point[] };
 
 export function initMaps(
   terra: DmApi,
@@ -56,15 +56,15 @@ export function initMaps(
   let importing: Importing | null = null;
   let setupOpen = false;
   /** While dragging the map: how far it has moved so far, in inches. */
-  let drag: { start: Point; dx: number; dy: number } | null = null;
+  let drag: { pointer: number; start: Point; dx: number; dy: number } | null = null;
   let tool: Tool = "select";
   let drawWith: DrawWith = "brush";
   let brushIn = 2;
   let stroke: Stroke | null = null;
-  /** Where the mouse is over the map, in map inches, to show the brush ring. Touch has no hover. */
+  /** Where the mouse or a hovering pen is over the map, in map inches, to show the brush ring. Fingers have no hover. */
   let hover: Point | null = null;
   /** Fingers on the map now: a second one cancels the stroke. */
-  const fingers = new Set<number>();
+  const touches = new Set<number>();
 
   const run = (c: Command) => terra.apply(c);
   const undo = () => terra.undo();
@@ -293,10 +293,10 @@ export function initMaps(
 
   /** The fog op a stroke makes so far, or null if it doesn't make one yet. */
   function strokeOp(st: Stroke): FogShape | null {
-    if (tool === "select") return null;
+    const { mode } = st;
     const pts = st.points;
-    if (drawWith === "brush") return { kind: "brush", mode: tool, r: brushIn / 2, points: pts };
-    if (drawWith === "outline") return pts.length >= 3 ? { kind: "outline", mode: tool, points: pts } : null;
+    if (drawWith === "brush") return { kind: "brush", mode, r: brushIn / 2, points: pts };
+    if (drawWith === "outline") return pts.length >= 3 ? { kind: "outline", mode, points: pts } : null;
     // A box snaps outwards to whole squares of the map, at least one square.
     const a = pts[0]!;
     const b = pts[pts.length - 1]!;
@@ -304,7 +304,7 @@ export function initMaps(
     const y = Math.floor(Math.min(a.y, b.y));
     const width = Math.max(1, Math.ceil(Math.max(a.x, b.x)) - x);
     const height = Math.max(1, Math.ceil(Math.max(a.y, b.y)) - y);
-    return { kind: "box", mode: tool, x, y, width, height };
+    return { kind: "box", mode, x, y, width, height };
   }
 
   function sendStroke(st: Stroke): void {
@@ -323,23 +323,30 @@ export function initMaps(
 
   mapCanvas.addEventListener("pointerdown", (e) => {
     if (!state?.map) return;
-    fingers.add(e.pointerId);
-    if (fingers.size > 1) {
-      cancel();
-      return;
+    // A palm resting on the screen while the pen draws is ignored; a second finger cancels a finger's stroke.
+    if (e.pointerType === "touch") {
+      if (stroke?.pen) return;
+      touches.add(e.pointerId);
+      if (touches.size > 1) {
+        cancel();
+        return;
+      }
     }
+    if (stroke || drag) return;
     mapCanvas.setPointerCapture(e.pointerId);
     if (tool === "select") {
-      drag = { start: inchesAt(e), dx: 0, dy: 0 };
+      drag = { pointer: e.pointerId, start: inchesAt(e), dx: 0, dy: 0 };
       return;
     }
     const at = mapInchesAt(e)!;
-    stroke = { pointer: e.pointerId, points: [at] };
-    hover = e.pointerType === "mouse" ? at : null;
+    // A pen's eraser end (or eraser button) hides, whichever of Reveal or Hide is picked.
+    const eraser = e.pointerType === "pen" && (e.button === 5 || (e.buttons & 32) !== 0);
+    stroke = { pointer: e.pointerId, pen: e.pointerType === "pen", mode: eraser ? "hide" : tool, points: [at] };
+    hover = e.pointerType === "touch" ? null : at;
     render();
   });
   mapCanvas.addEventListener("pointermove", (e) => {
-    if (drag) {
+    if (drag?.pointer === e.pointerId) {
       const at = inchesAt(e);
       // The map snaps to whole inches so its squares stay on the table grid.
       drag.dx = Math.round(at.x - drag.start.x);
@@ -349,7 +356,7 @@ export function initMaps(
     }
     const at = mapInchesAt(e);
     if (!at) return;
-    if (e.pointerType === "mouse") hover = at;
+    if (e.pointerType !== "touch") hover = at;
     if (stroke?.pointer === e.pointerId) {
       const last = stroke.points[stroke.points.length - 1]!;
       // Keep points about a quarter of the brush apart: smooth enough, and saves stay small.
@@ -360,16 +367,16 @@ export function initMaps(
         // A very long stroke goes to the table in parts; an outline stops growing at its limit.
         if (drawWith === "brush") {
           sendStroke(stroke);
-          stroke = { pointer: stroke.pointer, points: [at] };
+          stroke = { ...stroke, points: [at] };
         } else stroke.points.length = MAX_FOG_POINTS;
       }
     }
     if (tool !== "select") render();
   });
   const endPointer = (e: PointerEvent, keep: boolean) => {
-    fingers.delete(e.pointerId);
-    if (e.pointerType !== "mouse") hover = null;
-    if (drag) {
+    touches.delete(e.pointerId);
+    if (e.pointerType === "touch") hover = null;
+    if (drag?.pointer === e.pointerId) {
       const { dx, dy } = drag;
       drag = null;
       if (keep && (dx || dy)) run({ type: "moveMap", dx, dy });
@@ -385,7 +392,7 @@ export function initMaps(
   mapCanvas.addEventListener("pointerup", (e) => endPointer(e, true));
   mapCanvas.addEventListener("pointercancel", (e) => endPointer(e, false));
   mapCanvas.addEventListener("pointerleave", (e) => {
-    if (e.pointerType === "mouse" && hover && !stroke) {
+    if (e.pointerType !== "touch" && hover && !stroke) {
       hover = null;
       render();
     }

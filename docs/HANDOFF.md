@@ -11,7 +11,7 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are mer
 - 2026-10-28 Step 5, fog (D-025), not yet merged. Morgan asked for touch-friendly tools and a freehand brush; approved the [touch sketch](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg).
   - Fog ops in map inches on the placed map (`src/core/fog.ts`, save version 4), one undoable `fog` command per stroke.
   - Drawing: `src/renderer/fog-draw.ts` (masks, patch-only redraw, cheap undo of the last stroke) and `table-draw.ts`, shared by the table and the DM's live preview.
-  - DM: 56 px bottom tools, brush ring, ghost while painting, whole-map buttons under the preview (`dm-map.ts`, `dm.ts`).
+  - DM: 56 px bottom tools, brush ring, ghost while painting, whole-map buttons under the preview (`dm-map.ts`, `dm.ts`). Morgan uses a stylus: palm touches are ignored while the pen draws (e2e-tested with simulated pen and touch), pen hover shows the ring, and the eraser hides (untested: needs a real pen).
   - `terra-map://` now sends CORS headers so canvases with a map stay readable (the e2e test checks pixels).
   - Tests: 23 unit (0.3 s), 3 e2e journeys (about 6 s). Speed: see D-025 item 7.
 
