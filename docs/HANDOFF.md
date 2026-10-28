@@ -26,6 +26,7 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
 
 ## Next
 
+- **Book library** (D-010 changed 2026-10-28). Morgan's Monster Manual 2024 PDF is in Drive `_AI_Directories` (id 15_Ka3AOMeL34n1xYmt_8DGzoCFVLZb6h); the DMG is still uploading. Next: assess both, then send round 1 of questions as a planning-interview form. Extracted data goes only in `DdraigFawr13/project-terra-library` (private).
 0. **Step 3: UI design** (D-022). Round 1 form is out: https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx (collection `uiround1`). When Morgan says "UI round 1 done", read the answers, then make round 2 visual (mockups of the DM window and table), following `.claude/skills/planning-interview/`.
 1. **Step 4: map import** (PLAN.md step 4, D-009, D-010). Design first: decide the state model (audit P1 item 4: commands with `apply(state, command)` in `src/core/`, giving undo and a determinism test), and where the personal library lives on the laptop. Draw maps on the table layer in inches (D-021). Testable in the cloud with a sample SRD or self-made image; never commit book maps.
 2. When Morgan has a Windows laptop: the 5-minute step 1 test (README "Try it on Windows"), then calibration with a ruler on the laptop screen, then the projector photo. Check `Display.internal` on that laptop (the built-in screen must say "this laptop" in the screen list).
@@ -46,7 +47,6 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
 ## Planning pages (Morgan's answers are saved in each)
 
 - UI design round 1: https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx
-
 - Round 1: https://claude.ai/artifact/KbAFZXKteAj4mrahwNW2S3
 - Review: https://claude.ai/artifact/Abqb6FvUU9G1tq3KUYyhBG
 - Round 2: https://claude.ai/artifact/Y1ync7v4p39K8rmimHFXsb
@@ -55,6 +55,6 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
 
 ## Decisions since the last plan update
 
-- 2026-10-28 D-018 PR workflow; D-019 the repo carries everything a session needs.
-- 2026-10-28 D-020 test upkeep at the end of each step (accepted).
+- 2026-10-28 D-018 PR workflow; D-019 the repo carries everything a session needs; D-020 test upkeep at the end of each step (accepted).
 - 2026-10-28 D-021 calibration storage and warp (accepted); D-022 UI design becomes step 3.
+- 2026-10-28 D-010 changed: book data goes in the private repo `project-terra-library`, never in this public repo.
