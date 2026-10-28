@@ -1,10 +1,13 @@
-// DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004).
-import { defaultCalibration, moveCorner, nudgeCorner, type Calibration } from "../core/calibration.ts";
+// DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004). The right panel
+// shows a live picture of the table, drawn by the table's own drawing code (D-025).
+import { defaultCalibration, layerFor, moveCorner, nudgeCorner, type Calibration } from "../core/calibration.ts";
 import { describeDisplay } from "../core/displays.ts";
-import { viewOf, type TableState } from "../core/table.ts";
+import { playerViewOf, viewOf, type TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
 import { initMaps } from "./dm-map.ts";
+import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
+import { drawTable, mapImages } from "./table-draw.ts";
 
 const terra = (window as unknown as { terra: DmApi }).terra;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -22,6 +25,7 @@ const preview = $<HTMLCanvasElement>("calPreview");
 const cornerBtns = [...document.querySelectorAll<HTMLButtonElement>("button.corner")];
 const panelsBtn = $<HTMLButtonElement>("panels");
 const previewText = $<HTMLSpanElement>("previewText");
+const tablePreview = $<HTMLCanvasElement>("tablePreview");
 
 // Icons go in front of each labelled control.
 for (const el of document.querySelectorAll<HTMLElement>("[data-icon]"))
@@ -32,7 +36,7 @@ const FOCUS = css.getPropertyValue("--focus").trim();
 const PREVIEW_TEXT = {
   curtain: "Curtain: the table is blank",
   calibrate: "Calibration pattern",
-  map: "Map",
+  map: "",
   testGrid: "Test grid",
   idle: "Title only",
 } as const;
@@ -68,8 +72,28 @@ function renderState(s: TableState): void {
   testGridBtn.setAttribute("aria-pressed", String(s.testGrid));
   curtainBtn.setAttribute("aria-pressed", String(s.curtain));
   calibrateBtn.setAttribute("aria-pressed", String(s.calibrating));
-  previewText.textContent = PREVIEW_TEXT[viewOf(s)];
   renderCalibration();
+  drawTablePreview();
+}
+
+/** The table in miniature: the same drawing as the table window, without the projector's warp. */
+function drawTablePreview(): void {
+  if (!state || !status) return;
+  const view = playerViewOf(state, status.surfaceKey);
+  previewText.textContent = PREVIEW_TEXT[view.view];
+  const mode = view.view === "curtain" || view.view === "idle" ? null : view.view;
+  tablePreview.hidden = !mode;
+  if (!mode) return;
+  const cal = view.calibration ?? defaultCalibration(status.surface);
+  const layer = layerFor(cal, status.surface);
+  const dpr = window.devicePixelRatio || 1;
+  const w = tablePreview.clientWidth;
+  const k = w / (layer.box.width * layer.pxPerInch);
+  const h = Math.round(layer.box.height * layer.pxPerInch * k);
+  tablePreview.style.height = `${h}px`;
+  tablePreview.width = Math.round(w * dpr);
+  tablePreview.height = Math.round(h * dpr);
+  drawTable(tablePreview.getContext("2d")!, { cal, layer, mode, calibrated: !!view.calibration, view, image, fog }, dpr * k);
 }
 
 function renderStatus(st: TableStatus): void {
@@ -93,6 +117,7 @@ function renderStatus(st: TableStatus): void {
   noticeEl.hidden = !st.notice;
   noticeEl.textContent = st.notice ?? "";
   renderCalibration();
+  drawTablePreview();
 }
 
 function renderCalibration(): void {
@@ -222,6 +247,8 @@ function togglePanels(): void {
   panelsBtn.querySelector("svg")?.remove();
   panelsBtn.insertAdjacentHTML("afterbegin", icon(open ? "panelsClose" : "panelsOpen"));
   renderCalibration();
+  maps.render();
+  drawTablePreview();
 }
 
 testGridBtn.addEventListener("click", () => terra.apply({ type: "testGrid", on: testGridBtn.getAttribute("aria-pressed") !== "true" }));
@@ -230,7 +257,13 @@ panelsBtn.addEventListener("click", togglePanels);
 
 // Shortcuts (D-023). They never fire while typing, and Tab folds the panels only when no control has focus, so
 // Tab still moves between controls.
-const maps = initMaps(terra, ACCENT);
+// One fog painter and one image cache serve the map view and the preview.
+const fog = new FogPainter();
+const image = mapImages(() => {
+  maps.render();
+  drawTablePreview();
+});
+const maps = initMaps(terra, ACCENT, fog, image);
 window.addEventListener("keydown", (e) => {
   const t = e.target as HTMLElement;
   if (t.closest("input, textarea, select, [contenteditable]")) return;
@@ -244,9 +277,14 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     togglePanels();
   } else if (e.key === "b" || e.key === "B") toggleCurtain();
+  else if (e.key === "Escape") maps.cancel();
+  else maps.shortcut(e.key);
 });
 displaySelect.addEventListener("change", () => terra.apply({ type: "playerDisplay", id: Number(displaySelect.value) }));
-window.addEventListener("resize", renderCalibration);
+window.addEventListener("resize", () => {
+  renderCalibration();
+  drawTablePreview();
+});
 
 terra.onState(renderState);
 terra.onStatus(renderStatus);

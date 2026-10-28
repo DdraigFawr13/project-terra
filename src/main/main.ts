@@ -155,7 +155,9 @@ function createWindows(): void {
 }
 
 // Map images reach both windows through terra-map://<id>, which serves only PNGs from the personal library (D-010).
-protocol.registerSchemesAsPrivileged([{ scheme: "terra-map", privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
+protocol.registerSchemesAsPrivileged([
+  { scheme: "terra-map", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
 
 /** Make the new state current: tell both windows, save, and move the table window if its screen changed. */
 function commit(next: TableState): void {
@@ -208,9 +210,12 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown) =>
       saveMap(app.getPath("userData"), name, png, bounds),
     );
-    protocol.handle("terra-map", (req) => {
+    protocol.handle("terra-map", async (req) => {
       const file = mapFile(app.getPath("userData"), new URL(req.url).hostname);
-      return file && fs.existsSync(file) ? net.fetch(pathToFileURL(file).toString()) : new Response("Not found", { status: 404 });
+      if (!file || !fs.existsSync(file)) return new Response("Not found", { status: 404 });
+      // Readable by the app's own pages, so a canvas with a map on it can still be read back (the e2e tests do).
+      const png = await net.fetch(pathToFileURL(file).toString());
+      return new Response(png.body, { headers: { "content-type": "image/png", "access-control-allow-origin": "*" } });
     });
     screen.on("display-added", placePlayerWindow);
     screen.on("display-removed", placePlayerWindow);

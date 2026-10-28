@@ -4,9 +4,16 @@ Updated: 2026-10-28. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are merged and tested in the cloud: two windows, calibration, UI design, map import. None has run on Windows yet. Morgan has no Windows (or Mac) computer for now, so projected steps stay "built, awaiting Morgan's check" (VER-07). **Next is step 5, fog.**
+Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are merged; step 5, fog, is built on branch `ccr-9aae693d-a3httu` and awaits Morgan's OK on the PR summary (D-018). All tested in the cloud only. The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1); Morgan doesn't have it yet, so projected steps stay "built, awaiting Morgan's check" (VER-07).
 
 ## Just done
+
+- 2026-10-28 Step 5, fog (D-025), not yet merged. Morgan asked for touch-friendly tools and a freehand brush; approved the [touch sketch](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg).
+  - Fog ops in map inches on the placed map (`src/core/fog.ts`, save version 4), one undoable `fog` command per stroke.
+  - Drawing: `src/renderer/fog-draw.ts` (masks, patch-only redraw, cheap undo of the last stroke) and `table-draw.ts`, shared by the table and the DM's live preview.
+  - DM: 56 px bottom tools, brush ring, ghost while painting, whole-map buttons under the preview (`dm-map.ts`, `dm.ts`). Morgan uses a stylus: palm touches are ignored while the pen draws (e2e-tested with simulated pen and touch), pen hover shows the ring, and the eraser hides (untested: needs a real pen).
+  - `terra-map://` now sends CORS headers so canvases with a map stay readable (the e2e test checks pixels).
+  - Tests: 23 unit (0.3 s), 3 e2e journeys (about 6 s). Speed: see D-025 item 7.
 
 - 2026-10-28 Step 2, calibration ([PR #3](https://github.com/DdraigFawr13/project-terra/pull/3)): corner-pin warp, one calibration per screen (D-021). [Walkthrough](https://claude.ai/artifact/Dk2LB8FkDL3Jaj7JExoqfY).
 - 2026-10-28 Step 3, UI design ([PR #4](https://github.com/DdraigFawr13/project-terra/pull/4), [PR #5](https://github.com/DdraigFawr13/project-terra/pull/5)): interview with mockups; Ember look, Classic layout, folding panels, B and Tab keys (D-022, D-023).
@@ -19,16 +26,10 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are mer
 
 ## Next
 
-1. **Step 5: fog** (PLAN.md step 5, D-007, D-023, D-024). Before building, give Morgan a short design proposal in chat, as for step 4. Points to settle:
-   - Fog as commands (reveal brush stroke, reveal shape, hide) with undo, stored in inches on the map (D-005).
-   - Explored-but-not-seen areas grey and hatched; unexplored black (D-023).
-   - The live table preview at the top of the DM's right panel, drawn by the same draw function as the table (audit P1 item 3), so it can't drift.
-   - The DM sees through fog (dimmed), the table never does (D-002).
-   - Measure drawing speed on a large map before deciding on PixiJS (D-024, SAFE-03 asks first).
-   - Turn on the Reveal, Shape and Hide tools in the bottom toolbar; R, S, H keys.
+1. **Step 5 PR**: Morgan gets the summary; on approval open the PR from `ccr-9aae693d-a3httu`, merge when green (D-018). Then restart the branch from main.
 2. Then step 6, initiative and markers, and step 7, ping, autosave and curtain (PLAN.md).
 - **Book library** (separate thread, D-010 changed 2026-10-28). In private repo `project-terra-library`: Phandelver and Below and PHB 2024 as Markdown (PHB lacks subclass features). MM and DMG PDFs come from Drive `_AI_Directories` via drive.usercontent.google.com: MM is a scan with an error-filled OCR layer, DMG is images only. Round 1 answered (form under Planning pages, collection `books1`): next is round 2 or a review page, then extraction. Never use 5e.tools. Book data never enters this public repo.
-3. When Morgan has a Windows laptop: run "Build Windows app", then the README checks in order: two windows, calibration with a ruler, map import with the Thundertree photo, then the projector photo. Confirm the built-in screen says "this laptop" (`Display.internal`) and the display scale (assumed 125%).
+3. When Morgan has a Windows laptop: run "Build Windows app", then the README checks in order: two windows, calibration with a ruler, map import with the Thundertree photo, then the projector photo. Confirm the built-in screen says "this laptop" (`Display.internal`) and the display scale: a 14" 1080p screen usually defaults to 150%, leaving the DM window about 1280 × 680 (checked in screenshots: the step 5 layout fits). Try fog with a finger.
 
 ## Open questions
 
@@ -53,4 +54,4 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are mer
 
 - 2026-10-28 D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep.
 - 2026-10-28 D-010 changed: book data goes in the private repo `project-terra-library`, never in this public repo.
-- 2026-10-28 D-021 calibration; D-022 UI design step; D-023 UI design; D-024 map import, undo, library.
+- 2026-10-28 D-021 calibration; D-022 UI design step; D-023 UI design; D-024 map import, undo, library; D-025 fog.

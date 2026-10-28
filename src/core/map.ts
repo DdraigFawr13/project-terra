@@ -122,6 +122,14 @@ export function mapToTable(p: Placement, pt: Point): Point {
   return { x: p.x + pt.x * cos - pt.y * sin + 0, y: p.y + pt.x * sin + pt.y * cos + 0 };
 }
 
+/** Where a point of the table (in table inches) falls on the map, in map inches: the reverse of `mapToTable`. */
+export function tableToMap(p: Placement, pt: Point): Point {
+  const [cos, sin] = QUARTER_TURNS[p.turns];
+  const dx = pt.x - p.x;
+  const dy = pt.y - p.y;
+  return { x: dx * cos + dy * sin + 0, y: dy * cos - dx * sin + 0 };
+}
+
 /** The table area a placed map covers, in inches. */
 export function placedExtent(p: Placement): Bounds {
   const b = p.bounds;

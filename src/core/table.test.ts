@@ -9,6 +9,7 @@ import {
   parseSave,
   playerViewOf,
   serialize,
+  UNDOABLE,
   viewOf,
   type Command,
   type PlacedMap,
@@ -23,6 +24,7 @@ const map: PlacedMap = {
   x: 4,
   y: 5,
   turns: 0,
+  fog: [],
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
@@ -65,7 +67,7 @@ test("the table window gets only the player view: no map name, the calibration f
   assert.deepEqual(playerViewOf(s, "display:7"), {
     view: "curtain",
     calibration: cal,
-    map: { id: "map-1", bounds: map.bounds, x: 4, y: 5, turns: 0 },
+    map: { id: "map-1", bounds: map.bounds, x: 4, y: 5, turns: 0, fog: [] },
     grid: true,
   });
   assert.equal(playerViewOf(s, "window").calibration, null);
@@ -84,6 +86,13 @@ test("maps move by whole inches and turn in quarter turns", () => {
   ]);
   assert.deepEqual(s.map, { ...map, x: 3, y: 7, turns: 1 });
   assert.equal(parseCommand({ type: "moveMap", dx: 0.5, dy: 0 }), null);
+  // Fog is kept in map inches, so it moves and turns with the map; a fog command with no map changes nothing.
+  const reveal = { kind: "box", mode: "reveal", x: 0, y: 0, width: 2, height: 2 } as const;
+  const fogged = run([{ type: "fog", op: reveal }, { type: "moveMap", dx: 3, dy: 0 }, { type: "turnMap" }], s);
+  assert.deepEqual(fogged.map!.fog, [reveal]);
+  assert.deepEqual(playerViewOf(fogged, "window").map!.fog, [reveal]);
+  assert.ok(UNDOABLE.has("fog"));
+  assert.deepEqual(run([{ type: "fog", op: reveal }]), defaultState());
   // Moving or turning with no map changes nothing.
   assert.deepEqual(run([{ type: "moveMap", dx: 1, dy: 1 }, { type: "turnMap" }]), defaultState());
 });
@@ -135,6 +144,19 @@ test("the same commands give the same state, and any state saves and loads uncha
     }),
     fc.record({ type: fc.constant("moveMap"), dx: anyValue, dy: anyValue }),
     fc.record({ type: fc.constantFrom("turnMap", "removeMap") }),
+    fc.record({
+      type: fc.constant("fog"),
+      op: fc.oneof(
+        anyValue,
+        fc.record({ kind: fc.constantFrom("revealAll", "dimSeen", "coverAll") }),
+        fc.record({
+          kind: fc.constant("brush"),
+          mode: fc.constantFrom("reveal", "hide"),
+          r: fc.oneof(fc.constant(1), anyValue),
+          points: fc.array(fc.record({ x: anyValue, y: anyValue }), { minLength: 1, maxLength: 4 }),
+        }),
+      ),
+    }),
   );
   fc.assert(
     fc.property(fc.array(command, { maxLength: 30 }), (commands: unknown[]) => {
@@ -155,6 +177,9 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
   assert.deepEqual(parseSave(JSON.stringify(v2)), { ok: true, state: { ...defaultState(), calibrations: { window: cal } } });
   assert.equal(parseSave("{oops").ok, false);
   assert.equal(parseSave("[]").ok, false);
-  assert.equal(parseSave(JSON.stringify({ version: 4, curtain: true })).ok, false);
+  // A version 3 map has no fog: it loads all black.
+  const v3 = { ...v2, version: 3, map: { id: "map-1", name: map.name, bounds: map.bounds, x: 4, y: 5, turns: 0 } };
+  assert.deepEqual(parseSave(JSON.stringify(v3)), { ok: true, state: { ...defaultState(), calibrations: { window: cal }, map } });
+  assert.equal(parseSave(JSON.stringify({ version: 5, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });

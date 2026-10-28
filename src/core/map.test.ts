@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { apply, invert, rectToQuad, type Quad } from "./homography.ts";
-import { mapToTable, parseMarking, placedExtent, planRectify, rectify, type Pixels } from "./map.ts";
+import { mapToTable, parseMarking, tableToMap, placedExtent, planRectify, rectify, type Pixels } from "./map.ts";
 
 // A slanted "phone photo" of a checkerboard with 1-inch squares: square (col, row) is white when col + row is even.
 const slant: Quad = [
@@ -101,6 +101,11 @@ test("a placed map turns clockwise about its marked corner", () => {
   assert.deepEqual(mapToTable(p, { x: 1, y: 0 }), { x: 5, y: 4 });
   assert.deepEqual(placedExtent(p), { x: 0, y: 1, width: 6, height: 10 });
   assert.deepEqual(placedExtent({ ...p, turns: 0 }), { x: 3, y: 2, width: 10, height: 6 });
+  // Fog is painted in map inches, so a point on the table goes back onto the map exactly, at every turn.
+  for (const turns of [0, 1, 2, 3] as const) {
+    const q = { ...p, turns };
+    assert.deepEqual(tableToMap(q, mapToTable(q, { x: 2.5, y: -1 })), { x: 2.5, y: -1 });
+  }
 });
 
 test("the far, squashed edge of a steep photo is left out instead of stretched", () => {

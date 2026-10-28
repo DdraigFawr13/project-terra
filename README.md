@@ -32,6 +32,17 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 
 Imported maps stay in the library on this laptop (`library/maps` in the app's data folder) and are never shared. Turn on **Test grid** under **Table setup** to check the map's squares line up with the table's.
 
+### Fog (step 5)
+
+A map starts all black on the table. In the bottom toolbar:
+
+1. Tap **Reveal** (R) or **Hide** (H), then pick **Brush** (with a 1″, 2″ or 4″ size), **Outline** (draw a loop round a room) or **Box** (snaps to whole squares). S switches between them.
+2. Paint on the map with the pen, a finger or the mouse. The table changes when you lift. A second finger, or Esc, cancels the stroke; a palm resting on the screen while the pen draws is ignored. The pen's eraser end hides.
+3. Hide turns "in view" back to grey with lines ("seen before"). **Party moves on** greys out everything in view; **Reveal all** and **Cover all** sit under the preview.
+4. Ctrl+Z or **Undo** takes back the last stroke. **Select** (V) goes back to moving the map.
+
+The picture at the top right is drawn by the same code as the table. Check it matches the table.
+
 ## Develop
 
 Node 22.22.0 and npm 10.9.4.
