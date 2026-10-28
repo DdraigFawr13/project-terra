@@ -57,7 +57,7 @@ Try a mock round with dice: enter the party, place two colours, link one to its 
 
 ## Develop
 
-Node 22.22.0 and npm 10.9.4.
+Node 22.22.0 and npm 10.9.4. On Windows, a version manager such as [fnm](https://github.com/Schniz/fnm) picks up `.nvmrc`; newer Node works but warns.
 
 ```bash
 npm ci
