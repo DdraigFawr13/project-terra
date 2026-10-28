@@ -58,11 +58,11 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 - **Decision:** Maps are imported from images or photos; Morgan marks one square to set the scale. Morgan can send photos of hand-drawn or book maps to Claude during prep for a clean version. The generator comes after session 1.
 - **Why:** Morgan has no Dungeondraft and draws on a mix of grid and plain paper. Book maps often have no grid or an odd scale.
 
-## D-010 The personal library stays on the laptop
+## D-010 Book content lives in the private library repo
 
-- **Status:** Accepted (2026-10-28)
-- **Decision:** Monsters and maps from Morgan's own books (bought on D&D Beyond and in print) go into a personal library in the app's data folder on the laptop. They never go in the repo or in a shared build. Monsters come in by pasting a stat block or typing into a form. Only SRD 5.2 content ships with the app, with its CC-BY-4.0 attribution.
-- **Why:** Morgan owns the books for personal use; that content isn't licensed for redistribution. Morgan might share the app someday.
+- **Status:** Accepted (2026-10-28; changed 2026-10-28, was "the personal library stays on the laptop")
+- **Decision:** Data from Morgan's own books (Monster Manual 2024, DMG 2024 and others bought on D&D Beyond or in print) may be extracted by Claude from Morgan's PDFs and committed to the private repo `DdraigFawr13/project-terra-library`. It never goes in `project-terra` (public), its CI logs or artifacts, or any build shared with others. The app reads it into the personal library on the laptop. Only SRD 5.2 content ships in `project-terra`, with its CC-BY-4.0 attribution.
+- **Why:** Morgan wants the book monsters and DMG tables in the app without typing them in. Copyright covers copying and sharing whether or not it is commercial, and `project-terra` is public: its files and Actions artifacts are downloadable by others. A private repo keeps the data for Morgan's personal use only.
 
 ## D-011 Map art: projector-tuned pencil
 
