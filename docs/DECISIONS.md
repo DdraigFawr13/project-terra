@@ -48,7 +48,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-008 Player-facing text faces both long sides
 
-- **Status:** Accepted (2026-10-28)
+- **Status:** Accepted (2026-10-28). Disc letters are an exception since D-028.
 - **Decision:** Any text on the table (turn order, cards, subtitles, labels) appears twice, once facing each long side.
 - **Why:** players sit on two opposite sides, so single text is upside down for half the table.
 
@@ -78,7 +78,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-013 Initiative and enemies in session 1
 
-- **Status:** Accepted (2026-10-28)
+- **Status:** Accepted (2026-10-28). HP on discs moved into session 1 by D-028.
 - **Decision:** Enemies in session 1 are coloured discs with a letter; Morgan tracks HP on paper. The turn strip shows turn order, whose turn it is, and enemy condition in words (bloodied, near death), never enemy names. Players roll physical dice.
 - **Why:** it keeps session 1 small. After session 1, the library phase links a disc to a stat block and tracks HP on it: tap the disc, type damage or healing, with temp HP, each disc separate. The condition word is then worked out from HP on the DM side, and only the word reaches the table (D-026).
 
@@ -189,7 +189,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-027 Initiative, markers and character cards
 
-- **Status:** Accepted (2026-10-28), Morgan took all five recommendations in chat ("Go") and asked that everything works with touch and a stylus.
+- **Status:** Accepted (2026-10-28), Morgan took all five recommendations in chat ("Go") and asked that everything works with touch and a stylus. Items 3, 4 and 6 changed by D-028.
 - **Decision:**
   1. Enemy discs: Marker (M), pick a colour and a size (1 to 4 inches), tap the map. A disc snaps to the squares and takes the next free letter of its colour. Six strong colours, yellow kept. Select drags a disc. Players have no discs: they use their minis. Discs live on the placed map in its inches, like fog, so they move and turn with it, and taking the map off drops them.
   2. New discs start hidden. A colour is a group, with a DM-only name and one eye switch; each disc also has its own (D-006).
@@ -199,3 +199,16 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   6. Touch and stylus: every control is at least 40 px, the bottom tools 56 px; a disc can be grabbed within 22 px of its edge however small it is drawn; a resting palm is ignored while the pen moves a disc or places one.
   7. Disc, condition and fight changes undo with Ctrl+Z (D-024). Character cards are not part of undo, so an undo never takes back typed HP. Save version 5.
 - **Why:** session 1 needs enemies the players can name ("I attack B") without giving away an ambush or HP (D-002, D-013). Colour as the group keeps hiding to one tap without a separate group editor (WS-05). Morgan runs the game on a touch laptop with a pen (D-025).
+
+## D-028 Step 6 redo: floating windows, monster HP and stat blocks
+
+- **Status:** Accepted (2026-10-28), from Morgan's review of step 6 and the [sketch](https://claude.ai/artifact/7RHmUtvNBaQGqk7sw95thk): floating windows, party and monster windows, per-disc editing, then "go with recommended for the rest". Changes D-027 items 3, 4 and 6, brings HP on discs (D-013) and the library stat block (D-026) into session 1, and makes disc letters an exception to D-008.
+- **Decision:**
+  1. Character cards and monster info move out of the left panel into floating windows inside the DM window: dragged by the title bar, folded to a bar, closed, and reopened where they were left. They never become OS windows, so none can land on the projector. The left panel keeps initiative and the colour groups, with more room.
+  2. A Party window with a tab per character: name, AC, HP, temp HP, speed, passive Perception, Insight and Investigation, spell save DC (optional) and notes. Damage takes temp HP first.
+  3. A monster window per colour: AC, speed and HP max for the group, a different HP max for any disc, HP per disc, notes. The condition word comes from HP: Bloodied at half or below (2024 rules), Near death at a quarter or below (Claude's proposal, accepted), Down at 0. Without an HP max the manual condition of D-027 stays.
+  4. HP changes with a number pad: pick a disc or character, tap the amount, tap Damage or Heal. The engine applies the change (GAME-02).
+  5. Book: the monster window shows the stat block from the private library (D-010). The DM imports a library file once; it is copied to `<app data>/library/creatures/`. Only page-checked entries can be linked (D-026); linking fills AC, HP and speed. The table window never receives library data.
+  6. Disc letters are drawn once, upright from the bottom edge of the projected picture, with a Flip switch in Table setup. The turn strip keeps its two copies (D-008).
+  7. Button sizes stay at D-023's 40 px and 56 px until Morgan tries the laptop.
+- **Why:** Morgan found the panel crowded and typing HP not touch friendly, and wants the Monster Manual entry at the table. Floating windows inside the DM window keep DM-only data off the projector (D-002). The six Thundertree creatures are already page-checked, so the stat block costs about one step, not the whole library phase (estimate).
