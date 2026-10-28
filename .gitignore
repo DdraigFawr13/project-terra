@@ -1,0 +1,7 @@
+node_modules/
+dist/
+release/
+.claude/worktrees/
+# Personal library: content from Morgan's own books never goes in the repo (D-010).
+library/
+*.log

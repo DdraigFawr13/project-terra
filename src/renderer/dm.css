@@ -1,0 +1,88 @@
+:root {
+  --bg: #141b1c;
+  --surface: #1c2526;
+  --ink: #e3e8e2;
+  --muted: #9aa6a1;
+  --line: #2f3b3c;
+  --accent: #6cb8a4;
+  --accent-ink: #0f1617;
+  --focus: #d6a75a;
+  color-scheme: dark;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font:
+    16px/1.45 "Segoe UI",
+    system-ui,
+    sans-serif;
+}
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: 0.03em;
+}
+#status {
+  margin: 0;
+  color: var(--muted);
+}
+main {
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  max-width: 420px;
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+select,
+button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  min-height: 40px;
+}
+.toggles {
+  display: flex;
+  gap: 8px;
+}
+button {
+  cursor: pointer;
+  flex: 1;
+}
+button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+button:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}

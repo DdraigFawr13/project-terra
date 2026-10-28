@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'" />
+    <title>Project Terra (DM)</title>
+    <link rel="stylesheet" href="dm.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Project Terra</h1>
+      <p id="status" role="status">Starting…</p>
+    </header>
+    <main>
+      <section class="panel" aria-labelledby="table-heading">
+        <h2 id="table-heading">Table screen</h2>
+        <label for="display">Show the table on</label>
+        <select id="display"></select>
+        <div class="toggles">
+          <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
+          <button id="curtain" type="button" aria-pressed="false">Curtain</button>
+        </div>
+        <p class="hint">
+          The curtain blanks the table while you set up. The test grid shows 1-inch squares before calibration, so they won't measure
+          exactly 1 inch yet.
+        </p>
+      </section>
+    </main>
+    <script src="dm.js"></script>
+  </body>
+</html>
