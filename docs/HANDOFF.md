@@ -26,6 +26,7 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–5 are mer
 
 ## Open questions
 
+- Button size: Morgan thinks buttons could be a little smaller (2026-10-28), but wants to decide after trying the laptop. Keep D-023's 40 px / 56 px until then.
 - Windows SmartScreen warns on the unsigned app ("More info" → "Run anyway"). Recommended: accept for now; code signing costs money.
 - Morgan expects the Windows laptop and projector the week of 2026-11-02 (said 2026-10-28), and will measure the projected table area.
 - Library loose ends: 4 files damaged in Morgan's map zip (listed in `maps/lmop/README.md`); Wave Echo Cave scale unchecked; Flesh Meld and Nellik DCs don't fit their stats (adventure Markdown only, no page to check); wall spells have no template area; spell class lists include Artificer from the source file.
