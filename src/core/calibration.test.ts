@@ -9,6 +9,7 @@ import {
   nudgeCorner,
   parseCalibration,
   tableToScreen,
+  visibleRect,
   type Calibration,
   type Surface,
 } from "./calibration.ts";
@@ -133,4 +134,9 @@ test("the table layer covers the whole screen and stays within canvas limits", (
     const t = apply(inv, s);
     assert.ok(t.x >= box.x && t.x <= box.x + box.width && t.y >= box.y && t.y <= box.y + box.height);
   }
+  // The turn strip's area: straight on, the whole screen in inches, wherever the measured square sits.
+  const straight = visibleRect(defaultCalibration(projector), projector);
+  assert.ok(close({ x: straight.width, y: straight.height }, { x: projector.width / 96, y: projector.height / 96 }, 1e-9));
+  const angled = visibleRect(cal, projector);
+  assert.ok(angled.x >= box.x && angled.x + angled.width <= box.x + box.width && angled.width > 10 && angled.height > 10);
 });

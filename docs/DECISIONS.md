@@ -186,3 +186,16 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   - Character cards (name, AC, HP, passive Perception, speed), typed in by Morgan, are in session 1 (D-003). Full character sheets are a later phase.
   - The table window never receives library data. A test asserts the player view holds no monster, HP or library fields.
 - **Why:** Morgan wants the books in the app without typing. The review showed the cost of putting the library in session 1, so Morgan kept only the cards there. The scan's text needed image fixes in 17 of 20 pilot entries, and wrong text such as an immunity can't be caught by arithmetic, hence the checked mark.
+
+## D-027 Initiative, markers and character cards
+
+- **Status:** Accepted (2026-10-28), Morgan took all five recommendations in chat ("Go") and asked that everything works with touch and a stylus.
+- **Decision:**
+  1. Enemy discs: Marker (M), pick a colour and a size (1 to 4 inches), tap the map. A disc snaps to the squares and takes the next free letter of its colour. Six strong colours, yellow kept. Select drags a disc. Players have no discs: they use their minis. Discs live on the placed map in its inches, like fog, so they move and turn with it, and taking the map off drops them.
+  2. New discs start hidden. A colour is a group, with a DM-only name and one eye switch; each disc also has its own (D-006).
+  3. Condition by hand until HP on discs (D-013): fine, bloodied, near death, down. A down disc leaves the table and the turn strip.
+  4. Character cards in the left panel: name, AC, HP (current and max, with − and +), passive Perception, speed. Typed once, kept between sessions. DM-only: the table gets names on the turn strip.
+  5. Initiative: the DM types each roll; one roll per colour. Ties keep the typed order, and ↑ ↓ swap tied entries only. N or Next turn moves on and counts rounds; entries whose discs are all down are skipped. A hidden enemy's chips reach the strip only once it is revealed. The strip runs along both long edges of the projected area (D-008, D-023).
+  6. Touch and stylus: every control is at least 40 px, the bottom tools 56 px; a disc can be grabbed within 22 px of its edge however small it is drawn; a resting palm is ignored while the pen moves a disc or places one.
+  7. Disc, condition and fight changes undo with Ctrl+Z (D-024). Character cards are not part of undo, so an undo never takes back typed HP. Save version 5.
+- **Why:** session 1 needs enemies the players can name ("I attack B") without giving away an ambush or HP (D-002, D-013). Colour as the group keeps hiding to one tap without a separate group editor (WS-05). Morgan runs the game on a touch laptop with a pen (D-025).

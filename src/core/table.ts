@@ -1,10 +1,41 @@
 // What the table shows. Pure data and functions: no Electron, no clock, no randomness (GAME-01).
 // Every change is a command applied by `apply` (D-024), so the same commands always give the same state (GAME-02).
 import { parseCalibration, type Calibration } from "./calibration.ts";
+import {
+  isColour,
+  isCondition,
+  isLetter,
+  isWho,
+  MAX_DISC_SIZE,
+  MAX_PARTY,
+  nextTurn,
+  parseCharacterFields,
+  parseDiscs,
+  parseFight,
+  parseGroupNames,
+  parseInit,
+  parseParty,
+  placeDisc,
+  sameDisc,
+  setInitiative,
+  snapDisc,
+  stripOf,
+  swapTie,
+  takesTurns,
+  type Character,
+  type CharacterFields,
+  type Condition,
+  type Disc,
+  type DiscColour,
+  type Fight,
+  type GroupNames,
+  type Strip,
+  type Who,
+} from "./fight.ts";
 import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
-import type { Bounds } from "./map.ts";
+import { mapToTable, type Bounds } from "./map.ts";
 
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 
 /** A straightened map from the personal library (D-010), placed on the table. Positions are in inches (D-005). */
 export type PlacedMap = {
@@ -21,6 +52,10 @@ export type PlacedMap = {
   turns: 0 | 1 | 2 | 3;
   /** Fog strokes and shapes in the map's own inches, oldest first (D-025). A newly placed map starts all black. */
   fog: FogOp[];
+  /** Enemy discs in the map's own inches (D-027). A newly placed map has none. */
+  discs: Disc[];
+  /** DM-only names for the colour groups. */
+  groups: GroupNames;
 };
 
 export type TableState = {
@@ -36,6 +71,10 @@ export type TableState = {
   /** One calibration per table surface (see `surfaceKey` in displays.ts). */
   calibrations: Record<string, Calibration>;
   map: PlacedMap | null;
+  /** Character cards, kept between sessions and outside undo (D-027). */
+  party: Character[];
+  /** Initiative, or null outside a fight. */
+  fight: Fight | null;
 };
 
 export type Command =
@@ -48,15 +87,60 @@ export type Command =
   | { type: "moveMap"; dx: number; dy: number }
   | { type: "turnMap" }
   | { type: "removeMap" }
-  | { type: "fog"; op: FogOp };
+  | { type: "fog"; op: FogOp }
+  | { type: "placeDisc"; colour: DiscColour; x: number; y: number; size: number }
+  | { type: "moveDisc"; colour: DiscColour; letter: string; x: number; y: number }
+  | { type: "removeDisc"; colour: DiscColour; letter: string }
+  /** Show or hide one disc, or with no letter the whole colour group (D-006). */
+  | { type: "showDiscs"; colour: DiscColour; letter: string | null; on: boolean }
+  | { type: "condition"; colour: DiscColour; letter: string; condition: Condition }
+  | { type: "nameGroup"; colour: DiscColour; name: string }
+  | { type: "addCharacter"; character: CharacterFields }
+  | { type: "updateCharacter"; character: Character }
+  | { type: "removeCharacter"; id: string }
+  | { type: "startFight" }
+  | { type: "endFight" }
+  | { type: "initiative"; who: Who; init: number | null }
+  | { type: "swapTie"; who: Who; by: -1 | 1 }
+  | { type: "nextTurn" };
 
-/** Commands the DM can take back with Undo. Switches such as the curtain, and calibration drags, are not kept. */
-export const UNDOABLE: ReadonlySet<Command["type"]> = new Set(["placeMap", "moveMap", "turnMap", "removeMap", "fog"]);
+/**
+ * Commands the DM can take back with Undo. Switches such as the curtain, calibration drags and character cards are not
+ * kept, so an undo never takes back typed HP.
+ */
+export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
+  "placeMap",
+  "moveMap",
+  "turnMap",
+  "removeMap",
+  "fog",
+  "placeDisc",
+  "moveDisc",
+  "removeDisc",
+  "showDiscs",
+  "condition",
+  "nameGroup",
+  "startFight",
+  "endFight",
+  "initiative",
+  "swapTie",
+  "nextTurn",
+]);
 
 export type TableView = "curtain" | "calibrate" | "map" | "testGrid" | "idle";
 
 export function defaultState(): TableState {
-  return { version: SAVE_VERSION, curtain: false, calibrating: false, testGrid: true, playerDisplayId: null, calibrations: {}, map: null };
+  return {
+    version: SAVE_VERSION,
+    curtain: false,
+    calibrating: false,
+    testGrid: true,
+    playerDisplayId: null,
+    calibrations: {},
+    map: null,
+    party: [],
+    fight: null,
+  };
 }
 
 export function viewOf(state: TableState): TableView {
@@ -66,11 +150,17 @@ export function viewOf(state: TableState): TableView {
   return state.testGrid ? "testGrid" : "idle";
 }
 
+/** A disc as the table draws it: centre in table inches, nothing about its group or condition. */
+export type PlayerDisc = { colour: DiscColour; letter: string; x: number; y: number; size: number };
+
 /** Everything the table window receives. Built field by field, so DM-only data can't leak in by default (D-002). */
 export type PlayerView = {
   view: TableView;
   calibration: Calibration | null;
-  map: Omit<PlacedMap, "name"> | null;
+  map: Pick<PlacedMap, "id" | "bounds" | "x" | "y" | "turns" | "fog"> | null;
+  /** Shown discs that aren't down. */
+  discs: PlayerDisc[];
+  strip: Strip | null;
   grid: boolean;
 };
 
@@ -81,6 +171,10 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
     view: viewOf(state),
     calibration: state.calibrations[surfaceKey] ?? null,
     map: m && { id: m.id, bounds: m.bounds, x: m.x, y: m.y, turns: m.turns, fog: m.fog },
+    discs: (m?.discs ?? [])
+      .filter((d) => d.shown && d.condition !== "down")
+      .map((d) => ({ colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size })),
+    strip: stripOf(state.fight, m?.discs ?? [], state.party),
     grid: state.testGrid,
   };
 }
@@ -112,12 +206,17 @@ export function parsePlacedMap(raw: unknown): PlacedMap | null {
   const { id, name, x, y, turns } = raw;
   // Maps saved before fog existed, and maps just placed from the library, start with no fog ops: all black.
   const fog = raw.fog === undefined ? [] : parseFog(raw.fog);
+  // Likewise with no discs before step 6.
+  const discs = raw.discs === undefined ? [] : parseDiscs(raw.discs);
+  const groups = raw.groups === undefined ? {} : parseGroupNames(raw.groups);
   const b = raw.bounds;
   const bounds = { x: inches(b.x), y: inches(b.y), width: inches(b.width, 1), height: inches(b.height, 1) };
   if (typeof id !== "string" || !MAP_ID.test(id) || typeof name !== "string" || name.length > 120) return null;
   if (bounds.x === null || bounds.y === null || bounds.width === null || bounds.height === null) return null;
   if (inches(x) === null || inches(y) === null || !(turns === 0 || turns === 1 || turns === 2 || turns === 3) || !fog) return null;
-  return { id, name, bounds: bounds as Bounds, x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"], fog };
+  if (!discs || !groups) return null;
+  const at = { x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"] };
+  return { id, name, bounds: bounds as Bounds, ...at, fog, discs, groups };
 }
 
 /** A command from the DM window, or null if any part is wrong. */
@@ -154,9 +253,72 @@ export function parseCommand(raw: unknown): Command | null {
       const op = parseFogOp(raw.op);
       return op && { type: "fog", op };
     }
+    case "placeDisc": {
+      const size = inches(raw.size, 1, MAX_DISC_SIZE);
+      const at = point(raw);
+      return isColour(raw.colour) && size !== null && at ? { type: "placeDisc", colour: raw.colour, ...at, size } : null;
+    }
+    case "moveDisc": {
+      const at = point(raw);
+      return isColour(raw.colour) && isLetter(raw.letter) && at
+        ? { type: "moveDisc", colour: raw.colour, letter: raw.letter, ...at }
+        : null;
+    }
+    case "removeDisc":
+      return isColour(raw.colour) && isLetter(raw.letter) ? { type: "removeDisc", colour: raw.colour, letter: raw.letter } : null;
+    case "showDiscs":
+      return isColour(raw.colour) && (raw.letter === null || isLetter(raw.letter)) && typeof raw.on === "boolean"
+        ? { type: "showDiscs", colour: raw.colour, letter: raw.letter, on: raw.on }
+        : null;
+    case "condition":
+      return isColour(raw.colour) && isLetter(raw.letter) && isCondition(raw.condition)
+        ? { type: "condition", colour: raw.colour, letter: raw.letter, condition: raw.condition }
+        : null;
+    case "nameGroup": {
+      const groups = isColour(raw.colour) && typeof raw.name === "string" ? parseGroupNames({ [raw.colour]: raw.name }) : null;
+      return groups && { type: "nameGroup", colour: raw.colour as DiscColour, name: groups[raw.colour as DiscColour] ?? "" };
+    }
+    case "addCharacter": {
+      const character = parseCharacterFields(raw.character);
+      return character && { type: "addCharacter", character };
+    }
+    case "updateCharacter": {
+      const [character] = parseParty([raw.character]) ?? [];
+      return character ? { type: "updateCharacter", character } : null;
+    }
+    case "removeCharacter":
+      return isWho(raw.id) && !isColour(raw.id) ? { type: "removeCharacter", id: raw.id } : null;
+    case "startFight":
+    case "endFight":
+    case "nextTurn":
+      return { type: raw.type };
+    case "initiative": {
+      if (!isWho(raw.who)) return null;
+      if (raw.init === null) return { type: "initiative", who: raw.who, init: null };
+      const init = parseInit(raw.init);
+      return init === null ? null : { type: "initiative", who: raw.who, init };
+    }
+    case "swapTie":
+      return isWho(raw.who) && (raw.by === -1 || raw.by === 1) ? { type: "swapTie", who: raw.who, by: raw.by } : null;
     default:
       return null;
   }
+}
+
+/** A point within reach, from a command's `x` and `y`. */
+function point(raw: Record<string, unknown>): { x: number; y: number } | null {
+  const ok = (v: unknown) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= REACH_IN;
+  return ok(raw.x) && ok(raw.y) ? { x: (raw.x as number) + 0, y: (raw.y as number) + 0 } : null;
+}
+
+/** Change the placed map's discs; with no map, nothing changes. */
+function withDiscs(state: TableState, change: (discs: Disc[]) => Disc[]): TableState {
+  return state.map ? { ...state, map: { ...state.map, discs: change(state.map.discs) } } : state;
+}
+const editDisc = (state: TableState, colour: DiscColour, letter: string, edit: (d: Disc) => Disc) =>
+  withDiscs(state, (ds) => ds.map((d) => (sameDisc(d, colour, letter) ? edit(d) : d)));
+function withFight(state: TableState, change: (f: Fight) => Fight): TableState {
+  return state.fight ? { ...state, fight: change(state.fight) } : state;
 }
 
 /** The one place the table state changes. */
@@ -186,6 +348,46 @@ export function apply(state: TableState, c: Command): TableState {
       return { ...state, map: null };
     case "fog":
       return state.map ? { ...state, map: { ...state.map, fog: addFog(state.map.fog, c.op) } } : state;
+    case "placeDisc":
+      return withDiscs(state, (ds) => placeDisc(ds, c.colour, c, c.size));
+    case "moveDisc":
+      return editDisc(state, c.colour, c.letter, (d) => ({ ...d, ...snapDisc(c, d.size) }));
+    case "removeDisc":
+      return withDiscs(state, (ds) => ds.filter((d) => !sameDisc(d, c.colour, c.letter)));
+    case "showDiscs":
+      return withDiscs(state, (ds) =>
+        ds.map((d) => (d.colour === c.colour && (c.letter === null || d.letter === c.letter) ? { ...d, shown: c.on } : d)),
+      );
+    case "condition":
+      return editDisc(state, c.colour, c.letter, (d) => ({ ...d, condition: c.condition }));
+    case "nameGroup": {
+      if (!state.map) return state;
+      const groups = { ...state.map.groups };
+      if (c.name) groups[c.colour] = c.name;
+      else delete groups[c.colour];
+      return { ...state, map: { ...state.map, groups } };
+    }
+    case "addCharacter": {
+      if (state.party.length >= MAX_PARTY) return state;
+      const n = Math.max(0, ...state.party.map((p) => Number(p.id.slice(3)))) + 1;
+      return n > 999 ? state : { ...state, party: [...state.party, { id: `pc-${n}`, ...c.character }] };
+    }
+    case "updateCharacter":
+      return { ...state, party: state.party.map((p) => (p.id === c.character.id ? c.character : p)) };
+    case "removeCharacter": {
+      const next = { ...state, party: state.party.filter((p) => p.id !== c.id) };
+      return withFight(next, (f) => setInitiative(f, c.id, null));
+    }
+    case "startFight":
+      return state.fight ? state : { ...state, fight: { entries: [], current: null, round: 0 } };
+    case "endFight":
+      return { ...state, fight: null };
+    case "initiative":
+      return withFight(state, (f) => setInitiative(f, c.who, c.init));
+    case "swapTie":
+      return withFight(state, (f) => swapTie(f, c.who, c.by));
+    case "nextTurn":
+      return withFight(state, (f) => nextTurn(f, (who) => takesTurns(who, state.map?.discs ?? [], state.party)));
   }
 }
 
@@ -200,8 +402,8 @@ export function parseSave(text: string): ParsedSave {
     return { ok: false, reason: "not valid JSON" };
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
-  // Older versions read the same; fields they lack (calibrations, map, a map's fog) start at their defaults.
-  if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3 && raw.version !== SAVE_VERSION) {
+  // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
+  if (![1, 2, 3, 4, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.
@@ -217,7 +419,10 @@ export function parseSave(text: string): ParsedSave {
     const c = parseCommand(f);
     return c ? apply(s, c) : s;
   }, defaultState());
-  return { ok: true, state };
+  // Character cards and the fight have no command that sets them whole; they get the same checks through their parsers.
+  const party = raw.party === undefined ? [] : parseParty(raw.party);
+  const fight = raw.fight === undefined || raw.fight === null ? null : parseFight(raw.fight);
+  return { ok: true, state: { ...state, party: party ?? [], fight } };
 }
 
 export function serialize(state: TableState): string {

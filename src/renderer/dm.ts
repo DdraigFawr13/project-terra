@@ -1,9 +1,10 @@
 // DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004). The right panel
 // shows a live picture of the table, drawn by the table's own drawing code (D-025).
-import { defaultCalibration, layerFor, moveCorner, nudgeCorner, type Calibration } from "../core/calibration.ts";
+import { defaultCalibration, layerFor, moveCorner, nudgeCorner, visibleRect, type Calibration } from "../core/calibration.ts";
 import { describeDisplay } from "../core/displays.ts";
 import { playerViewOf, viewOf, type TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
+import { initFight } from "./dm-fight.ts";
 import { initMaps } from "./dm-map.ts";
 import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
@@ -93,7 +94,11 @@ function drawTablePreview(): void {
   tablePreview.style.height = `${h}px`;
   tablePreview.width = Math.round(w * dpr);
   tablePreview.height = Math.round(h * dpr);
-  drawTable(tablePreview.getContext("2d")!, { cal, layer, mode, calibrated: !!view.calibration, view, image, fog }, dpr * k);
+  drawTable(
+    tablePreview.getContext("2d")!,
+    { cal, layer, mode, calibrated: !!view.calibration, view, image, fog, area: visibleRect(cal, status.surface) },
+    dpr * k,
+  );
 }
 
 function renderStatus(st: TableStatus): void {
@@ -263,7 +268,18 @@ const image = mapImages(() => {
   maps.render();
   drawTablePreview();
 });
-const maps = initMaps(terra, ACCENT, fog, image);
+// The disc picked on the map or in the side panel, highlighted in both.
+let picked: string | null = null;
+const selection = {
+  get: () => picked,
+  set: (key: string | null) => {
+    picked = key;
+    maps.render();
+    fight.render();
+  },
+};
+const maps = initMaps(terra, ACCENT, fog, image, selection);
+const fight = initFight(terra, selection);
 window.addEventListener("keydown", (e) => {
   const t = e.target as HTMLElement;
   if (t.closest("input, textarea, select, [contenteditable]")) return;
@@ -277,6 +293,7 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     togglePanels();
   } else if (e.key === "b" || e.key === "B") toggleCurtain();
+  else if (e.key === "n" || e.key === "N") fight.next();
   else if (e.key === "Escape") maps.cancel();
   else maps.shortcut(e.key);
 });

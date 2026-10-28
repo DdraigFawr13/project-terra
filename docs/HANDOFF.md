@@ -4,33 +4,25 @@ Updated: 2026-10-28. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are merged; step 5, fog, is built on branch `ccr-9aae693d-a3httu` and awaits Morgan's OK on the PR summary (D-018). All tested in the cloud only. The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1); Morgan doesn't have it yet, so projected steps stay "built, awaiting Morgan's check" (VER-07).
+Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–5 are merged. Step 6 (initiative, markers, character cards) is built on branch `ccr-4ba1a9a6-bt257p` and waits for Morgan's OK on the PR summary (D-018). All tested in the cloud only. The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1); Morgan doesn't have it yet, so projected steps stay "built, awaiting Morgan's check" (VER-07).
 
 ## Just done
 
-- 2026-10-28 Step 5, fog (D-025), not yet merged. Morgan asked for touch-friendly tools and a freehand brush; approved the [touch sketch](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg).
-  - Fog ops in map inches on the placed map (`src/core/fog.ts`, save version 4), one undoable `fog` command per stroke.
-  - Drawing: `src/renderer/fog-draw.ts` (masks, patch-only redraw, cheap undo of the last stroke) and `table-draw.ts`, shared by the table and the DM's live preview.
-  - DM: 56 px bottom tools, brush ring, ghost while painting, whole-map buttons under the preview (`dm-map.ts`, `dm.ts`). Morgan uses a stylus: palm touches are ignored while the pen draws (e2e-tested with simulated pen and touch), pen hover shows the ring, and the eraser hides (untested: needs a real pen).
-  - `terra-map://` now sends CORS headers so canvases with a map stay readable (the e2e test checks pixels).
-  - Tests: 23 unit (0.3 s), 3 e2e journeys (about 6 s). Speed: see D-025 item 7.
-
-- 2026-10-28 Step 2, calibration ([PR #3](https://github.com/DdraigFawr13/project-terra/pull/3)): corner-pin warp, one calibration per screen (D-021). [Walkthrough](https://claude.ai/artifact/Dk2LB8FkDL3Jaj7JExoqfY).
-- 2026-10-28 Step 3, UI design ([PR #4](https://github.com/DdraigFawr13/project-terra/pull/4), [PR #5](https://github.com/DdraigFawr13/project-terra/pull/5)): interview with mockups; Ember look, Classic layout, folding panels, B and Tab keys (D-022, D-023).
-- 2026-10-28 Step 4, map import ([PR #7](https://github.com/DdraigFawr13/project-terra/pull/7)), D-024:
-  - Four-corner straightening of pictures and phone photos (`src/core/map.ts`); squashed far edges are left out.
-  - Every state change is a `Command` through `apply` in `src/core/table.ts` (save version 3). Map commands undo with Ctrl+Z; history lasts the session.
-  - Personal library at `<userData>/library/maps` (PNG + JSON), served only through `terra-map://<id>/` (`src/main/library.ts`).
-  - DM import and map views in `src/renderer/dm-map.ts`; the table draws the map on the calibrated inch layer.
-  - Tests: 21 unit (0.4 s), 3 e2e journeys (about 6 s).
+- 2026-10-28 Step 6, D-027 (Morgan took all five recommendations and asked for touch and stylus):
+  - `src/core/fight.ts`: discs (on the placed map in its inches, like fog), colour groups, conditions, initiative with ties, next turn, the turn strip (`stripOf`, player-safe fields only), character cards. Save version 5.
+  - Undo covers discs and turns; cards are kept out of it (`keepOnUndo` in `main.ts`).
+  - Table: discs with letters both ways and the strip along both long edges of `visibleRect` (`table-draw.ts`).
+  - DM: Marker tool with colours and sizes (`dm-map.ts`); left panel with initiative, markers by colour and cards (`dm-fight.ts`). Select grabs a disc within 22 px; Marker taps beside a disc place a new one. Pen palm rule covers disc taps and drags (e2e-tested with two touch points; the test fails without the rule).
+  - Tests: 27 unit (0.4 s), 4 e2e journeys (about 11 s). Screenshots checked at 1280 × 680.
+- 2026-10-28 Step 5, fog ([PR #8](https://github.com/DdraigFawr13/project-terra/pull/8)), D-025. Earlier steps: [archive](archive/handoff-2026-10.md).
 
 ## Next
 
-1. **Step 5 merged** ([PR #8](https://github.com/DdraigFawr13/project-terra/pull/8)).
-2. Then step 6, initiative, markers and character cards (D-026), and step 7, ping, autosave and curtain (PLAN.md).
+1. Step 6: Morgan approves the PR summary, then open the PR and merge when green (D-018).
+2. Then step 7, ping, autosave and curtain (PLAN.md).
 - **Book library** (separate thread; D-010, D-026). Data track done 2026-10-28 in private repo `project-terra-library` (attach with add_repo; its README lists every file and how it was checked): 503 MM creatures, 35 Phandelver creatures, 391 PHB spells, 39 DMG treasure tables, 17 Phandelver magic items with placements, MM habitat lists, Lost Mine maps. Only the 6 Thundertree creatures are `pageChecked`. Next: the app's library import (first phase after session 1), then a portrait test before cropping art; DMG traps, hazards, weather and other magic items after session 1. The MM and DMG PDFs lived only in the old container: to re-read pages, Morgan sets Drive `_AI_Directories` files to link sharing, then download via drive.usercontent.google.com (MM id 1lAzOxqwZfoT_STKHNaUQpcshncj_2z7v, DMG id 18XP8iND9a59QWK9Tc3US0KyyPIw-guLg; both domains are allowed in the environment). Never use 5e.tools.
 - **Map scale** (for step 4 follow-up): Thundertree is 1 square = 10 ft (28 × 19 squares = 56 × 38 in at 5 ft per inch); Cragmaw Hideout, Redbrand Hideout and Cragmaw Castle are 5 ft. Import (D-024) makes one picture square 1 inch, so it needs a feet-per-square choice. A map bigger than the projected area needs panning or sections (Morgan to measure the table). Where only a keyed DM map exists, Morgan covers the area numbers and legend with hide shapes.
-3. When Morgan has a Windows laptop: run "Build Windows app", then the README checks in order: two windows, calibration with a ruler, map import with the Thundertree photo, then the projector photo. Confirm the built-in screen says "this laptop" (`Display.internal`) and the display scale: a 14" 1080p screen usually defaults to 150%, leaving the DM window about 1280 × 680 (checked in screenshots: the step 5 layout fits). Try fog with a finger.
+3. When Morgan has a Windows laptop: run "Build Windows app", then the README checks in order: two windows, calibration with a ruler, map import with the Thundertree photo, then the projector photo. Confirm the built-in screen says "this laptop" (`Display.internal`) and the display scale: a 14" 1080p screen usually defaults to 150%, leaving the DM window about 1280 × 680 (checked in screenshots: the step 5 layout fits). Try fog and discs with a finger and the pen; enter the party and run a mock round.
 
 ## Open questions
 
@@ -58,3 +50,4 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are mer
 - 2026-10-28 D-010 changed: book data goes in the private repo `project-terra-library`, never in this public repo.
 - 2026-10-28 D-021 calibration; D-022 UI design step; D-023 UI design; D-024 map import, undo, library; D-025 fog.
 - 2026-10-28 D-026 book library; D-003 adds character cards, no fixed date; D-013 HP on discs after session 1.
+- 2026-10-28 D-027 initiative, markers and character cards.

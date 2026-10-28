@@ -1,7 +1,7 @@
 // Player (table) window: draws only what players may see. Text is drawn twice, once facing
 // each long side of the table, because players sit on two opposite sides (D-008).
 // Table things are drawn in inches on a layer canvas, which a CSS matrix3d warps onto the angled projector (D-004, D-021).
-import { defaultCalibration, layerFor, type Calibration, type Surface } from "../core/calibration.ts";
+import { defaultCalibration, layerFor, visibleRect, type Calibration, type Surface } from "../core/calibration.ts";
 import { cssMatrix3d } from "../core/homography.ts";
 import type { PlayerView } from "../core/table.ts";
 import type { PlayerApi } from "../main/player-preload.ts";
@@ -26,7 +26,8 @@ function surfaceNow(): Surface {
 
 /** Size the layer canvas to the table's box in inches, warp it onto the screen, and draw the table on it. */
 function drawLayer(cal: Calibration, mode: TableMode, calibrated: boolean): void {
-  const layer = layerFor(cal, surfaceNow());
+  const surface = surfaceNow();
+  const layer = layerFor(cal, surface);
   const ppi = layer.pxPerInch;
   layerCanvas.width = Math.round(layer.box.width * ppi);
   layerCanvas.height = Math.round(layer.box.height * ppi);
@@ -34,7 +35,7 @@ function drawLayer(cal: Calibration, mode: TableMode, calibrated: boolean): void
   layerCanvas.style.height = `${layerCanvas.height}px`;
   layerCanvas.style.transform = `matrix3d(${cssMatrix3d(layer.transform).join(",")})`;
   layerCanvas.hidden = false;
-  if (player) drawTable(lctx, { cal, layer, mode, calibrated, view: player, image, fog }, 1);
+  if (player) drawTable(lctx, { cal, layer, mode, calibrated, view: player, image, fog, area: visibleRect(cal, surface) }, 1);
 }
 
 /**

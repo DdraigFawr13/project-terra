@@ -9,7 +9,7 @@ import { laptopDisplay, playerPlacement, type DisplayInfo } from "../core/displa
 import { apply, defaultState, parseCommand, parseSave, playerViewOf, serialize, UNDOABLE, type TableState } from "../core/table.ts";
 import { listMaps, mapFile, saveMap } from "./library.ts";
 
-/** Undo takes back map changes only: switches like the curtain and the screen choice stay as the DM last set them. */
+/** Undo takes back map, disc and fight changes only: switches like the curtain and the screen choice stay as the DM last set them. */
 function keepOnUndo(s: TableState): Partial<TableState> {
   return {
     curtain: s.curtain,
@@ -17,6 +17,8 @@ function keepOnUndo(s: TableState): Partial<TableState> {
     testGrid: s.testGrid,
     playerDisplayId: s.playerDisplayId,
     calibrations: s.calibrations,
+    // Character cards are typed, not drawn: an undo of a disc move must not take back HP typed since (D-027).
+    party: s.party,
   };
 }
 

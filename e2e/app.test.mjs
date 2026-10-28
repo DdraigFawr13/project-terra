@@ -257,3 +257,100 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await app.close();
   }
 });
+
+test("a fight: cards, discs placed with the pen, initiative and the turn strip, with nothing DM-only on the table", async () => {
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), "terra-e2e-"));
+  let { app, dm, table } = await launch(userData);
+  try {
+    await dm.setInputFiles("#mapFile", { name: "board.png", mimeType: "image/png", buffer: checkerboardPng() });
+    await dm.fill("#markW", "2");
+    await dm.fill("#markH", "2");
+    await dm.click("#importOk");
+    await table.waitForFunction(() => document.body.dataset.view === "map");
+
+    // A character card, typed in the side panel.
+    await dm.click("#addCharacter");
+    await dm.fill('[data-key="card-name"]', "Ash");
+    await dm.fill('[data-key="card-ac"]', "16");
+    await dm.fill('[data-key="card-hpMax"]', "24");
+    await dm.fill('[data-key="card-passive"]', "13");
+    await dm.press('[data-key="card-speed"]', "Enter");
+    await dm.waitForSelector(".pc strong");
+    await dm.click(".pc .hp button >> nth=0");
+    await dm.waitForFunction(async () => (await window.terra.getState()).party[0]?.hp === 23);
+
+    // Marker with the pen: a palm touching the screen mid-tap doesn't cancel it. The disc starts hidden.
+    await dm.click("button[data-tool='marker']");
+    const box = await dm.locator("#mapCanvas").boundingBox();
+    const cdp = await dm.context().newCDPSession(dm);
+    const pen = (type, dx) =>
+      cdp.send("Input.dispatchMouseEvent", {
+        type,
+        x: box.x + box.width / 2 + dx,
+        y: box.y + box.height / 2,
+        pointerType: "pen",
+        button: "left",
+        buttons: type === "mouseReleased" ? 0 : 1,
+        clickCount: 1,
+      });
+    await pen("mousePressed", 0);
+    // Two contact points: without the palm rule, a second finger cancels what is under way.
+    const palm = [
+      { x: box.x + 10, y: box.y + 10, id: 1 },
+      { x: box.x + 30, y: box.y + 20, id: 2 },
+    ];
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: palm });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await pen("mouseReleased", 0);
+    await dm.waitForFunction(async () => (await window.terra.getState()).map.discs.length === 1);
+    await dm.fill('[data-key="name-yellow"]', "Secret cultists");
+    await dm.press('[data-key="name-yellow"]', "Enter");
+    assert.deepEqual((await table.evaluate(() => window.terra.getView())).discs, []);
+
+    // Rolls: the hidden disc's colour is in the order but not on the strip until it is shown.
+    await dm.click("#startFight");
+    await dm.fill('[data-key="init-pc-1"]', "15");
+    await dm.press('[data-key="init-pc-1"]', "Enter");
+    await dm.fill('[data-key="init-yellow"]', "9");
+    await dm.press('[data-key="init-yellow"]', "Enter");
+    await dm.waitForFunction(async () => (await window.terra.getState()).fight.entries.length === 2);
+    await dm.evaluate(() => document.activeElement.blur());
+    await dm.keyboard.press("n");
+    const strip = async () => (await table.evaluate(() => window.terra.getView())).strip;
+    await table.waitForFunction(async () => (await window.terra.getView()).strip?.round === 1);
+    assert.deepEqual((await strip()).chips, [{ kind: "pc", name: "Ash", current: true }]);
+    await dm.click(".group .eye");
+    await dm.keyboard.press("n");
+    await table.waitForFunction(async () => (await window.terra.getView()).strip?.chips[0]?.kind === "enemy");
+    const view = await table.evaluate(() => window.terra.getView());
+    assert.equal(view.discs.length, 1);
+    for (const secret of ["Secret", "board", "hp", "ac", "passive", "init"]) assert.ok(!JSON.stringify(view).includes(secret), secret);
+
+    // Drag the disc two squares with Select; Ctrl+Z puts it back and doesn't take back the HP typed before it.
+    await dm.click("button[data-tool='select']");
+    const before = (await dm.evaluate(() => window.terra.getState())).map.discs[0];
+    const step = await dm.evaluate(() => {
+      const c = document.getElementById("mapCanvas");
+      return c.getBoundingClientRect().width;
+    });
+    await dm.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await dm.mouse.down();
+    await dm.mouse.move(box.x + box.width / 2 + step / 6, box.y + box.height / 2, { steps: 4 });
+    await dm.mouse.up();
+    await dm.waitForFunction((x) => window.terra.getState().then((s) => s.map.discs[0].x !== x), before.x);
+    await dm.keyboard.press("Control+z");
+    await dm.waitForFunction((x) => window.terra.getState().then((s) => s.map.discs[0].x === x), before.x);
+    assert.equal((await dm.evaluate(() => window.terra.getState())).party[0].hp, 23);
+  } finally {
+    await app.close();
+  }
+
+  // The party is kept between sessions.
+  ({ app, dm, table } = await launch(userData));
+  try {
+    await dm.waitForSelector(".pc strong");
+    assert.equal(await dm.textContent(".pc strong"), "Ash");
+  } finally {
+    await app.close();
+  }
+});

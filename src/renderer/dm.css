@@ -406,7 +406,8 @@ input[type="number"] {
   cursor: grab;
 }
 #mapCanvas[data-tool="reveal"],
-#mapCanvas[data-tool="hide"] {
+#mapCanvas[data-tool="hide"],
+#mapCanvas[data-tool="marker"] {
   cursor: crosshair;
 }
 input[type="text"] {
@@ -418,4 +419,243 @@ input[type="text"] {
   min-height: var(--target);
   padding: 0 8px;
   width: 16em;
+}
+
+/* ---- Left panel: initiative, markers, characters (D-027). Rows are at least 44 px for a finger or the pen. ---- */
+.panel {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.round {
+  color: var(--focus);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+h3 {
+  margin: 4px 0 0;
+  font: 600 0.85rem var(--body);
+  color: var(--muted);
+}
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 2px 4px 2px 8px;
+  border-radius: 8px;
+  background: var(--raised);
+}
+.entry.current {
+  background: #4a2618;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.entry.picked {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+.entry.out,
+.pc.out {
+  opacity: 0.5;
+}
+.who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.who small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.entry input[type="number"] {
+  width: 3.6em;
+}
+button.icon {
+  min-width: var(--target);
+  padding: 0;
+}
+.swatch {
+  flex: none;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+/* The disc colours, as on the table (table-draw.ts DISC_HEX). */
+.yellow {
+  --disc: #ffd400;
+  --disc-ink: #111;
+}
+.red {
+  --disc: #e3211b;
+  --disc-ink: #fff;
+}
+.blue {
+  --disc: #1e6bff;
+  --disc-ink: #fff;
+}
+.green {
+  --disc: #169c34;
+  --disc-ink: #fff;
+}
+.purple {
+  --disc: #9338f0;
+  --disc-ink: #fff;
+}
+.orange {
+  --disc: #ff7a00;
+  --disc-ink: #111;
+}
+.swatch {
+  background: var(--disc);
+}
+button.badge {
+  min-width: var(--target);
+  padding: 0;
+  border-radius: 50%;
+  background: var(--disc);
+  color: var(--disc-ink);
+  border: 2px solid #fff;
+  font-weight: 700;
+}
+button.condition {
+  flex: 1;
+  min-width: 0;
+  padding: 0 6px;
+}
+button.condition.bloodied {
+  color: #f0a27c;
+}
+button.condition.nearDeath {
+  color: #ff6b5a;
+}
+button.condition.down {
+  color: var(--muted);
+}
+.group {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.group-head input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+.groups {
+  display: grid;
+  gap: 8px;
+}
+.party {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.pc {
+  display: grid;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--raised);
+}
+.pc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pc .stats {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.hp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hp button {
+  background: var(--surface);
+}
+.hp input[type="number"] {
+  width: 4.2em;
+}
+.card-form {
+  display: grid;
+  gap: 6px;
+}
+.card-form label {
+  display: grid;
+  gap: 2px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.card-form label.wide,
+.card-form .hint,
+.row-buttons {
+  grid-column: 1 / -1;
+}
+.card-form input {
+  width: 100%;
+}
+.row-buttons {
+  display: flex;
+  gap: 6px;
+}
+.row-buttons button {
+  flex: 1;
+  padding: 0 6px;
+}
+button.danger {
+  color: #ff8a7a;
+}
+.tools .swatch {
+  width: 20px;
+  height: 20px;
+}
+.tools small {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+.tools button[aria-pressed="true"] small {
+  color: inherit;
+}
+/* Grid tracks would otherwise grow to an input's natural width and push the panel sideways. */
+.panel,
+.groups,
+.group,
+.entries,
+.party,
+.pc {
+  grid-template-columns: minmax(0, 1fr);
+}
+.card-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }

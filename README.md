@@ -43,6 +43,16 @@ A map starts all black on the table. In the bottom toolbar:
 
 The picture at the top right is drawn by the same code as the table. Check it matches the table.
 
+### Initiative, markers and character cards (step 6)
+
+1. **Characters** (left panel): **Add character**, then type name, AC, HP max, passive Perception and speed. − and + change HP, or type it in the box. Cards stay between sessions; only the names reach the table.
+2. **Marker** (M) in the bottom toolbar: pick a colour and a size (1″ Medium, 2″ Large, 3″ Huge, 4″ Gargantuan), then tap the map. Each colour gives letters A, B, C… New discs start hidden: tap **Hidden** by the colour to show them all, or the eye on one disc. Name a colour (only you see it), such as "Ash zombies".
+3. **Select** (V) drags a disc by whole squares. Tap a disc's condition to step it: Fine, Bloodied, Near death, Down. A down disc leaves the table.
+4. **Start fight**, then type each roll; one roll per colour. Ties keep the order you typed; ↑ ↓ swap them. **Next turn** (N) moves on and counts rounds.
+5. The turn strip runs along both long edges of the table. A hidden colour joins it only when shown. Ctrl+Z undoes discs and turns, never typed HP.
+
+Try a mock round with dice: enter the party, place two colours, roll, and press N round the table twice.
+
 ## Develop
 
 Node 22.22.0 and npm 10.9.4.
