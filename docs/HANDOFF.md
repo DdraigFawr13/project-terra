@@ -4,7 +4,7 @@ Updated: 2026-10-28. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–5 are merged. Step 6 (initiative, markers, character cards) is built on branch `ccr-4ba1a9a6-bt257p` and waits for Morgan's OK on the PR summary (D-018). All tested in the cloud only. The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1); Morgan doesn't have it yet, so projected steps stay "built, awaiting Morgan's check" (VER-07).
+Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–6 are merged (step 6: [PR #12](https://github.com/DdraigFawr13/project-terra/pull/12), 2026-10-28). All tested in the cloud only. The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1); Morgan doesn't have it yet, so projected steps stay "built, awaiting Morgan's check" (VER-07).
 
 ## Just done
 
@@ -17,8 +17,8 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–5 are mer
 
 ## Next
 
-1. Step 6 redo per D-028 is built and reviewed; [walkthrough v2](https://claude.ai/artifact/1Fu4eCAzLnKStCU5YwNLwc) sent 2026-10-28. Waiting for Morgan's "go", then open the PR and merge when green (D-018).
-2. Then step 7, ping, autosave and curtain (PLAN.md).
+1. Step 7: ping, autosave and curtain (PLAN.md). Autosave already saves every change; check what's left against the plan before building, and show Morgan a short proposal first.
+2. Then step 8, the rehearsal.
 - **Book library** (separate thread; D-010, D-026). Data track done 2026-10-28 in private repo `project-terra-library` (attach with add_repo; its README lists every file and how it was checked): 503 MM creatures, 35 Phandelver creatures, 391 PHB spells, 39 DMG treasure tables, 17 Phandelver magic items with placements, MM habitat lists, Lost Mine maps. Only the 6 Thundertree creatures are `pageChecked`. Next: the app's library import (first phase after session 1), then a portrait test before cropping art; DMG traps, hazards, weather and other magic items after session 1. The MM and DMG PDFs lived only in the old container: to re-read pages, Morgan sets Drive `_AI_Directories` files to link sharing, then download via drive.usercontent.google.com (MM id 1lAzOxqwZfoT_STKHNaUQpcshncj_2z7v, DMG id 18XP8iND9a59QWK9Tc3US0KyyPIw-guLg; both domains are allowed in the environment). Never use 5e.tools.
 - **Map scale** (for step 4 follow-up): Thundertree is 1 square = 10 ft (28 × 19 squares = 56 × 38 in at 5 ft per inch); Cragmaw Hideout, Redbrand Hideout and Cragmaw Castle are 5 ft. Import (D-024) makes one picture square 1 inch, so it needs a feet-per-square choice. A map bigger than the projected area needs panning or sections (Morgan to measure the table). Where only a keyed DM map exists, Morgan covers the area numbers and legend with hide shapes.
 3. When Morgan has a Windows laptop: run "Build Windows app", then the README checks in order: two windows, calibration with a ruler, map import with the Thundertree photo, then the projector photo. Confirm the built-in screen says "this laptop" (`Display.internal`) and the display scale: a 14" 1080p screen usually defaults to 150%, leaving the DM window about 1280 × 680 (checked in screenshots: the step 5 layout fits). Try fog and discs with a finger and the pen; enter the party and run a mock round.
