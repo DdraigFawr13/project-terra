@@ -8,17 +8,16 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–5 are mer
 
 ## Just done
 
-- 2026-10-28 Step 6, D-027 (Morgan took all five recommendations and asked for touch and stylus):
-  - `src/core/fight.ts`: discs (on the placed map in its inches, like fog), colour groups, conditions, initiative with ties, next turn, the turn strip (`stripOf`, player-safe fields only), character cards. Save version 5.
-  - Undo covers discs and turns; cards are kept out of it (`keepOnUndo` in `main.ts`).
-  - Table: discs with letters both ways and the strip along both long edges of `visibleRect` (`table-draw.ts`).
-  - DM: Marker tool with colours and sizes (`dm-map.ts`); left panel with initiative, markers by colour and cards (`dm-fight.ts`). Select grabs a disc within 22 px; Marker taps beside a disc place a new one. Pen palm rule covers disc taps and drags (e2e-tested with two touch points; the test fails without the rule).
-  - Tests: 27 unit (0.4 s), 4 e2e journeys (about 11 s). Screenshots checked at 1280 × 680. [Walkthrough](https://claude.ai/artifact/1Fu4eCAzLnKStCU5YwNLwc).
+- 2026-10-28 Step 6, D-027 then redone per D-028 after Morgan's review:
+  - Core: `src/core/fight.ts` (discs, groups with AC/HP max/notes, HP per disc, condition from HP, initiative, strip, cards with temp HP and passives), `src/core/creatures.ts` (library stat blocks). Save version 6.
+  - Main: `src/main/creatures.ts` stores imported library files in `<userData>/library/creatures/`; DM bridge only.
+  - DM: floating windows (`float-win.ts`), number pad (`numpad.ts`), `dm-party.ts`, `dm-monsters.ts` (HP, Edit, Book), left panel `dm-fight.ts`. Undo keeps cards and drops rolls of removed characters.
+  - Tests: 30 unit, 4 e2e (about 13 s). Real `mm2024.json` imports: 503 read, 6 checked.
 - 2026-10-28 Step 5, fog ([PR #8](https://github.com/DdraigFawr13/project-terra/pull/8)), D-025. Earlier steps: [archive](archive/handoff-2026-10.md).
 
 ## Next
 
-1. Step 6 redo per D-028 (all choices settled 2026-10-28): building on this branch. Then screenshots, a walkthrough page and the PR summary (D-018).
+1. Step 6 redo per D-028 is built and reviewed; [walkthrough v2](https://claude.ai/artifact/1Fu4eCAzLnKStCU5YwNLwc) sent 2026-10-28. Waiting for Morgan's "go", then open the PR and merge when green (D-018).
 2. Then step 7, ping, autosave and curtain (PLAN.md).
 - **Book library** (separate thread; D-010, D-026). Data track done 2026-10-28 in private repo `project-terra-library` (attach with add_repo; its README lists every file and how it was checked): 503 MM creatures, 35 Phandelver creatures, 391 PHB spells, 39 DMG treasure tables, 17 Phandelver magic items with placements, MM habitat lists, Lost Mine maps. Only the 6 Thundertree creatures are `pageChecked`. Next: the app's library import (first phase after session 1), then a portrait test before cropping art; DMG traps, hazards, weather and other magic items after session 1. The MM and DMG PDFs lived only in the old container: to re-read pages, Morgan sets Drive `_AI_Directories` files to link sharing, then download via drive.usercontent.google.com (MM id 1lAzOxqwZfoT_STKHNaUQpcshncj_2z7v, DMG id 18XP8iND9a59QWK9Tc3US0KyyPIw-guLg; both domains are allowed in the environment). Never use 5e.tools.
 - **Map scale** (for step 4 follow-up): Thundertree is 1 square = 10 ft (28 × 19 squares = 56 × 38 in at 5 ft per inch); Cragmaw Hideout, Redbrand Hideout and Cragmaw Castle are 5 ft. Import (D-024) makes one picture square 1 inch, so it needs a feet-per-square choice. A map bigger than the projected area needs panning or sections (Morgan to measure the table). Where only a keyed DM map exists, Morgan covers the area numbers and legend with hide shapes.
