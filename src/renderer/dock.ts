@@ -69,14 +69,18 @@ export function initDock(onLayout: () => void) {
   const specs = new Map<string, PanelSpec>();
   /** Each window's frame on screen: its bar, its second row and its content. */
   const frames = new Map<string, HTMLElement>();
-  let layout = loadLayout();
-  // Sheets start closed each run, as before, but remember where they were.
-  for (const a of Object.values(layout.arrangements)) {
-    for (const area of AREAS)
-      a!.areas[area] = (a!.areas[area] ?? []).map((g) => ({ ...g, panels: g.panels.filter((p) => !p.startsWith("sheet:")) }));
-    a!.floats = Object.fromEntries(Object.entries(a!.floats).filter(([id]) => !id.startsWith("sheet:")));
-  }
-  layout.pinned = Object.fromEntries(Object.entries(layout.pinned).filter(([id]) => !id.startsWith("sheet:")));
+  const layout = loadLayout();
+  // Sheets open last time open again where they were (D-034): each shows once its owner makes it. The owner forgets
+  // one it won't make, such as the sheet of a colour with no discs left.
+  const sheetIds = (a: Arrangement) => [
+    ...AREAS.flatMap((area) => (a.areas[area] ?? []).flatMap((g) => g.panels)),
+    ...Object.keys(a.floats),
+  ];
+  const restored = new Set(
+    [...Object.values(layout.arrangements).flatMap((a) => sheetIds(a!)), ...Object.keys(layout.pinned)].filter((id) =>
+      id.startsWith("sheet:"),
+    ),
+  );
   let dragging = false;
   let top = 20;
   /** The window last touched: outlined in copper (D-032). */
@@ -570,6 +574,15 @@ export function initDock(onLayout: () => void) {
         .filter((s) => !s.sheet)
         .map((s) => ({ id: s.id, name: s.title.textContent ?? s.id, open: isOpen(s.id), closable: s.closable !== false })),
     toggle: (id: string) => (isOpen(id) ? api(id).close() : api(id).open()),
+    /** Whether a sheet was open when the DM window last closed. */
+    wasOpen: (id: string) => restored.has(id),
+    /** Drop a sheet that was open last time but won't be made now, so it can't pop up later by surprise. */
+    forget: (id: string) => {
+      restored.delete(id);
+      for (const a of Object.values(layout.arrangements)) unplace(id, a!);
+      delete layout.pinned[id];
+      save();
+    },
     open: (id: string) => api(id).open(),
     preset: () => layout.preset,
     usePreset: (p: Preset) => {

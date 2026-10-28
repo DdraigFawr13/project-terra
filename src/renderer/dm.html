@@ -190,6 +190,16 @@
           <button type="button" data-tool="marker" data-icon="marker" aria-pressed="false" disabled title="Place enemy discs (M)">
             Marker<kbd>M</kbd>
           </button>
+          <button
+            type="button"
+            data-tool="ping"
+            data-icon="ping"
+            aria-pressed="false"
+            disabled
+            title="Ping (P): tap to ping the table, hold to leave a pin, tap a pin to take it away"
+          >
+            Ping<kbd>P</kbd>
+          </button>
         </div>
 
         <p id="selectHint" class="tool-sub tool-hint">Drag the map or a disc. Tap a disc for its HP.</p>
@@ -220,6 +230,18 @@
             </button>
             <button type="button" data-size="4" aria-pressed="false" aria-label="4-inch brush" title="4-inch brush" disabled>
               <span class="dot s4"></span>4 inches
+            </button>
+          </div>
+        </div>
+
+        <div id="pingOpts" class="tool-sub" hidden>
+          <h4>Pins</h4>
+          <div class="tool-group" role="group" aria-label="Who sees a new pin" title="Who sees a new pin">
+            <button type="button" data-pin-table="true" data-icon="pin" aria-pressed="true" disabled title="New pins: the players see them">
+              Players see
+            </button>
+            <button type="button" data-pin-table="false" data-icon="hide" aria-pressed="false" disabled title="New pins: only you see them">
+              Only me
             </button>
           </div>
         </div>

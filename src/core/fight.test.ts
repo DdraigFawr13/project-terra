@@ -23,6 +23,7 @@ const map: PlacedMap = {
   fog: [],
   discs: [],
   groups: {},
+  pins: [],
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {

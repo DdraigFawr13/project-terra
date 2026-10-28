@@ -16,6 +16,8 @@ export function initParty(terra: DmApi): { show: () => void } {
   let tab: string | null = null;
   /** The card being edited (null id: a new one), with what has been typed so far. */
   let editing: { id: string | null; draft: Draft } | null = null;
+  /** Remove asks first: a card is outside undo, so a slip would lose it for good (D-027, D-034). */
+  let confirmRemove = false;
   const run = (c: Command) => void terra.apply(c);
   const win = floatWin("party");
   win.title.append(el("b", {}, "Party"));
@@ -90,24 +92,39 @@ export function initParty(terra: DmApi): { show: () => void } {
       f("Spell save DC", "spellDc", { ...(NUMBER as Record<string, string>), max: "40" }),
       f("Notes", "notes", { type: "textarea", maxlength: "2000", rows: "3" }),
       status,
-      el(
-        "div",
-        { class: "row-buttons" },
-        button("Cancel", {}, () => {
-          editing = null;
-          render();
-        }),
-        ...(old
-          ? [
-              button("Remove", { class: "danger" }, () => {
-                editing = null;
-                tab = null;
-                run({ type: "removeCharacter", id: old.id });
-              }),
-            ]
-          : []),
-        button("Save", { class: "primary", type: "submit" }, () => undefined),
-      ),
+      old && confirmRemove
+        ? el(
+            "div",
+            { class: "row-buttons confirm" },
+            el("p", { class: "hint" }, `Remove ${old.name}? This can't be undone.`),
+            button("Keep", {}, () => {
+              confirmRemove = false;
+              render();
+            }),
+            button("Remove", { class: "danger" }, () => {
+              editing = null;
+              confirmRemove = false;
+              tab = null;
+              run({ type: "removeCharacter", id: old.id });
+            }),
+          )
+        : el(
+            "div",
+            { class: "row-buttons" },
+            button("Cancel", {}, () => {
+              editing = null;
+              render();
+            }),
+            ...(old
+              ? [
+                  button("Remove…", { class: "danger" }, () => {
+                    confirmRemove = true;
+                    render();
+                  }),
+                ]
+              : []),
+            button("Save", { class: "primary", type: "submit" }, () => undefined),
+          ),
     );
     form.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -126,6 +143,7 @@ export function initParty(terra: DmApi): { show: () => void } {
         ? [
             button("Edit", {}, () => {
               editing = { id: pc.id, draft: draftOf(pc) };
+              confirmRemove = false;
               render();
             }),
           ]
@@ -146,6 +164,7 @@ export function initParty(terra: DmApi): { show: () => void } {
         { class: "icon", "aria-label": "Add a character", disabled: party.length >= MAX_PARTY },
         () => {
           editing = { id: null, draft: draftOf() };
+          confirmRemove = false;
           render();
         },
         "plus",

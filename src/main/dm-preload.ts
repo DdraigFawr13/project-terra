@@ -24,6 +24,8 @@ const api = {
   /** Resolves once the main process has taken the command; the new state arrives through `onState` first. */
   apply: (command: Command): Promise<void> => ipcRenderer.invoke("state:apply", command),
   undo: (): Promise<void> => ipcRenderer.invoke("state:undo"),
+  /** Ping the table at (x, y) in table inches: rings for about 2 seconds, nothing saved (D-034). */
+  ping: (x: number, y: number): Promise<void> => ipcRenderer.invoke("table:ping", x, y),
   canUndo: (): Promise<boolean> => ipcRenderer.invoke("history:get"),
   onHistory: (fn: (canUndo: boolean) => void) => ipcRenderer.on("history:changed", (_e, can: boolean) => fn(can)),
   listMaps: (): Promise<LibraryMap[]> => ipcRenderer.invoke("library:list"),

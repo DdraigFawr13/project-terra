@@ -1,7 +1,8 @@
 // DM window, maps (step 4, D-024): import a picture, mark a rectangle of known size, straighten it into 1-inch
 // squares, and place, move and turn it on the table. Straightening runs here, in the DM window; the main process only
 // stores the result in the personal library (D-010). Fog (step 5, D-025) is painted here with Reveal and Hide, and
-// enemy discs (step 6, D-027) are placed with Marker and dragged with Select.
+// enemy discs (step 6, D-027) are placed with Marker and dragged with Select. Ping (step 7, D-034) pings the table with
+// a tap and leaves a pin with a long press.
 import { defaultCalibration, screenOutline } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
 import { conditionOf, nextLetter, snapDisc, type Disc, type DiscColour } from "../core/fight.ts";
@@ -11,7 +12,7 @@ import type { Command, PlacedMap, TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
 import { fillFog, type FogPainter } from "./fog-draw.ts";
 import { icon } from "./icons.ts";
-import { drawDisc } from "./table-draw.ts";
+import { drawDisc, drawPin, PING_MS } from "./table-draw.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const emptyMap = $<HTMLElement>("emptyMap");
@@ -37,6 +38,8 @@ const brushHead = $<HTMLElement>("brushHead");
 /** The options under the main tools, one set for each tool (D-032). */
 const fogOpts = $<HTMLDivElement>("fogOpts");
 const markerOpts = $<HTMLDivElement>("markerOpts");
+const pingOpts = $<HTMLDivElement>("pingOpts");
+const pinKindBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-pin-table]")];
 const selectHint = $<HTMLElement>("selectHint");
 const colourBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-colour]")];
 const discSizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-disc-size]")];
@@ -50,7 +53,7 @@ const zoomLevel = $<HTMLElement>("zoomLevel");
 const FOLDED = "#ff6b5a";
 
 type Importing = { bitmap: ImageBitmap; corners: Quad; selected: number; busy: boolean };
-type Tool = "select" | FogMode | "marker";
+type Tool = "select" | FogMode | "marker" | "ping";
 type DrawWith = "brush" | "outline" | "box";
 const DRAW_ORDER: DrawWith[] = ["brush", "outline", "box"];
 /** Ghost colours while painting: warm light to reveal, copper to hide. */
@@ -61,6 +64,11 @@ type Stroke = { pointer: number; pen: boolean; mode: FogMode; points: Point[] };
 /** A disc being dragged, or a tap with Marker about to place one; `at` is its snapped centre in map inches. */
 type DiscDrag = { pointer: number; pen: boolean; colour: DiscColour; letter: string; from: Point; at: Point };
 type Placing = { pointer: number; pen: boolean; at: Point };
+/** A press with Ping: a tap pings, holding for LONG_PRESS_MS leaves a pin, a tap on a pin takes it away (D-034). */
+type Pressing = { pointer: number; pen: boolean; from: Point; at: Point; pin: number | null; done: boolean; timer: number };
+const LONG_PRESS_MS = 500;
+/** A press that wanders further than this, in canvas pixels, is a slip, not a tap. */
+const SLIP_PX = 14;
 /** Fingers find a disc within this many pixels of its edge, however small the map draws it (D-027). */
 const GRAB_PX = 22;
 /** Discs are drawn at least this wide on the DM's map so their letters stay readable. */
@@ -92,6 +100,9 @@ export function initMaps(
   let stroke: Stroke | null = null;
   let discDrag: DiscDrag | null = null;
   let placing: Placing | null = null;
+  let pressing: Pressing | null = null;
+  /** Whether a new pin is one the players see. */
+  let pinTable = true;
   let colour: DiscColour = "yellow";
   let discSize = 1;
   /** Where the mouse or a hovering pen is over the map, in map inches, to show the brush ring. Fingers have no hover. */
@@ -119,7 +130,9 @@ export function initMaps(
         const b = document.createElement("button");
         b.type = "button";
         b.textContent = `Place “${m.name}”`;
-        b.addEventListener("click", () => run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {} } }));
+        b.addEventListener("click", () =>
+          run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [] } }),
+        );
         li.append(b);
         return li;
       }),
@@ -223,7 +236,7 @@ export function initMaps(
       const png = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
       const entry = await terra.saveMap(nameInput.value, png, plan.bounds);
       importing = null;
-      await run({ type: "placeMap", map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {} } });
+      await run({ type: "placeMap", map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [] } });
       refreshLibrary();
     } catch (e) {
       im.busy = false;
@@ -419,6 +432,11 @@ export function initMaps(
         ctx.stroke();
       }
     }
+    // Pins over the discs, as on the table (D-006): the DM's own are hollow copper. Never smaller than a fingertip.
+    for (const p of map.pins) {
+      const c = px(p);
+      drawPin(ctx, c.x, c.y, Math.max(s, 26), !p.table, accent);
+    }
     // Where a tap with Marker will put the next disc: under the finger, or under the hovering pen or mouse.
     const ghost = placing?.at ?? (tool === "marker" && hover && !discDrag ? snapDisc(hover, discSize) : null);
     if (ghost && nextLetter(map.discs, colour)) draw({ colour, letter: nextLetter(map.discs, colour)!, size: discSize }, ghost, 0.5);
@@ -442,6 +460,32 @@ export function initMaps(
       if (dist <= reach && (!best || dist < best.dist)) best = { d, dist };
     }
     return best?.d ?? null;
+  }
+
+  /** The pin under a pointer, within a finger's reach, or null. */
+  function pinAt(e: PointerEvent): number | null {
+    const map = state?.map;
+    if (!map) return null;
+    const r = mapCanvas.getBoundingClientRect();
+    const { s, ox, oy } = viewport(map, r.width, r.height);
+    const p = canvasPoint(e);
+    let best: { id: number; dist: number } | null = null;
+    for (const pin of map.pins) {
+      const t = mapToTable(map, pin);
+      const dist = Math.hypot(ox + t.x * s - p.x, oy + t.y * s - p.y);
+      if (dist <= Math.max(s, 26) * 0.45 + GRAB_PX && (!best || dist < best.dist)) best = { id: pin.id, dist };
+    }
+    return best?.id ?? null;
+  }
+
+  /** The DM's own sight of a ping: rings over the map for as long as the table shows them, faint while the curtain is down. */
+  function showPing(at: Point): void {
+    const mark = document.createElement("span");
+    mark.className = "ping-mark";
+    mark.classList.toggle("muted", !!state?.curtain);
+    Object.assign(mark.style, { left: `${at.x}px`, top: `${at.y}px` });
+    mapCanvas.parentElement!.append(mark);
+    setTimeout(() => mark.remove(), PING_MS);
   }
 
   const inchesAt = (e: PointerEvent): Point => {
@@ -477,7 +521,9 @@ export function initMaps(
 
   /** Esc or a second finger: drop the stroke, drag or placement before it reaches the table. */
   function cancel(): boolean {
-    if (!stroke && !drag && !discDrag && !placing && !pan) return false;
+    if (!stroke && !drag && !discDrag && !placing && !pan && !pressing) return false;
+    if (pressing) clearTimeout(pressing.timer);
+    pressing = null;
     stroke = null;
     drag = null;
     discDrag = null;
@@ -487,8 +533,8 @@ export function initMaps(
     return true;
   }
   /** Whether a gesture is under way, and whether the pen is making it (then touches are a resting palm). */
-  const busy = () => !!(stroke || drag || discDrag || placing || pan);
-  const penBusy = () => !!(stroke?.pen || drag?.pen || discDrag?.pen || placing?.pen);
+  const busy = () => !!(stroke || drag || discDrag || placing || pan || pressing);
+  const penBusy = () => !!(stroke?.pen || drag?.pen || discDrag?.pen || placing?.pen || pressing?.pen);
 
   mapCanvas.addEventListener("pointerdown", (e) => {
     if (!state?.map) return;
@@ -538,6 +584,21 @@ export function initMaps(
       render();
       return;
     }
+    if (tool === "ping") {
+      const from = canvasPoint(e);
+      const pin = pinAt(e);
+      const at = mapInchesAt(e)!;
+      const p: Pressing = { pointer: e.pointerId, pen, from, at, pin, done: false, timer: 0 };
+      // Holding still leaves a pin; on a pin, holding does nothing more than a tap.
+      if (pin === null)
+        p.timer = window.setTimeout(() => {
+          if (pressing !== p) return;
+          p.done = true;
+          void run({ type: "placePin", ...p.at, table: pinTable });
+        }, LONG_PRESS_MS);
+      pressing = p;
+      return;
+    }
     const at = mapInchesAt(e)!;
     // A pen's eraser end (or eraser button) hides, whichever of Reveal or Hide is picked.
     const eraser = e.pointerType === "pen" && (e.button === 5 || (e.buttons & 32) !== 0);
@@ -562,6 +623,11 @@ export function initMaps(
       const p = canvasPoint(e);
       panBy(p.x - pan.last.x, p.y - pan.last.y);
       pan.last = p;
+      return;
+    }
+    if (pressing?.pointer === e.pointerId) {
+      const p = canvasPoint(e);
+      if (!pressing.done && Math.hypot(p.x - pressing.from.x, p.y - pressing.from.y) > SLIP_PX) cancel();
       return;
     }
     if (drag?.pointer === e.pointerId) {
@@ -635,6 +701,19 @@ export function initMaps(
     }
     if (discDrag?.pointer === e.pointerId) return endDisc(keep);
     if (placing?.pointer === e.pointerId) return endPlacing(keep);
+    if (pressing?.pointer === e.pointerId) {
+      const p = pressing;
+      clearTimeout(p.timer);
+      pressing = null;
+      if (!keep || p.done || !state?.map) return;
+      if (p.pin !== null) void run({ type: "removePin", id: p.pin });
+      else {
+        const t = mapToTable(state.map, p.at);
+        void terra.ping(t.x, t.y);
+        showPing(p.from);
+      }
+      return;
+    }
     if (drag?.pointer === e.pointerId) {
       const { dx, dy } = drag;
       drag = null;
@@ -673,6 +752,8 @@ export function initMaps(
     // Only the options for the tool picked show under the main tools.
     fogOpts.hidden = !on || (tool !== "reveal" && tool !== "hide");
     markerOpts.hidden = !on || tool !== "marker";
+    pingOpts.hidden = !on || tool !== "ping";
+    press(pinKindBtns, (b) => (b.dataset.pinTable === "true") === pinTable);
     selectHint.hidden = !on || tool !== "select";
     press(colourBtns, (b) => b.dataset.colour === colour);
     press(discSizeBtns, (b) => Number(b.dataset.discSize) === discSize);
@@ -703,6 +784,12 @@ export function initMaps(
       render();
     }),
   );
+  pinKindBtns.forEach((b) =>
+    b.addEventListener("click", () => {
+      pinTable = b.dataset.pinTable === "true";
+      render();
+    }),
+  );
   discSizeBtns.forEach((b) =>
     b.addEventListener("click", () => {
       discSize = Number(b.dataset.discSize);
@@ -712,7 +799,7 @@ export function initMaps(
   const fogAll: FogOp[] = [{ kind: "dimSeen" }, { kind: "revealAll" }, { kind: "coverAll" }];
   fogBtns.forEach((b, i) => b.addEventListener("click", () => run({ type: "fog", op: fogAll[i]! })));
 
-  /** V, R, H and M pick the tool; S steps through brush, outline and box. Returns whether the key was used. */
+  /** V, R, H, M and P pick the tool; S steps through brush, outline and box. Returns whether the key was used. */
   function shortcut(key: string): boolean {
     if (!state?.map || importing) return false;
     const k = key.toLowerCase();
@@ -720,6 +807,7 @@ export function initMaps(
     else if (k === "r") setTool("reveal");
     else if (k === "h") setTool("hide");
     else if (k === "m") setTool("marker");
+    else if (k === "p") setTool("ping");
     else if (k === "s") setDraw(DRAW_ORDER[(DRAW_ORDER.indexOf(drawWith) + 1) % DRAW_ORDER.length]!);
     else return false;
     return true;

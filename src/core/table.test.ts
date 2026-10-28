@@ -5,6 +5,7 @@ import { defaultCalibration } from "./calibration.ts";
 import {
   apply,
   defaultState,
+  MAX_PINS,
   parseCommand,
   parseSave,
   playerViewOf,
@@ -27,6 +28,7 @@ const map: PlacedMap = {
   fog: [],
   discs: [],
   groups: {},
+  pins: [],
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
@@ -55,7 +57,10 @@ test("curtain wins over calibration, then the map, then the test grid", () => {
     ),
     "map",
   );
-  assert.equal(viewOf(run([{ type: "removeMap" }, { type: "curtain", on: false }, { type: "calibrating", on: false }], s)), "testGrid");
+  const bare = [{ type: "removeMap" }, { type: "curtain", on: false }, { type: "calibrating", on: false }];
+  // Placing the map switched the test grid off, so taking it away leaves the title until the DM turns the grid on.
+  assert.equal(viewOf(run(bare, s)), "idle");
+  assert.equal(viewOf(run([...bare, { type: "testGrid", on: true }], s)), "testGrid");
   assert.equal(viewOf(defaultState()), "testGrid");
   assert.equal(viewOf(run([{ type: "testGrid", on: false }])), "idle");
 });
@@ -75,7 +80,9 @@ test("the table window gets only the player view: no map name, the calibration f
     discs: [],
     strip: null,
     flipLetters: false,
-    grid: true,
+    // Placing a map switches the test grid off (D-034).
+    grid: false,
+    pins: [],
   });
   assert.equal(playerViewOf(s, "window").calibration, null);
   assert.ok(!JSON.stringify(playerViewOf(s, "display:7")).includes("Secret"));
@@ -274,6 +281,51 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
     ok: true,
     state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
   });
-  assert.equal(parseSave(JSON.stringify({ version: 8, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 9, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
+});
+
+test("pins (D-034): placed in map inches, moved with the map, only table pins reach the players, removed and cleared", () => {
+  const s = run([
+    { type: "placeMap", map },
+    { type: "lockMap", on: false },
+    { type: "placePin", x: 1.234, y: 2, table: true },
+    { type: "placePin", x: 3, y: 1, table: false },
+    { type: "moveMap", dx: 1, dy: 0 },
+  ]);
+  assert.deepEqual(s.map!.pins, [
+    { id: 1, x: 1.23, y: 2, table: true },
+    { id: 2, x: 3, y: 1, table: false },
+  ]);
+  // The DM's own pin never goes to the table; the table pin moved with the map.
+  assert.deepEqual(playerViewOf(s, "window").pins, [{ x: map.x + 1 + 1.23, y: map.y + 2 }]);
+  assert.ok(["placePin", "removePin", "clearPins"].every((t) => UNDOABLE.has(t as Command["type"])));
+  const removed = run([{ type: "removePin", id: 1 }], s);
+  assert.deepEqual(
+    removed.map!.pins.map((p) => p.id),
+    [2],
+  );
+  // A removed pin's id isn't reused while a higher one stands; removing a missing pin changes nothing.
+  assert.equal(run([{ type: "placePin", x: 0, y: 0, table: true }], removed).map!.pins[1]!.id, 3);
+  assert.equal(run([{ type: "removePin", id: 9 }], s), s);
+  assert.deepEqual(run([{ type: "clearPins" }], s).map!.pins, []);
+  // No map, no pin; and never more than MAX_PINS.
+  assert.equal(run([{ type: "placePin", x: 0, y: 0, table: true }]).map, null);
+  const full = run(
+    Array.from({ length: MAX_PINS + 3 }, () => ({ type: "placePin", x: 0, y: 0, table: false })),
+    s,
+  );
+  assert.equal(full.map!.pins.length, MAX_PINS);
+  assert.equal(parseCommand({ type: "placePin", x: 0, y: 0 }), null);
+  // Pins save and load; a version 7 save (no pins) loads with none; a bad pin list keeps the file aside.
+  assert.deepEqual(parseSave(serialize(s)), { ok: true, state: s });
+  const v7 = JSON.parse(serialize(s));
+  v7.version = 7;
+  delete v7.map.pins;
+  assert.deepEqual((parseSave(JSON.stringify(v7)) as { state: TableState }).state.map!.pins, []);
+  v7.map.pins = [
+    { id: 1, x: 0, y: 0, table: true },
+    { id: 1, x: 1, y: 1, table: true },
+  ];
+  assert.equal(parseSave(JSON.stringify(v7)).ok, false);
 });

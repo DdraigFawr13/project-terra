@@ -6,7 +6,9 @@ import { cssMatrix3d } from "../core/homography.ts";
 import type { PlayerView } from "../core/table.ts";
 import type { PlayerApi } from "../main/player-preload.ts";
 import { FogPainter } from "./fog-draw.ts";
-import { ACCENT, drawTable, FONT, mapImages, textBothSides, type TableMode } from "./table-draw.ts";
+import { ACCENT, drawPing, drawTable, FONT, mapImages, PING_MS, textBothSides, type TableMode } from "./table-draw.ts";
+import type { Layer } from "../core/calibration.ts";
+import type { Point } from "../core/homography.ts";
 
 const terra = (window as unknown as { terra: PlayerApi }).terra;
 const screenCanvas = document.getElementById("table") as HTMLCanvasElement;
@@ -15,6 +17,11 @@ const sctx = screenCanvas.getContext("2d")!;
 const lctx = layerCanvas.getContext("2d")!;
 const overlayCanvas = document.getElementById("overlay") as HTMLCanvasElement;
 const octx = overlayCanvas.getContext("2d")!;
+/** Pings get their own warped canvas, so their rings animate without redrawing the map and its fog (D-034). */
+const pingCanvas = document.getElementById("pings") as HTMLCanvasElement;
+const pctx = pingCanvas.getContext("2d")!;
+let pingLayer: Layer | null = null;
+let pings: { at: Point; start: number }[] = [];
 let player: PlayerView | null = null;
 
 const fog = new FogPainter();
@@ -35,6 +42,11 @@ function drawLayer(cal: Calibration, mode: TableMode, calibrated: boolean): void
   layerCanvas.style.height = `${layerCanvas.height}px`;
   layerCanvas.style.transform = `matrix3d(${cssMatrix3d(layer.transform).join(",")})`;
   layerCanvas.hidden = false;
+  pingLayer = mode === "map" ? layer : null;
+  pingCanvas.width = layerCanvas.width;
+  pingCanvas.height = layerCanvas.height;
+  pingCanvas.style.cssText = layerCanvas.style.cssText;
+  pingCanvas.hidden = !pingLayer;
   if (player) drawTable(lctx, { cal, layer, mode, calibrated, view: player, image, fog, area: visibleRect(cal, surface) }, 1);
 }
 
@@ -80,6 +92,8 @@ function draw(): void {
   document.body.dataset.view = view;
   document.body.dataset.calibrated = String(!!calibration);
   layerCanvas.hidden = true;
+  pingCanvas.hidden = true;
+  pingLayer = null;
   overlayCanvas.width = screenCanvas.width;
   overlayCanvas.height = screenCanvas.height;
   octx.setTransform(s.scale, 0, 0, s.scale, 0, 0);
@@ -92,6 +106,22 @@ function draw(): void {
     textBothSides(sctx, "Project Terra", { x: 0, y: 0, w: s.width, h: s.height }, 33, 22);
   }
 }
+
+function drawPings(now: number): void {
+  pings = pings.filter((p) => now - p.start < PING_MS);
+  const l = pingLayer;
+  pctx.setTransform(1, 0, 0, 1, 0, 0);
+  pctx.clearRect(0, 0, pingCanvas.width, pingCanvas.height);
+  if (!l) pings = [];
+  for (const p of pings)
+    drawPing(pctx, (p.at.x - l!.box.x) * l!.pxPerInch, (p.at.y - l!.box.y) * l!.pxPerInch, l!.pxPerInch, now - p.start);
+  if (pings.length) requestAnimationFrame(drawPings);
+}
+terra.onPing((at) => {
+  const start = pings.length === 0;
+  pings.push({ at, start: performance.now() });
+  if (start) requestAnimationFrame(drawPings);
+});
 
 window.addEventListener("resize", draw);
 function show(v: PlayerView): void {

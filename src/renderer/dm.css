@@ -935,8 +935,56 @@ input[type="number"] {
 }
 #mapCanvas[data-tool="reveal"],
 #mapCanvas[data-tool="hide"],
-#mapCanvas[data-tool="marker"] {
+#mapCanvas[data-tool="marker"],
+#mapCanvas[data-tool="ping"] {
   cursor: crosshair;
+}
+/* What the DM sees of a ping (D-034): white rings over the map for as long as the table shows them. Faint while the
+   curtain is down, since the table shows nothing then. */
+.ping-mark {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.ping-mark::before,
+.ping-mark::after {
+  content: "";
+  position: absolute;
+  left: -40px;
+  top: -40px;
+  width: 80px;
+  height: 80px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  opacity: 0;
+  animation: ping-ring 0.8s ease-out 2;
+}
+.ping-mark::after {
+  animation-delay: 0.6s;
+}
+.ping-mark.muted {
+  opacity: 0.35;
+}
+@keyframes ping-ring {
+  from {
+    transform: scale(0.15);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ping-mark::before {
+    animation: none;
+    opacity: 1;
+    transform: scale(0.4);
+  }
+  .ping-mark::after {
+    display: none;
+  }
 }
 input[type="text"] {
   font: inherit;
@@ -1112,6 +1160,13 @@ button.condition.down {
 .row-buttons button {
   flex: 1;
   padding: 0 6px;
+}
+/* Remove asks first: the question on its own line, then Keep and Remove. */
+.row-buttons.confirm {
+  flex-wrap: wrap;
+}
+.row-buttons.confirm .hint {
+  flex-basis: 100%;
 }
 button.danger {
   color: var(--danger-ink);
