@@ -13,7 +13,7 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–5 are mer
   - Undo covers discs and turns; cards are kept out of it (`keepOnUndo` in `main.ts`).
   - Table: discs with letters both ways and the strip along both long edges of `visibleRect` (`table-draw.ts`).
   - DM: Marker tool with colours and sizes (`dm-map.ts`); left panel with initiative, markers by colour and cards (`dm-fight.ts`). Select grabs a disc within 22 px; Marker taps beside a disc place a new one. Pen palm rule covers disc taps and drags (e2e-tested with two touch points; the test fails without the rule).
-  - Tests: 27 unit (0.4 s), 4 e2e journeys (about 11 s). Screenshots checked at 1280 × 680.
+  - Tests: 27 unit (0.4 s), 4 e2e journeys (about 11 s). Screenshots checked at 1280 × 680. [Walkthrough](https://claude.ai/artifact/1Fu4eCAzLnKStCU5YwNLwc).
 - 2026-10-28 Step 5, fog ([PR #8](https://github.com/DdraigFawr13/project-terra/pull/8)), D-025. Earlier steps: [archive](archive/handoff-2026-10.md).
 
 ## Next
