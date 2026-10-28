@@ -39,7 +39,10 @@ main {
   padding: 20px;
   display: grid;
   gap: 16px;
-  max-width: 420px;
+  /* Setup panels sit side by side; the map layout (D-012) arrives with maps in step 3. */
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  align-items: start;
+  max-width: 1040px;
 }
 .panel {
   background: var(--surface);
@@ -85,4 +88,50 @@ select:focus-visible {
   margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
+}
+#notice {
+  margin: 0;
+  padding: 10px 20px;
+  background: #4a3a1c;
+  color: #f3e6c8;
+  border-bottom: 1px solid var(--focus);
+}
+#notice[hidden],
+.cal-tools[hidden] {
+  display: none;
+}
+.cal-tools {
+  display: grid;
+  gap: 10px;
+}
+.steps {
+  margin: 0;
+  padding-left: 1.3em;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.size {
+  display: flex;
+  gap: 16px;
+}
+input[type="number"] {
+  font: inherit;
+  width: 4.5em;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+#calPreview {
+  width: 100%;
+  background: #000;
+  border-radius: 6px;
+  touch-action: none;
+  cursor: crosshair;
+}
+#calPreview:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }

@@ -2,8 +2,18 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { TablePatch, TableState } from "../core/table.ts";
 import type { DisplayInfo } from "../core/displays.ts";
+import type { Surface } from "../core/calibration.ts";
 
-export type TableStatus = { displays: DisplayInfo[]; playerDisplayId: number | null; fullscreen: boolean };
+export type TableStatus = {
+  displays: DisplayInfo[];
+  playerDisplayId: number | null;
+  fullscreen: boolean;
+  /** Which calibration the table uses now (`display:<id>` on a projector, `window` in a normal window). */
+  surfaceKey: string;
+  surface: Surface;
+  /** A problem to show the DM, or null. */
+  notice: string | null;
+};
 
 const api = {
   getState: (): Promise<TableState> => ipcRenderer.invoke("state:get"),

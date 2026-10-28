@@ -14,6 +14,15 @@ A projected tabletop battle map for in-person D&D. The DM runs it from a Windows
 
 With a projector or TV plugged in, the table window goes fullscreen on it. Windows must be set to **Extend** (press Win+P), not Duplicate; in Duplicate mode the app sees only one screen. With only the laptop screen, the table window opens as a normal window.
 
+### Calibrate (step 2)
+
+1. With a ruler, mark a rectangle on the mat (a coin or tape at each corner), for example 10 × 10 inches.
+2. In the DM window, press **Calibrate** and enter the rectangle's size.
+3. Drag corners 1–4 in the small preview until each lands on its mark on the table. For fine moves, select a corner and use the arrow keys (Shift for bigger steps).
+4. Press **Done**, then check one square with the ruler: it should be 1 inch.
+
+Without a projector, the same works on the laptop: hold the ruler against the table window and calibrate it. Each projector keeps its own calibration.
+
 ## Develop
 
 Node 22.22.0 and npm 10.9.4.
