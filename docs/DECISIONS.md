@@ -105,3 +105,15 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 - **Status:** Accepted (2026-10-28)
 - **Decision:** Battle drama, then monsters from Morgan's books, the generator, living effects, story tools, and the rest (PLAN.md).
 - **Why:** Morgan's dream is epic battle scenes, so the second session should already feel different.
+
+## D-018 Pull requests: summary first, then open and merge
+
+- **Status:** Accepted (2026-10-28)
+- **Decision:** Before opening a pull request, the agent stops and gives Morgan a short summary of the changes. Once Morgan approves, the agent opens the PR and merges it when CI is green, with no further approval. Merges are squash merges.
+- **Why:** Morgan's instruction on 2026-10-28. Morgan wants to see each change before it goes up, without a second approval step at merge time.
+
+## D-019 The repo carries everything a session needs
+
+- **Status:** Accepted (2026-10-28)
+- **Decision:** Sessions may not have access to AI-Master-Instructions. The synced files (rules, agents, the CI skill, the session hook, the sync script) stay committed. The `planning-interview` skill is a project-owned copy of the AI-Master-Instructions v0.4.0 version, in `.claude/skills/planning-interview/`, not listed in `.ai-master.lock`. Before syncing a master version that includes it (v0.4.0 or later), delete this copy, or sync refuses to overwrite it.
+- **Why:** Morgan's instruction on 2026-10-28. v0.4.0 isn't tagged yet, so the skill can't be synced the normal way.

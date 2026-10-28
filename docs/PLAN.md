@@ -30,5 +30,6 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 ## How we work
 
 - After each step Morgan gets a short phone message: what changed, what to test, and a link.
-- New phases are planned with the `planning-interview` forms (AI-Master-Instructions v0.4.0 and later).
+- New phases are planned with the `planning-interview` skill in `.claude/skills/planning-interview/`.
+- Before each pull request, Morgan gets a summary to approve; after that the PR is opened and merged when green (D-018).
 - Decisions go in DECISIONS.md; settled ones aren't reopened without new evidence.

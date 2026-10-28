@@ -4,6 +4,8 @@ package-lock.json
 .claude/worktrees/
 # Markdown is kept out of the formatter: it re-pads tables and it lets CI skip docs-only changes.
 **/*.md
+# Project-owned copy of the planning-interview skill (from AI-Master-Instructions v0.4.0); keep it byte-identical.
+.claude/skills/planning-interview/
 
 # ai-master:start (managed by .claude/master/sync.mjs)
 .ai-master.lock
