@@ -16,7 +16,7 @@ Sessions on this project may not have the AI-Master-Instructions repo. Everythin
 ## Code layout
 
 - `src/core/`: pure logic (no Electron, no DOM, no clock, no `Math.random`), unit tested next to the code (`*.test.ts`).
-- `src/main/`: Electron main process and the preload bridge, the only way pages reach the main process.
+- `src/main/`: Electron main process and one preload bridge per window, the only way pages reach the main process. The table window's bridge is read-only.
 - `src/renderer/`: the DM window (`dm.*`) and the table window (`player.*`).
 - `e2e/`: end-to-end tests that launch the real app with Playwright.
 

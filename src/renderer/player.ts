@@ -1,12 +1,14 @@
 // Player (table) window: draws only what players may see. Text is drawn twice, once facing
 // each long side of the table, because players sit on two opposite sides (D-008).
-import { viewOf, type TableState } from "../core/table.ts";
+import type { PlayerView } from "../core/table.ts";
+import type { PlayerApi } from "../main/player-preload.ts";
 
+const terra = (window as unknown as { terra: PlayerApi }).terra;
 const canvas = document.getElementById("table") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
 // Before calibration (step 2), assume the browser's 96 CSS pixels per inch.
 const UNCALIBRATED_PX_PER_INCH = 96;
-let state: TableState | null = null;
+let player: PlayerView | null = null;
 
 function textBothSides(text: string, w: number, h: number, size: number): void {
   ctx.font = `600 ${size}px "Segoe UI", system-ui, sans-serif`;
@@ -50,7 +52,7 @@ function draw(): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, w, h);
-  const view = state ? viewOf(state) : "curtain";
+  const view = player?.view ?? "curtain";
   document.body.dataset.view = view;
   if (view === "testGrid") drawTestGrid(w, h);
   else if (view === "idle") {
@@ -60,12 +62,10 @@ function draw(): void {
 }
 
 window.addEventListener("resize", draw);
-window.terra.onState((s) => {
-  state = s;
+function show(v: PlayerView): void {
+  player = v;
   draw();
-});
-window.terra.getState().then((s) => {
-  state = s;
-  draw();
-});
+}
+terra.onView(show);
+terra.getView().then(show);
 draw();

@@ -4,7 +4,7 @@ import { app, BrowserWindow, ipcMain, screen, type Display } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { playerPlacement, type DisplayInfo } from "../core/displays.ts";
-import { applyPatch, defaultState, parseSave, serialize, type TableState } from "../core/table.ts";
+import { applyPatch, defaultState, parseSave, playerViewOf, serialize, type TableState } from "../core/table.ts";
 
 // Tests point this at a temporary folder so they never touch real saves.
 if (process.env.TERRA_USER_DATA) app.setPath("userData", process.env.TERRA_USER_DATA);
@@ -47,8 +47,8 @@ function displayInfo(d: Display): DisplayInfo {
 }
 const listDisplays = (): DisplayInfo[] => screen.getAllDisplays().map(displayInfo);
 
-function broadcast(channel: string, payload: unknown): void {
-  for (const w of [dmWindow, playerWindow]) if (w && !w.isDestroyed()) w.webContents.send(channel, payload);
+function send(w: BrowserWindow | null, channel: string, payload: unknown): void {
+  if (w && !w.isDestroyed()) w.webContents.send(channel, payload);
 }
 
 function tableStatus() {
@@ -68,13 +68,25 @@ function placePlayerWindow(): void {
   } else {
     playerWindow.setBounds({ x: target.workArea.x + 40, y: target.workArea.y + 40, width: 960, height: 600 });
   }
-  broadcast("table:status", tableStatus());
+  send(dmWindow, "table:status", tableStatus());
 }
 
 function createWindows(): void {
-  const webPreferences = { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, sandbox: true, nodeIntegration: false };
+  // Each window gets its own bridge: the table window can only read the player view (D-002).
+  const webPreferences = (preload: string) => ({
+    preload: path.join(__dirname, preload),
+    contextIsolation: true,
+    sandbox: true,
+    nodeIntegration: false,
+  });
 
-  dmWindow = new BrowserWindow({ width: 1280, height: 800, title: "Project Terra (DM)", backgroundColor: "#1c2526", webPreferences });
+  dmWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    title: "Project Terra (DM)",
+    backgroundColor: "#1c2526",
+    webPreferences: webPreferences("dm-preload.cjs"),
+  });
   dmWindow.loadFile(path.join(__dirname, "dm.html"));
   dmWindow.on("closed", () => app.quit());
 
@@ -84,7 +96,7 @@ function createWindows(): void {
     title: "Project Terra (Table)",
     backgroundColor: "#000000",
     autoHideMenuBar: true,
-    webPreferences,
+    webPreferences: webPreferences("player-preload.cjs"),
   });
   playerWindow.loadFile(path.join(__dirname, "player.html"));
   // The table window only closes with the app, so a stray click can't lose it mid-game.
@@ -104,15 +116,22 @@ if (!app.requestSingleInstanceLock()) {
     saveNow();
   });
   app.on("window-all-closed", () => app.quit());
+  // Pages never navigate or open windows. Without this, a file dropped on the table window would be shown on the projector.
+  app.on("web-contents-created", (_e, contents) => {
+    contents.on("will-navigate", (e) => e.preventDefault());
+    contents.setWindowOpenHandler(() => ({ action: "deny" }));
+  });
 
   app.whenReady().then(() => {
     state = loadState();
     ipcMain.handle("state:get", () => state);
+    ipcMain.handle("player:get", () => playerViewOf(state));
     ipcMain.handle("table:status", () => tableStatus());
     ipcMain.handle("state:patch", (_e, patch: unknown) => {
       const before = state.playerDisplayId;
       state = applyPatch(state, patch);
-      broadcast("state:changed", state);
+      send(dmWindow, "state:changed", state);
+      send(playerWindow, "player:changed", playerViewOf(state));
       saveSoon();
       if (state.playerDisplayId !== before) placePlayerWindow();
       return state;

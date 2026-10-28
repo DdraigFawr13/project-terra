@@ -1,12 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyPatch, defaultState, parseSave, serialize, viewOf } from "./table.ts";
+import { applyPatch, defaultState, parseSave, playerViewOf, serialize, viewOf } from "./table.ts";
 
 test("curtain wins over the test grid", () => {
   const s = applyPatch(defaultState(), { testGrid: true, curtain: true });
   assert.equal(viewOf(s), "curtain");
   assert.equal(viewOf(applyPatch(s, { curtain: false })), "testGrid");
   assert.equal(viewOf(applyPatch(s, { curtain: false, testGrid: false })), "idle");
+});
+
+test("the table window gets only the player view", () => {
+  const s = applyPatch(defaultState(), { curtain: true, playerDisplayId: 7 });
+  assert.deepEqual(playerViewOf(s), { view: "curtain" });
 });
 
 test("patches with wrong types are ignored", () => {

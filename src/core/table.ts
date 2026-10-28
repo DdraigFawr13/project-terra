@@ -25,6 +25,13 @@ export function viewOf(state: TableState): TableView {
   return state.testGrid ? "testGrid" : "idle";
 }
 
+/** Everything the table window receives. Built field by field, so DM-only data can't leak in by default (D-002). */
+export type PlayerView = { view: TableView };
+
+export function playerViewOf(state: TableState): PlayerView {
+  return { view: viewOf(state) };
+}
+
 /** Apply a patch from the DM window, ignoring fields with the wrong type. */
 export function applyPatch(state: TableState, patch: unknown): TableState {
   if (typeof patch !== "object" || patch === null) return state;

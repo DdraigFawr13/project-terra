@@ -1,4 +1,4 @@
-// Bundles the app into dist/: main and preload for Electron, one script per window, plus the
+// Bundles the app into dist/: main and one preload per window for Electron, one script per window, plus the
 // window HTML and CSS.
 import { build } from "esbuild";
 import fs from "node:fs";
@@ -7,7 +7,7 @@ fs.rmSync("dist", { recursive: true, force: true });
 const common = { bundle: true, sourcemap: true, logLevel: "warning", target: "es2023" };
 await build({
   ...common,
-  entryPoints: ["src/main/main.ts", "src/main/preload.ts"],
+  entryPoints: ["src/main/main.ts", "src/main/dm-preload.ts", "src/main/player-preload.ts"],
   outdir: "dist",
   // The package is "type": "module", so CommonJS output for Electron needs the .cjs extension.
   outExtension: { ".js": ".cjs" },
