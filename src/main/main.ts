@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import type { Surface } from "../core/calibration.ts";
 import { laptopDisplay, playerPlacement, type DisplayInfo } from "../core/displays.ts";
 import { apply, defaultState, parseCommand, parseSave, playerViewOf, serialize, UNDOABLE, type TableState } from "../core/table.ts";
+import { countCreatures, findCreatures, getCreature, importCreatures } from "./creatures.ts";
 import { listMaps, mapFile, saveMap } from "./library.ts";
 
 /** Undo takes back map, disc and fight changes only: switches like the curtain and the screen choice stay as the DM last set them. */
@@ -19,6 +20,7 @@ function keepOnUndo(s: TableState): Partial<TableState> {
     calibrations: s.calibrations,
     // Character cards are typed, not drawn: an undo of a disc move must not take back HP typed since (D-027).
     party: s.party,
+    flipLetters: s.flipLetters,
   };
 }
 
@@ -212,6 +214,11 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown) =>
       saveMap(app.getPath("userData"), name, png, bounds),
     );
+    // Stat blocks: the DM window only (D-028). The table window's bridge has no channel to these.
+    ipcMain.handle("creatures:import", (_e, text: unknown) => importCreatures(app.getPath("userData"), text));
+    ipcMain.handle("creatures:search", (_e, query: unknown) => findCreatures(app.getPath("userData"), query));
+    ipcMain.handle("creatures:get", (_e, key: unknown) => getCreature(app.getPath("userData"), key));
+    ipcMain.handle("creatures:count", () => countCreatures(app.getPath("userData")));
     protocol.handle("terra-map", async (req) => {
       const file = mapFile(app.getPath("userData"), new URL(req.url).hostname);
       if (!file || !fs.existsSync(file)) return new Response("Not found", { status: 404 });

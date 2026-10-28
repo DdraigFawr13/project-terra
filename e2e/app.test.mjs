@@ -258,7 +258,24 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
   }
 });
 
-test("a fight: cards, discs placed with the pen, initiative and the turn strip, with nothing DM-only on the table", async () => {
+/** A library entry in the private library's shape, with SRD 5.2 numbers and no book text (D-010). */
+const srdZombie = {
+  id: "zombie",
+  name: "Zombie",
+  source: { book: "SRD52", page: null },
+  size: "Medium",
+  type: "Undead",
+  alignment: "Neutral Evil",
+  ac: 8,
+  initiative: { mod: -2, score: 8 },
+  hp: { avg: 15, formula: "2d8 + 6" },
+  speed: { walk: 20 },
+  cr: "1/4",
+  actions: [{ name: "Slam", text: "Test attack." }],
+  checks: { pageChecked: true },
+};
+
+test("a fight: party and monster windows, discs placed with the pen, HP by number pad, a stat block, and nothing DM-only on the table", async () => {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "terra-e2e-"));
   let { app, dm, table } = await launch(userData);
   try {
@@ -268,32 +285,42 @@ test("a fight: cards, discs placed with the pen, initiative and the turn strip, 
     await dm.click("#importOk");
     await table.waitForFunction(() => document.body.dataset.view === "map");
 
-    // A character card, typed in the side panel.
-    await dm.click("#addCharacter");
-    await dm.fill('[data-key="card-name"]', "Ash");
-    await dm.fill('[data-key="card-ac"]', "16");
-    await dm.fill('[data-key="card-hpMax"]', "24");
-    await dm.fill('[data-key="card-passive"]', "13");
-    await dm.press('[data-key="card-speed"]', "Enter");
-    await dm.waitForSelector(".pc strong");
-    await dm.click(".pc .hp button >> nth=0");
-    await dm.waitForFunction(async () => (await window.terra.getState()).party[0]?.hp === 23);
+    // A character in the Party window; damage from the pad takes temp HP first.
+    await dm.click("#partyBtn");
+    const party = dm.locator(".float[data-float='party']");
+    await party.locator("[aria-label='Add a character']").click();
+    await dm.fill('[data-key="pc-name"]', "Ash");
+    await dm.fill('[data-key="pc-ac"]', "16");
+    await dm.fill('[data-key="pc-hpMax"]', "24");
+    await dm.fill('[data-key="pc-passive"]', "13");
+    await dm.press('[data-key="pc-passive"]', "Enter");
+    await party.locator(".tabs [role=tab]").waitFor();
+    const pad = async (win, keys, act) => {
+      for (const k of keys) await win.locator(`.k.digit[aria-label='${k}']`).click();
+      await win.locator(`.k.${act}`).click();
+    };
+    await pad(party, "3", "temp");
+    await pad(party, "5", "damage");
+    await dm.waitForFunction(async () => {
+      const p = (await window.terra.getState()).party[0];
+      return p?.hp === 22 && p.tempHp === 0;
+    });
 
     // Marker with the pen: a palm touching the screen mid-tap doesn't cancel it. The disc starts hidden.
     await dm.click("button[data-tool='marker']");
     const box = await dm.locator("#mapCanvas").boundingBox();
     const cdp = await dm.context().newCDPSession(dm);
-    const pen = (type, dx) =>
+    const pen = (type) =>
       cdp.send("Input.dispatchMouseEvent", {
         type,
-        x: box.x + box.width / 2 + dx,
+        x: box.x + box.width / 2,
         y: box.y + box.height / 2,
         pointerType: "pen",
         button: "left",
         buttons: type === "mouseReleased" ? 0 : 1,
         clickCount: 1,
       });
-    await pen("mousePressed", 0);
+    await pen("mousePressed");
     // Two contact points: without the palm rule, a second finger cancels what is under way.
     const palm = [
       { x: box.x + 10, y: box.y + 10, id: 1 },
@@ -301,13 +328,35 @@ test("a fight: cards, discs placed with the pen, initiative and the turn strip, 
     ];
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: palm });
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    await pen("mouseReleased", 0);
+    await pen("mouseReleased");
     await dm.waitForFunction(async () => (await window.terra.getState()).map.discs.length === 1);
-    await dm.fill('[data-key="name-yellow"]', "Secret cultists");
-    await dm.press('[data-key="name-yellow"]', "Enter");
     assert.deepEqual((await table.evaluate(() => window.terra.getView())).discs, []);
 
-    // Rolls: the hidden disc's colour is in the order but not on the strip until it is shown.
+    // A tap on the disc with Select opens its monster window. Book: import a library file and link the stat block.
+    await dm.click("button[data-tool='select']");
+    await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    const mon = dm.locator(".float[data-float='monster-yellow']");
+    await mon.locator("button", { hasText: "Book" }).click();
+    await mon.locator("input[type=file]").setInputFiles({
+      name: "library.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify([srdZombie, { ...srdZombie, id: "unchecked", name: "Zombie twin", checks: {} }])),
+    });
+    await mon.locator(".hits .warn").waitFor();
+    await mon.locator(".hits button", { hasText: "Use" }).click();
+    await mon.locator(".statblock h3", { hasText: "Zombie" }).waitFor();
+    assert.deepEqual(
+      await dm.evaluate(async () => {
+        const g = (await window.terra.getState()).map.groups.yellow;
+        return [g.creature, g.ac, g.hpMax, g.speed, g.name];
+      }),
+      ["SRD52:zombie", 8, 15, 20, "Zombie"],
+    );
+    await mon.locator("button", { hasText: "Book" }).click();
+    await pad(mon, "9", "damage");
+    await dm.waitForFunction(async () => (await window.terra.getState()).map.discs[0].hp === 6);
+
+    // Rolls; the hidden disc's colour is in the order but not on the strip until it is shown.
     await dm.click("#startFight");
     await dm.fill('[data-key="init-pc-1"]', "15");
     await dm.press('[data-key="init-pc-1"]', "Enter");
@@ -316,40 +365,39 @@ test("a fight: cards, discs placed with the pen, initiative and the turn strip, 
     await dm.waitForFunction(async () => (await window.terra.getState()).fight.entries.length === 2);
     await dm.evaluate(() => document.activeElement.blur());
     await dm.keyboard.press("n");
-    const strip = async () => (await table.evaluate(() => window.terra.getView())).strip;
     await table.waitForFunction(async () => (await window.terra.getView()).strip?.round === 1);
-    assert.deepEqual((await strip()).chips, [{ kind: "pc", name: "Ash", current: true }]);
-    await dm.click(".group .eye");
+    await dm.click(".group-row .eye");
     await dm.keyboard.press("n");
     await table.waitForFunction(async () => (await window.terra.getView()).strip?.chips[0]?.kind === "enemy");
     const view = await table.evaluate(() => window.terra.getView());
-    assert.equal(view.discs.length, 1);
-    for (const secret of ["Secret", "board", "hp", "ac", "passive", "init"]) assert.ok(!JSON.stringify(view).includes(secret), secret);
+    // 6 of 15 HP: bloodied, worked out from HP. Only the word reaches the table (D-013, D-028).
+    assert.equal(view.strip.chips[0].condition, "bloodied");
+    for (const secret of ["Zombie", "SRD52", "board", "hp", "ac", "passive", "init", "notes"])
+      assert.ok(!JSON.stringify(view).includes(secret), secret);
+    // The table window's bridge has no way to the library.
+    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onView"]);
 
-    // Drag the disc two squares with Select; Ctrl+Z puts it back and doesn't take back the HP typed before it.
-    await dm.click("button[data-tool='select']");
+    // Drag the disc two squares; Ctrl+Z puts it back and doesn't take back the character's HP.
     const before = (await dm.evaluate(() => window.terra.getState())).map.discs[0];
-    const step = await dm.evaluate(() => {
-      const c = document.getElementById("mapCanvas");
-      return c.getBoundingClientRect().width;
-    });
+    await mon.locator("header button[aria-label='Close']").click();
     await dm.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await dm.mouse.down();
-    await dm.mouse.move(box.x + box.width / 2 + step / 6, box.y + box.height / 2, { steps: 4 });
+    await dm.mouse.move(box.x + box.width / 2 + box.width / 6, box.y + box.height / 2, { steps: 4 });
     await dm.mouse.up();
     await dm.waitForFunction((x) => window.terra.getState().then((s) => s.map.discs[0].x !== x), before.x);
     await dm.keyboard.press("Control+z");
     await dm.waitForFunction((x) => window.terra.getState().then((s) => s.map.discs[0].x === x), before.x);
-    assert.equal((await dm.evaluate(() => window.terra.getState())).party[0].hp, 23);
+    assert.equal((await dm.evaluate(() => window.terra.getState())).party[0].hp, 22);
   } finally {
     await app.close();
   }
 
-  // The party is kept between sessions.
+  // The party and the imported library are kept between sessions.
   ({ app, dm, table } = await launch(userData));
   try {
-    await dm.waitForSelector(".pc strong");
-    assert.equal(await dm.textContent(".pc strong"), "Ash");
+    await dm.click("#partyBtn");
+    await dm.locator(".float[data-float='party'] .tabs [role=tab]", { hasText: "Ash" }).waitFor();
+    assert.equal(await dm.evaluate(() => window.terra.countCreatures()), 2);
   } finally {
     await app.close();
   }

@@ -21,8 +21,8 @@ const DISC_HEX: Record<DiscColour, { fill: string; ink: string }> = {
 const CONDITION_WORD = { bloodied: "Bloodied", nearDeath: "Near death" } as const;
 
 /**
- * A disc centred at (x, y) with diameter `d`, in the context's units. On the table its letter is drawn twice, once
- * facing each long side (D-008); `facing` turns the pair when the table's long sides run up and down the picture.
+ * A disc centred at (x, y) with diameter `d`, in the context's units, its letter once (D-028: an exception to D-008's
+ * text twice). `turn` turns the letter, half a turn when the DM flips the letters to face the far side.
  */
 export function drawDisc(
   ctx: CanvasRenderingContext2D,
@@ -30,7 +30,7 @@ export function drawDisc(
   x: number,
   y: number,
   d: number,
-  look: { bothSides: boolean; facing?: number },
+  turn = 0,
 ): void {
   const { fill, ink } = DISC_HEX[disc.colour];
   const r = d / 2;
@@ -44,19 +44,12 @@ export function drawDisc(
   ctx.fillStyle = ink;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  if (!look.bothSides) {
-    ctx.font = `700 ${r * 1.15}px ${FONT}`;
-    ctx.fillText(disc.letter, x, y + r * 0.06);
-    return;
-  }
-  ctx.font = `700 ${r * 0.8}px ${FONT}`;
-  for (const turn of [0, Math.PI]) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate((look.facing ?? 0) + turn);
-    ctx.fillText(disc.letter, 0, r * 0.4);
-    ctx.restore();
-  }
+  ctx.font = `700 ${r * 1.15}px ${FONT}`;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(turn);
+  ctx.fillText(disc.letter, 0, r * 0.06);
+  ctx.restore();
 }
 
 /** Width of one chip at text size `t`, in the context's units. */
@@ -117,7 +110,7 @@ function drawStripSide(ctx: CanvasRenderingContext2D, strip: Strip, length: numb
     const mid = top + ch / 2;
     if (chip.kind === "pc") ctx.fillText(chip.name, x + size * 0.6, mid);
     else {
-      drawDisc(ctx, chip, x + size * 0.6 + size * 0.75, mid, size * 1.5, { bothSides: false });
+      drawDisc(ctx, chip, x + size * 0.6 + size * 0.75, mid, size * 1.5);
       if (chip.condition) {
         ctx.font = `700 ${size}px ${FONT}`;
         ctx.textAlign = "left";
@@ -159,8 +152,6 @@ function drawStrip(ctx: CanvasRenderingContext2D, strip: Strip, area: Area, t: n
 
 /** The part of the table the projector reaches, in table inches (`visibleRect`). */
 type Area = { x: number; y: number; width: number; height: number };
-/** How far to turn text so it faces the table's long sides. */
-const facingOf = (area: Area) => (area.width >= area.height ? 0 : Math.PI / 2);
 
 /** Text centred at (x, y) and again rotated half a turn about the centre of `rect`, so both long sides can read it (D-008). */
 export function textBothSides(
@@ -215,8 +206,7 @@ export type TableScene = {
 /** Discs over the map, then the turn strip along the edges (D-006: map, effects, markers, pings). */
 function drawFight(ctx: CanvasRenderingContext2D, scene: TableScene, X: (inches: number) => number): void {
   const { view, area } = scene;
-  const facing = facingOf(area);
-  for (const d of view.discs) drawDisc(ctx, d, X(d.x), X(d.y), X(d.size), { bothSides: true, facing });
+  for (const d of view.discs) drawDisc(ctx, d, X(d.x), X(d.y), X(d.size), view.flipLetters ? Math.PI : 0);
   if (view.strip) {
     drawStrip(ctx, view.strip, { x: X(area.x), y: X(area.y), width: X(area.width), height: X(area.height) }, X(0.42));
   }

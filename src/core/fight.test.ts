@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { blankGroup, conditionOf } from "./fight.ts";
 import { apply, defaultState, parseCommand, parseSave, playerViewOf, serialize, type PlacedMap, type TableState } from "./table.ts";
 
 const map: PlacedMap = {
@@ -20,6 +21,7 @@ const run = (commands: unknown[], from: TableState = defaultState()) =>
     return apply(s, c);
   }, from);
 const card = { ac: 16, hp: 20, hpMax: 24, passive: 13, speed: 30 };
+const yellowB = (t: TableState) => t.map!.discs.find((d) => d.colour === "yellow" && d.letter === "B")!;
 
 test("discs snap to squares, take the next letter, start hidden, and reach the table only when shown and not down", () => {
   const s = run([
@@ -27,7 +29,7 @@ test("discs snap to squares, take the next letter, start hidden, and reach the t
     { type: "placeDisc", colour: "yellow", x: 4.2, y: 1.9, size: 1 },
     { type: "placeDisc", colour: "yellow", x: 6, y: 6, size: 2 },
     { type: "placeDisc", colour: "red", x: 0.1, y: 0.1, size: 1 },
-    { type: "nameGroup", colour: "yellow", name: "Ash zombies" },
+    { type: "group", colour: "yellow", info: { ...blankGroup(), name: "Zombies" } },
   ]);
   assert.deepEqual(
     s.map!.discs.map((d) => [d.colour, d.letter, d.x, d.y, d.size, d.shown]),
@@ -108,9 +110,9 @@ test("the turn strip starts at the current turn and holds only what players may 
     { type: "placeDisc", colour: "yellow", x: 1, y: 1, size: 1 },
     { type: "placeDisc", colour: "yellow", x: 3, y: 1, size: 1 },
     { type: "placeDisc", colour: "red", x: 5, y: 1, size: 1 },
-    { type: "nameGroup", colour: "yellow", name: "Secret cultists" },
+    { type: "group", colour: "yellow", info: { ...blankGroup(), name: "Secret cultists", creature: "MM2024:cultist", ac: 12, hpMax: 9 } },
     { type: "showDiscs", colour: "yellow", letter: "B", on: true },
-    { type: "condition", colour: "yellow", letter: "B", condition: "bloodied" },
+    { type: "discHp", colour: "yellow", letter: "B", change: -5 },
     { type: "startFight" },
     { type: "initiative", who: "yellow", init: 15 },
     { type: "initiative", who: "pc-1", init: 10 },
@@ -128,7 +130,8 @@ test("the turn strip starts at the current turn and holds only what players may 
     ],
   });
   const json = JSON.stringify(view);
-  for (const secret of ["Secret", "Ruins", "hp", "ac", "passive", "speed", "init", "shown"]) assert.ok(!json.includes(secret), secret);
+  for (const secret of ["Secret", "Ruins", "cultist", "MM2024", "hp", "ac", "passive", "speed", "init", "shown", "notes"])
+    assert.ok(!json.includes(secret), secret);
 });
 
 test("cards and the fight save and load; a hand-edited party or fight that doesn't read keeps the file aside", () => {
@@ -153,4 +156,70 @@ test("cards and the fight save and load; a hand-edited party or fight that doesn
   };
   assert.equal(parseSave(JSON.stringify(bad)).ok, false);
   assert.equal(parseSave(JSON.stringify({ ...s, party: [{ ...s.party[0], ac: 99 }] })).ok, false);
+});
+
+test("HP: the condition word follows HP once there is an HP max; damage takes temp HP first (D-028)", () => {
+  let s = run([
+    { type: "placeMap", map },
+    { type: "placeDisc", colour: "yellow", x: 1, y: 1, size: 1 },
+    { type: "placeDisc", colour: "yellow", x: 3, y: 1, size: 1 },
+    { type: "discHp", colour: "yellow", letter: "B", change: -5 },
+    { type: "condition", colour: "yellow", letter: "A", condition: "bloodied" },
+  ]);
+  // No HP max yet: damage changes nothing and the hand-set word stands.
+  assert.equal(yellowB(s).hp, null);
+  assert.equal(conditionOf(s.map!.discs[0]!, s.map!.groups), "bloodied");
+  s = run(
+    [
+      { type: "group", colour: "yellow", info: { ...blankGroup(), hpMax: 20 } },
+      { type: "discMax", colour: "yellow", letter: "B", hpMax: 40 },
+    ],
+    s,
+  );
+  const word = (t: TableState) => conditionOf(yellowB(t), t.map!.groups);
+  assert.equal(conditionOf(s.map!.discs[0]!, s.map!.groups), "fine");
+  const steps: [number, string][] = [
+    [-20, "bloodied"],
+    [-10, "nearDeath"],
+    [-999, "down"],
+    [999, "fine"],
+  ];
+  for (const [change, expected] of steps) {
+    s = run([{ type: "discHp", colour: "yellow", letter: "B", change }], s);
+    assert.equal(word(s), expected, String(change));
+  }
+  assert.equal(yellowB(s).hp, 40);
+
+  let pc = run([
+    { type: "addCharacter", character: { name: "Ash", ...card } },
+    { type: "tempHp", id: "pc-1", tempHp: 5 },
+  ]);
+  pc = run([{ type: "characterHp", id: "pc-1", change: -8 }], pc);
+  assert.deepEqual([pc.party[0]!.tempHp, pc.party[0]!.hp], [0, 17]);
+  pc = run([{ type: "characterHp", id: "pc-1", change: 100 }], pc);
+  assert.deepEqual([pc.party[0]!.tempHp, pc.party[0]!.hp], [0, 24]);
+});
+
+test("a version 5 save upgrades: group names become group info, discs and cards gain their new fields", () => {
+  const disc = { colour: "yellow", letter: "A", x: 0.5, y: 0.5, size: 1, shown: true, condition: "fine" };
+  const v5 = {
+    version: 5,
+    map: { ...map, discs: [disc], groups: { yellow: "Zombies" } },
+    party: [{ id: "pc-1", name: "Ash", ...card }],
+    fight: null,
+  };
+  const loaded = parseSave(JSON.stringify(v5));
+  assert.ok(loaded.ok);
+  assert.deepEqual(loaded.state.map!.groups, { yellow: { ...blankGroup(), name: "Zombies" } });
+  assert.deepEqual(loaded.state.map!.discs, [{ ...disc, hp: null, hpMax: null }]);
+  assert.deepEqual(loaded.state.party[0], {
+    id: "pc-1",
+    name: "Ash",
+    ...card,
+    tempHp: 0,
+    insight: null,
+    investigation: null,
+    spellDc: null,
+    notes: "",
+  });
 });

@@ -4,7 +4,7 @@
 // enemy discs (step 6, D-027) are placed with Marker and dragged with Select.
 import { defaultCalibration, screenOutline } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
-import { nextLetter, snapDisc, type Disc, type DiscColour } from "../core/fight.ts";
+import { conditionOf, nextLetter, snapDisc, type Disc, type DiscColour } from "../core/fight.ts";
 import { MAX_FOG_OPS, MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
 import { mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
 import type { Command, PlacedMap, TableState } from "../core/table.ts";
@@ -67,7 +67,7 @@ export function initMaps(
   accent: string,
   fog: FogPainter,
   image: (id: string) => HTMLImageElement,
-  selection: { get: () => string | null; set: (key: string | null) => void },
+  selection: { get: () => string | null; set: (key: string | null, open?: boolean) => void },
 ): { undo: () => void; render: () => void; cancel: () => boolean; shortcut: (key: string) => boolean } {
   let state: TableState | null = null;
   let status: TableStatus | null = null;
@@ -314,15 +314,16 @@ export function initMaps(
       const c = px(at);
       const w = Math.max(d.size * s, MIN_DISC_PX);
       ctx.globalAlpha = alpha;
-      drawDisc(ctx, d, c.x, c.y, w, { bothSides: false });
+      drawDisc(ctx, d, c.x, c.y, w);
       ctx.globalAlpha = 1;
       return { c, w };
     };
     const picked = selection.get();
     for (const d of map.discs) {
       const moving = discDrag && discKey(discDrag) === discKey(d);
-      const { c, w } = draw(d, moving ? discDrag!.at : d, d.condition === "down" ? 0.3 : d.shown ? 1 : 0.45);
-      if (d.condition === "down") {
+      const down = conditionOf(d, map.groups) === "down";
+      const { c, w } = draw(d, moving ? discDrag!.at : d, down ? 0.3 : d.shown ? 1 : 0.45);
+      if (down) {
         ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -491,7 +492,8 @@ export function initMaps(
     discDrag = null;
     const moved = d.at.x !== d.from.x || d.at.y !== d.from.y;
     if (keep && moved) void run({ type: "moveDisc", colour: d.colour, letter: d.letter, ...d.at });
-    if (keep) selection.set(discKey(d));
+    // A tap opens the disc's monster window; a drag only moves it.
+    if (keep) selection.set(discKey(d), !moved);
     render();
   }
   function endPlacing(keep: boolean): void {

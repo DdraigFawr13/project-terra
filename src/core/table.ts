@@ -12,7 +12,8 @@ import {
   parseCharacterFields,
   parseDiscs,
   parseFight,
-  parseGroupNames,
+  parseGroupInfo,
+  parseGroups,
   parseInit,
   parseParty,
   placeDisc,
@@ -22,20 +23,25 @@ import {
   stripOf,
   swapTie,
   takesTurns,
+  changeCharacterHp,
+  changeDiscHp,
+  conditionOf,
+  MAX_HP,
   type Character,
   type CharacterFields,
   type Condition,
   type Disc,
   type DiscColour,
   type Fight,
-  type GroupNames,
+  type GroupInfo,
+  type Groups,
   type Strip,
   type Who,
 } from "./fight.ts";
 import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, type Bounds } from "./map.ts";
 
-const SAVE_VERSION = 5;
+const SAVE_VERSION = 6;
 
 /** A straightened map from the personal library (D-010), placed on the table. Positions are in inches (D-005). */
 export type PlacedMap = {
@@ -54,8 +60,8 @@ export type PlacedMap = {
   fog: FogOp[];
   /** Enemy discs in the map's own inches (D-027). A newly placed map has none. */
   discs: Disc[];
-  /** DM-only names for the colour groups. */
-  groups: GroupNames;
+  /** What the DM knows about each colour group: name, stat block link, AC, HP max (D-028). DM-only. */
+  groups: Groups;
 };
 
 export type TableState = {
@@ -75,6 +81,8 @@ export type TableState = {
   party: Character[];
   /** Initiative, or null outside a fight. */
   fight: Fight | null;
+  /** Turn the discs' single letters half round, when the bottom of the picture is the far side of the table (D-028). */
+  flipLetters: boolean;
 };
 
 export type Command =
@@ -94,7 +102,14 @@ export type Command =
   /** Show or hide one disc, or with no letter the whole colour group (D-006). */
   | { type: "showDiscs"; colour: DiscColour; letter: string | null; on: boolean }
   | { type: "condition"; colour: DiscColour; letter: string; condition: Condition }
-  | { type: "nameGroup"; colour: DiscColour; name: string }
+  | { type: "group"; colour: DiscColour; info: GroupInfo }
+  /** Damage (negative) or healing for one disc (D-028). */
+  | { type: "discHp"; colour: DiscColour; letter: string; change: number }
+  /** A disc's own HP max; null goes back to its group's. */
+  | { type: "discMax"; colour: DiscColour; letter: string; hpMax: number | null }
+  | { type: "characterHp"; id: string; change: number }
+  | { type: "tempHp"; id: string; tempHp: number }
+  | { type: "flipLetters"; on: boolean }
   | { type: "addCharacter"; character: CharacterFields }
   | { type: "updateCharacter"; character: Character }
   | { type: "removeCharacter"; id: string }
@@ -119,7 +134,9 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
   "removeDisc",
   "showDiscs",
   "condition",
-  "nameGroup",
+  "group",
+  "discHp",
+  "discMax",
   "startFight",
   "endFight",
   "initiative",
@@ -140,6 +157,7 @@ export function defaultState(): TableState {
     map: null,
     party: [],
     fight: null,
+    flipLetters: false,
   };
 }
 
@@ -161,6 +179,8 @@ export type PlayerView = {
   /** Shown discs that aren't down. */
   discs: PlayerDisc[];
   strip: Strip | null;
+  /** Discs' letters face the far side of the picture (D-028). */
+  flipLetters: boolean;
   grid: boolean;
 };
 
@@ -172,9 +192,10 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
     calibration: state.calibrations[surfaceKey] ?? null,
     map: m && { id: m.id, bounds: m.bounds, x: m.x, y: m.y, turns: m.turns, fog: m.fog },
     discs: (m?.discs ?? [])
-      .filter((d) => d.shown && d.condition !== "down")
+      .filter((d) => d.shown && conditionOf(d, m!.groups) !== "down")
       .map((d) => ({ colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size })),
-    strip: stripOf(state.fight, m?.discs ?? [], state.party),
+    strip: stripOf(state.fight, m?.discs ?? [], m?.groups ?? {}, state.party),
+    flipLetters: state.flipLetters,
     grid: state.testGrid,
   };
 }
@@ -208,7 +229,7 @@ export function parsePlacedMap(raw: unknown): PlacedMap | null {
   const fog = raw.fog === undefined ? [] : parseFog(raw.fog);
   // Likewise with no discs before step 6.
   const discs = raw.discs === undefined ? [] : parseDiscs(raw.discs);
-  const groups = raw.groups === undefined ? {} : parseGroupNames(raw.groups);
+  const groups = raw.groups === undefined ? {} : parseGroups(raw.groups);
   const b = raw.bounds;
   const bounds = { x: inches(b.x), y: inches(b.y), width: inches(b.width, 1), height: inches(b.height, 1) };
   if (typeof id !== "string" || !MAP_ID.test(id) || typeof name !== "string" || name.length > 120) return null;
@@ -274,10 +295,32 @@ export function parseCommand(raw: unknown): Command | null {
       return isColour(raw.colour) && isLetter(raw.letter) && isCondition(raw.condition)
         ? { type: "condition", colour: raw.colour, letter: raw.letter, condition: raw.condition }
         : null;
-    case "nameGroup": {
-      const groups = isColour(raw.colour) && typeof raw.name === "string" ? parseGroupNames({ [raw.colour]: raw.name }) : null;
-      return groups && { type: "nameGroup", colour: raw.colour as DiscColour, name: groups[raw.colour as DiscColour] ?? "" };
+    case "group": {
+      const info = parseGroupInfo(raw.info);
+      return isColour(raw.colour) && info && typeof raw.info === "object" ? { type: "group", colour: raw.colour, info } : null;
     }
+    case "discHp": {
+      const change = change999(raw.change);
+      return isColour(raw.colour) && isLetter(raw.letter) && change !== null
+        ? { type: "discHp", colour: raw.colour, letter: raw.letter, change }
+        : null;
+    }
+    case "discMax": {
+      const hpMax = raw.hpMax === null ? null : inches(raw.hpMax, 1, MAX_HP);
+      return isColour(raw.colour) && isLetter(raw.letter) && (raw.hpMax === null || hpMax !== null)
+        ? { type: "discMax", colour: raw.colour, letter: raw.letter, hpMax }
+        : null;
+    }
+    case "characterHp": {
+      const change = change999(raw.change);
+      return isWho(raw.id) && !isColour(raw.id) && change !== null ? { type: "characterHp", id: raw.id, change } : null;
+    }
+    case "tempHp": {
+      const tempHp = inches(raw.tempHp, 0, MAX_HP);
+      return isWho(raw.id) && !isColour(raw.id) && tempHp !== null ? { type: "tempHp", id: raw.id, tempHp } : null;
+    }
+    case "flipLetters":
+      return typeof raw.on === "boolean" ? { type: "flipLetters", on: raw.on } : null;
     case "addCharacter": {
       const character = parseCharacterFields(raw.character);
       return character && { type: "addCharacter", character };
@@ -304,6 +347,9 @@ export function parseCommand(raw: unknown): Command | null {
       return null;
   }
 }
+
+/** An HP change: a whole number from -999 to 999. */
+const change999 = (v: unknown): number | null => inches(v, -MAX_HP, MAX_HP);
 
 /** A point within reach, from a command's `x` and `y`. */
 function point(raw: Record<string, unknown>): { x: number; y: number } | null {
@@ -360,13 +406,18 @@ export function apply(state: TableState, c: Command): TableState {
       );
     case "condition":
       return editDisc(state, c.colour, c.letter, (d) => ({ ...d, condition: c.condition }));
-    case "nameGroup": {
-      if (!state.map) return state;
-      const groups = { ...state.map.groups };
-      if (c.name) groups[c.colour] = c.name;
-      else delete groups[c.colour];
-      return { ...state, map: { ...state.map, groups } };
-    }
+    case "group":
+      return state.map ? { ...state, map: { ...state.map, groups: { ...state.map.groups, [c.colour]: c.info } } } : state;
+    case "discHp":
+      return state.map ? editDisc(state, c.colour, c.letter, (d) => changeDiscHp(d, state.map!.groups, c.change)) : state;
+    case "discMax":
+      return editDisc(state, c.colour, c.letter, (d) => ({ ...d, hpMax: c.hpMax }));
+    case "characterHp":
+      return { ...state, party: state.party.map((p) => (p.id === c.id ? changeCharacterHp(p, c.change) : p)) };
+    case "tempHp":
+      return { ...state, party: state.party.map((p) => (p.id === c.id ? { ...p, tempHp: c.tempHp } : p)) };
+    case "flipLetters":
+      return { ...state, flipLetters: c.on };
     case "addCharacter": {
       if (state.party.length >= MAX_PARTY) return state;
       const n = Math.max(0, ...state.party.map((p) => Number(p.id.slice(3)))) + 1;
@@ -387,7 +438,7 @@ export function apply(state: TableState, c: Command): TableState {
     case "swapTie":
       return withFight(state, (f) => swapTie(f, c.who, c.by));
     case "nextTurn":
-      return withFight(state, (f) => nextTurn(f, (who) => takesTurns(who, state.map?.discs ?? [], state.party)));
+      return withFight(state, (f) => nextTurn(f, (who) => takesTurns(who, state.map?.discs ?? [], state.map?.groups ?? {}, state.party)));
   }
 }
 
@@ -403,7 +454,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.
@@ -414,6 +465,7 @@ export function parseSave(text: string): ParsedSave {
     { type: "playerDisplay", id: raw.playerDisplayId },
     { type: "calibrations", value: raw.calibrations },
     { type: "placeMap", map: raw.map },
+    { type: "flipLetters", on: raw.flipLetters },
   ];
   const state = fields.reduce<TableState>((s, f) => {
     const c = parseCommand(f);
@@ -424,6 +476,8 @@ export function parseSave(text: string): ParsedSave {
   const party = raw.party === undefined ? [] : parseParty(raw.party);
   const fight = raw.fight === undefined || raw.fight === null ? null : parseFight(raw.fight);
   if (!party) return { ok: false, reason: "the character cards can't be read" };
+  // The map now carries typed group info and HP too, so it isn't dropped quietly either.
+  if (raw.map != null && !state.map) return { ok: false, reason: "the map, its fog or its discs can't be read" };
   if (fight === null && raw.fight != null) return { ok: false, reason: "the initiative order can't be read" };
   return { ok: true, state: { ...state, party, fight } };
 }

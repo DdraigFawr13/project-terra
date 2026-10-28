@@ -72,6 +72,7 @@ test("the table window gets only the player view: no map name, the calibration f
     map: { id: "map-1", bounds: map.bounds, x: 4, y: 5, turns: 0, fog: [] },
     discs: [],
     strip: null,
+    flipLetters: false,
     grid: true,
   });
   assert.equal(playerViewOf(s, "window").calibration, null);
@@ -166,7 +167,23 @@ test("the same commands give the same state, and any state saves and loads uncha
       condition: fc.constantFrom("down", "bloodied", "x"),
       on: anyValue,
     }),
-    fc.record({ type: fc.constant("nameGroup"), colour: fc.constant("red"), name: fc.oneof(fc.string(), anyValue) }),
+    fc.record({
+      type: fc.constant("group"),
+      colour: fc.constant("red"),
+      info: fc.oneof(
+        anyValue,
+        fc.record({ name: fc.string(), hpMax: fc.oneof(anyValue, fc.constant(10)), ac: anyValue, notes: fc.string() }),
+      ),
+    }),
+    fc.record({
+      type: fc.constantFrom("discHp", "discMax"),
+      colour: fc.constant("red"),
+      letter: fc.constant("A"),
+      change: anyValue,
+      hpMax: anyValue,
+    }),
+    fc.record({ type: fc.constantFrom("characterHp", "tempHp"), id: fc.constant("pc-1"), change: anyValue, tempHp: anyValue }),
+    fc.record({ type: fc.constant("flipLetters"), on: anyValue }),
     fc.record({
       type: fc.constant("addCharacter"),
       character: fc.record({
@@ -234,6 +251,6 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
   // A version 3 map has no fog: it loads all black.
   const v3 = { ...v2, version: 3, map: { id: "map-1", name: map.name, bounds: map.bounds, x: 4, y: 5, turns: 0 } };
   assert.deepEqual(parseSave(JSON.stringify(v3)), { ok: true, state: { ...defaultState(), calibrations: { window: cal }, map } });
-  assert.equal(parseSave(JSON.stringify({ version: 6, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 7, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });

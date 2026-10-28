@@ -18,6 +18,7 @@
       <button id="panels" type="button" aria-pressed="true" data-icon="panelsClose" title="Show or fold the side panels (Tab)">
         Panels<kbd>Tab</kbd>
       </button>
+      <button id="partyBtn" type="button" data-icon="party" title="Characters: HP, AC and the rest">Party</button>
       <button id="curtain" type="button" aria-pressed="false" data-icon="curtain" title="Blank the table (B)">Curtain<kbd>B</kbd></button>
       <button id="nextTurn" type="button" class="primary" data-icon="nextTurn" disabled title="Next turn (N)">Next turn<kbd>N</kbd></button>
     </header>
@@ -38,15 +39,11 @@
           </div>
           <button id="endFight" type="button" hidden>End fight</button>
         </section>
-        <section class="panel" aria-labelledby="markers-heading">
-          <h2 id="markers-heading">Markers</h2>
-          <p id="markersEmpty" class="empty">Pick Marker (M) below, a colour and a size, then tap the map. New discs start hidden.</p>
-          <div id="groups" class="groups"></div>
-        </section>
-        <section class="panel" aria-labelledby="party-heading">
-          <h2 id="party-heading">Characters</h2>
-          <ul id="party" class="party"></ul>
-          <button id="addCharacter" type="button" data-icon="plus">Add character</button>
+        <section class="panel" aria-labelledby="groups-heading">
+          <h2 id="groups-heading">Groups</h2>
+          <p id="groupsEmpty" class="empty">Pick Marker (M) below, a colour and a size, then tap the map. New discs start hidden.</p>
+          <ul id="groups" class="entries" aria-label="Enemy groups by colour"></ul>
+          <p class="hint">Open a group for its HP, notes and stat block. Tapping a disc on the map opens it too.</p>
         </section>
       </aside>
 
@@ -109,7 +106,11 @@
             <label for="display">Show the table on</label>
             <select id="display"></select>
             <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
-            <p class="hint">The test grid shows 1-inch squares. The curtain (top right, or B) blanks the table while you set up.</p>
+            <button id="flipLetters" type="button" aria-pressed="false">Flip disc letters</button>
+            <p class="hint">
+              The test grid shows 1-inch squares. The curtain (top right, or B) blanks the table while you set up. Disc letters read upright
+              from the bottom edge of the picture; Flip turns them to face the far side.
+            </p>
           </section>
 
           <section class="card" aria-labelledby="cal-heading">
@@ -238,6 +239,8 @@
         Undo<kbd>Ctrl+Z</kbd>
       </button>
     </footer>
+    <!-- Floating windows (D-028) sit above everything else in this window. -->
+    <div id="floats"></div>
     <script src="dm.js"></script>
   </body>
 </html>
