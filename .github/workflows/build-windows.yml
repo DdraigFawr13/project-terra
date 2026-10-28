@@ -1,0 +1,33 @@
+# Builds the Windows app (a zip with Project Terra.exe) on demand, for Morgan to test on the laptop.
+# Run it from Actions > Build Windows app > Run workflow. Not run on PRs: it costs a few minutes each time.
+name: Build Windows app
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run dist:win
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: project-terra-windows-${{ github.sha }}
+          path: release/*.zip
+          retention-days: 14
+          compression-level: 0

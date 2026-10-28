@@ -1,0 +1,33 @@
+# Every PR and main push: format, typecheck, unit tests, then the Electron end-to-end tests.
+# One job, so dependencies install once. Markdown-only changes skip it: the formatter ignores Markdown.
+name: CI
+
+on:
+  pull_request:
+    paths-ignore: ["**/*.md"]
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node .claude/master/sync.mjs --check
+      - run: npm run check
+      - run: xvfb-run -a npm run test:e2e
