@@ -9,6 +9,8 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs =
   for (const [k, v] of Object.entries(attrs)) {
     if (v === undefined || v === false) continue;
     if (k === "class") e.className = String(v);
+    // The CSP refuses style attributes, but not styles set from script (an HP bar's width, say).
+    else if (k === "style") e.style.cssText = String(v);
     else e.setAttribute(k, v === true ? "" : v);
   }
   e.append(...kids);

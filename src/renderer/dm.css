@@ -35,6 +35,9 @@
   --accent: #c8623f;
   --accent-ink: #1a0e09;
   --focus: #f0d3a8;
+  /* The dark ground between windows, so each reads as its own object (D-032). */
+  --ground: #0f0b09;
+  --frame: #4a3a2e;
   --display: "Alegreya SC", Georgia, serif;
   --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   /* Smaller since D-031 (Morgan uses a stylus): 32 px targets, 36 px list rows, 44 px bottom tools. */
@@ -92,32 +95,73 @@ h2 {
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
-.scene {
-  font: 500 1.05rem var(--display);
-  letter-spacing: 0.03em;
+.menus {
+  display: flex;
+  gap: 2px;
+}
+button.menu-btn {
+  border-color: transparent;
+  background: transparent;
+}
+button.menu-btn[aria-expanded="true"],
+button.menu-btn:hover {
+  background: var(--raised);
+  border-color: var(--line);
+}
+/* The three layouts (D-032): a segmented switch. */
+.presets {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.presets button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.presets button + button {
+  border-left: 1px solid var(--line);
+}
+.presets button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.spacer {
+  flex: 1;
+}
+/* ---- Status bar (D-032): what the DM checks at a glance, out of the way ---- */
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 26px;
+  padding: 2px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 #status {
-  flex: 1;
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-  white-space: nowrap;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 #notice {
-  margin: 0;
-  padding: 10px 16px;
-  background: #4a2a1c;
-  color: #f6dfcf;
-  border-bottom: 1px solid var(--accent);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #ffb59c;
+  font-weight: 600;
 }
 /* ---- Docked windows around the map (D-031) ---- */
 .work {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--left-w, 0px) auto minmax(0, 1fr) auto var(--right-w, 0px);
+  background: var(--ground);
+  grid-template-columns: var(--left-w, 0px) auto auto minmax(0, 1fr) auto var(--right-w, 0px);
   grid-template-rows: minmax(0, 1fr) auto var(--bottom-w, 0px);
 }
 .dock-area {
@@ -125,25 +169,42 @@ h2 {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
+  gap: 6px;
+  padding: 6px;
   overflow: hidden;
+}
+.dock-area:empty {
+  padding: 0;
 }
 .dock-area[data-area="left"] {
   grid-column: 1;
   grid-row: 1 / -1;
 }
+.dock-area[data-area="mapside"] {
+  grid-column: 3;
+  grid-row: 1;
+  padding-right: 0;
+}
+.dock-area[data-area="center"] {
+  grid-column: 4;
+  grid-row: 1;
+}
 .dock-area[data-area="right"] {
-  grid-column: 5;
+  grid-column: 6;
   grid-row: 1 / -1;
 }
 .dock-area[data-area="bottom"] {
-  grid-column: 3;
+  grid-column: 3 / 5;
   grid-row: 3;
   flex-direction: row;
 }
 .area-split {
-  background: var(--line);
+  background: var(--ground);
   touch-action: none;
+}
+.area-split:hover,
+.group-split:hover {
+  background: var(--line);
 }
 .area-split[data-split="left"],
 .area-split[data-split="right"] {
@@ -155,10 +216,10 @@ h2 {
   grid-column: 2;
 }
 .area-split[data-split="right"] {
-  grid-column: 4;
+  grid-column: 5;
 }
 .area-split[data-split="bottom"] {
-  grid-column: 3;
+  grid-column: 3 / 5;
   grid-row: 2;
   height: 5px;
   cursor: row-resize;
@@ -168,27 +229,79 @@ h2 {
 .work[data-bottom-empty="true"] .area-split[data-split="bottom"] {
   display: none;
 }
-/* Tab folds every docked window away, so the map has the whole window. */
+/* Tab folds every docked window except the map and its tools away, so the map has the room. */
 body[data-panels="folded"] .work {
   --left-w: 0px !important;
   --right-w: 0px !important;
   --bottom-w: 0px !important;
 }
-body[data-panels="folded"] .dock-area,
+body[data-panels="folded"] .dock-area:is([data-area="left"], [data-area="right"], [data-area="bottom"]),
 body[data-panels="folded"] .area-split {
   display: none;
 }
+/* ---- A window (D-032): a framed card on the dark ground; the one last touched is outlined in copper ---- */
 .dock-frame {
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--surface);
+  border: 1px solid var(--frame);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.dock-frame.is-active {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 8px 24px rgba(0, 0, 0, 0.5);
 }
 .dock-group {
   flex: 1 1 0;
   min-height: 80px;
   min-width: 160px;
+}
+.dock-area[data-area="mapside"] .dock-group {
+  min-width: 0;
+}
+/* Folded to its bar. */
+.dock-frame.folded {
+  flex: none !important;
+  min-height: 0;
+}
+.dock-frame.folded > .dock-actions,
+.dock-frame.folded > .dock-body {
+  display: none;
+}
+/* A window slides into place when it docks or floats. */
+.dock-frame.arrive {
+  animation: dock-in 0.15s ease-out;
+}
+@keyframes dock-in {
+  from {
+    opacity: 0.4;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock-frame.arrive {
+    animation: none;
+  }
+}
+/* A window's own buttons, under its tabs, so tab names stay whole. */
+.dock-actions {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.dock-actions > * {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.dock-actions:has(> [hidden]:only-child),
+.dock-actions:has(> :empty:only-child) {
+  display: none;
 }
 .dock-bar {
   display: flex;
@@ -237,10 +350,15 @@ button.dock-tab[aria-selected="true"] {
   overflow: auto;
   padding: 10px;
 }
-.dock-body > * {
+.dock-body > .panel,
+.dock-body > .float-body {
   display: grid;
   gap: 8px;
   align-content: start;
+}
+.dock-area[data-area="center"] .dock-body,
+.dock-area[data-area="mapside"] .dock-body {
+  padding: 6px;
 }
 #floats {
   position: fixed;
@@ -260,6 +378,9 @@ button.dock-tab[aria-selected="true"] {
   overflow: hidden;
   /* Drag the corner to size it. */
   resize: both;
+}
+.dock-float.pinned {
+  border-color: var(--focus);
 }
 .dock-moving {
   opacity: 0.6;
@@ -307,12 +428,14 @@ button.dock-tab[aria-selected="true"] {
   border: 0;
   background: transparent;
 }
-.menu [aria-checked="true"]::before {
-  content: "✓ ";
+.menu button::before {
+  content: "";
+  display: inline-block;
+  width: 1.2em;
+  flex: none;
 }
-.menu [aria-checked="false"]::before {
-  content: "   ";
-  white-space: pre;
+.menu [aria-checked="true"]::before {
+  content: "✓";
 }
 .empty {
   margin: 0 0 8px;
@@ -350,11 +473,9 @@ button.dock-tab[aria-selected="true"] {
   margin-bottom: 8px;
 }
 .stage {
-  grid-column: 3;
-  grid-row: 1;
   min-height: 0;
+  height: 100%;
   overflow: auto;
-  padding: 12px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 16px;
@@ -431,12 +552,6 @@ button.primary {
   color: var(--accent-ink);
   border-color: var(--accent);
 }
-/* Folding is a view switch, not an on/off the table sees, so it stays quiet. */
-#panels[aria-pressed="true"] {
-  background: var(--raised);
-  color: var(--ink);
-  border-color: var(--line);
-}
 button:disabled {
   cursor: default;
   opacity: 0.45;
@@ -461,43 +576,99 @@ input[type="number"] {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
-.tools {
+/* ---- Tools (D-032): a narrow column of icons, names in tooltips. The main tools on top; under a rule, only the
+   options for the tool picked; Undo at the foot. Every button is the same width. ---- */
+#toolsPanel {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  overflow-x: auto;
-}
-/* Icon above the name, as in the approved sketch: big enough for a finger, narrow enough to fit the row. */
-.tools button {
   flex-direction: column;
-  gap: 2px;
-  min-height: var(--tool);
-  min-width: var(--tool);
-  padding: 4px 10px;
-  font-size: 0.85rem;
-  line-height: 1.1;
-}
-.tools kbd {
-  font-size: 0.65rem;
-}
-.tool-group {
-  display: flex;
   gap: 6px;
+  width: 42px;
+  min-height: 100%;
+  margin: 0 auto;
 }
-.tool-group.off {
-  visibility: hidden;
+.tool-main,
+.tool-group {
+  display: grid;
+  gap: 4px;
 }
-.tool-sep {
-  width: 1px;
-  align-self: stretch;
-  margin: 4px 4px;
-  background: var(--line);
+.tools button {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0;
+  gap: 0;
+  /* Icons only: the names stay in the markup for tooltips and screen readers. */
+  font-size: 0;
+}
+.tools button svg {
+  width: 20px;
+  height: 20px;
+}
+.tools kbd,
+.tool-sub h4,
+.tool-hint {
+  display: none;
 }
 .tools .undo {
-  margin-left: auto;
+  margin-top: auto;
+}
+.tool-sub {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+/* Within the options, a dashed rule between groups (how to draw, then the brush size; colour, then size). */
+.tool-sub .tool-group ~ .tool-group {
+  padding-top: 4px;
+  border-top: 1px dashed var(--line);
+}
+.tool-sub button {
+  min-height: 30px;
+}
+.tool-sub button svg {
+  width: 17px;
+  height: 17px;
+}
+.tool-sub button > b {
+  font-size: 0.8rem;
+}
+.tool-sub .swatch {
+  width: 16px;
+  height: 16px;
+}
+/* Beside the map: the bar keeps a small label to grab and the float button; close and fold are in the View menu. */
+.dock-area[data-area="mapside"] .dock-frame {
+  width: 60px;
+}
+.dock-area[data-area="mapside"] .win-fold,
+.dock-area[data-area="mapside"] .win-close {
+  display: none;
+}
+.dock-area[data-area="mapside"] .dock-bar {
+  padding: 0 2px;
+  gap: 0;
+}
+.dock-area[data-area="mapside"] .dock-tab {
+  padding: 0 2px;
+  font-size: 0.6rem;
+}
+.dock-area[data-area="mapside"] .dock-tools .icon {
+  min-width: 22px;
+  padding: 0;
+}
+.dock-area[data-area="mapside"] .dock-tools svg {
+  width: 15px;
+  height: 15px;
+}
+.dock-area[data-area="mapside"] .dock-body {
+  padding: 6px 0;
+  scrollbar-width: none;
+}
+/* Floating, the palette stays slim too. */
+.dock-float[data-panel="tools"] {
+  min-width: 0;
+  width: 132px !important;
 }
 .dot {
   display: block;
@@ -566,21 +737,8 @@ input[type="number"] {
   gap: 6px;
   min-width: 0;
 }
-.maptools h2 {
-  /* The name takes the first row when the buttons don't fit beside it; a very long one is cut short. */
-  flex: 1 1 10em;
-  min-width: 0;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .maptools button {
   white-space: nowrap;
-}
-.maptools .move {
-  min-width: var(--target);
-  font-size: 1.1rem;
 }
 #importCanvas,
 #mapCanvas {
@@ -600,36 +758,38 @@ input[type="number"] {
   cursor: grab;
 }
 /* With only the map on show, it fills the space the docked windows leave (D-031). */
-.stage:has(> #mapView:not([hidden])):has(> #setupPane[hidden]) {
-  grid-template-rows: minmax(0, 1fr);
-  align-content: stretch;
+/* With the map on show, it fills its window (D-031, D-032). */
+#mapPanel:has(> #mapView:not([hidden])) {
+  display: flex;
+  flex-direction: column;
   align-items: stretch;
 }
 #mapView {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   min-height: 0;
 }
 .map-frame {
+  position: relative;
   flex: 1;
   min-height: 240px;
 }
-/* Zoom buttons over the map's top-right corner (D-031). */
-.map-frame {
-  position: relative;
+/* Zoom, at the right of the map's button row (D-032). */
+.maptools .zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-.map-frame .zoom {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: grid;
-  gap: 6px;
-}
-.map-frame .zoom button {
+.maptools .zoom button {
   min-width: var(--target);
-  font-size: 1.1rem;
-  background: rgba(28, 20, 16, 0.85);
+  font-size: 1.05rem;
+}
+#zoomLevel {
+  min-width: 3.2em;
+  text-align: center;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 #mapCanvas[data-tool="reveal"],
 #mapCanvas[data-tool="hide"],
@@ -713,6 +873,14 @@ h3 {
 }
 .entry input[type="number"] {
   width: 3.6em;
+  padding: 0 4px;
+  text-align: center;
+  appearance: textfield;
+}
+.entry input[type="number"]::-webkit-inner-spin-button,
+.entry input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
 }
 button.icon {
   min-width: var(--target);
@@ -805,17 +973,6 @@ button.condition.down {
 }
 button.danger {
   color: #ff8a7a;
-}
-.tools .swatch {
-  width: 20px;
-  height: 20px;
-}
-.tools small {
-  font-size: 0.65rem;
-  color: var(--muted);
-}
-.tools button[aria-pressed="true"] small {
-  color: inherit;
 }
 /* Grid tracks would otherwise grow to an input's natural width and push the panel sideways. */
 .panel,
@@ -912,7 +1069,7 @@ button.eye {
 .hp-rows li {
   display: flex;
   gap: 4px;
-  align-items: center;
+  align-items: stretch;
 }
 button.hp-pick {
   flex: 1;
@@ -1013,8 +1170,14 @@ button.hp-pick.down {
   padding: 0;
   font-size: 1.1rem;
 }
+.pad-acts {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 6px;
+}
 .pad .k.act {
-  grid-column: span 2;
   font-size: 1rem;
 }
 .pad .damage {
@@ -1050,7 +1213,9 @@ button.hp-pick.down {
 }
 .disc-edit label {
   flex: 1;
-  display: flex;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
@@ -1143,4 +1308,90 @@ input[type="search"] {
 .abilities span {
   font-size: 0.72rem;
   color: var(--muted);
+}
+
+/* ---- Menus (D-032) ---- */
+.menu-sep {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 4px 0;
+}
+.menu button:disabled {
+  opacity: 0.45;
+}
+
+/* ---- Pop-up pads beside a tap (D-032): a disc's HP, an initiative roll ---- */
+.pop {
+  position: fixed;
+  z-index: 3000;
+  pointer-events: auto;
+  width: 290px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: var(--raised);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+}
+button.pop-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: var(--target);
+  border-color: transparent;
+  background: transparent;
+  font-size: 1.2rem;
+}
+.pop-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding-right: 36px;
+}
+.pop-head .hp-word {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.pop-body {
+  display: grid;
+  gap: 8px;
+}
+/* A long screen name mustn't widen Table setup. */
+#setupPanel select {
+  width: 100%;
+  min-width: 0;
+}
+/* On a short window (the 14-inch laptop at 150%, about 1280 x 680), the column tightens so Marker's options fit. */
+@media (max-height: 760px) {
+  .tools button {
+    min-height: 34px;
+  }
+  .tool-sub button {
+    min-height: 26px;
+  }
+  #toolsPanel,
+  .tool-main,
+  .tool-group,
+  .tool-sub {
+    gap: 3px;
+  }
+}
+/* A window that scrolls shows its scrollbar, so content cut at its foot reads as more below, not as overlap. */
+.dock-body {
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+/* The narrow Tools strip has no room for the Select tip; Select's tooltip says it instead. */
+.tool-sub.tool-hint {
+  display: none;
+}
+/* A blank colour slot, so a character's name lines up with a group's. */
+.swatch.blank {
+  visibility: hidden;
+}
+/* Each disc's own HP max box fills its row, in line with the group's fields above. */
+.disc-edit label input {
+  width: 100%;
 }

@@ -17,8 +17,9 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const emptyMap = $<HTMLElement>("emptyMap");
 const importer = $<HTMLElement>("importer");
 const mapView = $<HTMLElement>("mapView");
-const setupPane = $<HTMLElement>("setupPane");
-const setupBtn = $<HTMLButtonElement>("setupBtn");
+const mapActions = $<HTMLElement>("mapActions");
+const mapTitle = $<HTMLElement>("mapTitle");
+const zoomState = $<HTMLElement>("zoomState");
 const fileInput = $<HTMLInputElement>("mapFile");
 const library = $<HTMLUListElement>("library");
 const importCanvas = $<HTMLCanvasElement>("importCanvas");
@@ -32,18 +33,18 @@ const toolBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-t
 const drawBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-draw]")];
 const sizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-size]")];
 const brushSizes = $<HTMLDivElement>("brushSizes");
-const drawWithGroup = $<HTMLDivElement>("drawWith");
+const brushHead = $<HTMLElement>("brushHead");
+/** The options under the main tools, one set for each tool (D-032). */
+const fogOpts = $<HTMLDivElement>("fogOpts");
 const markerOpts = $<HTMLDivElement>("markerOpts");
+const selectHint = $<HTMLElement>("selectHint");
 const colourBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-colour]")];
 const discSizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-disc-size]")];
 const fogBtns = ["fogDim", "fogRevealAll", "fogCoverAll"].map((id) => $<HTMLButtonElement>(id));
 const lockBtn = $<HTMLButtonElement>("lockMap");
-/** Buttons that move the map; a locked map keeps them off (D-029). */
-const placeBtns = [
-  ...document.querySelectorAll<HTMLButtonElement>("button.move"),
-  $<HTMLButtonElement>("turnMap"),
-  $<HTMLButtonElement>("removeMap"),
-];
+/** Buttons that change where the map is; a locked map keeps them off (D-029). */
+const placeBtns = [$<HTMLButtonElement>("turnMap"), $<HTMLButtonElement>("removeMap")];
+const zoomLevel = $<HTMLElement>("zoomLevel");
 
 /** Outline colour while the marked corners fold over each other. */
 const FOLDED = "#ff6b5a";
@@ -73,12 +74,16 @@ export function initMaps(
   accent: string,
   fog: FogPainter,
   image: (id: string) => HTMLImageElement,
-  selection: { get: () => string | null; set: (key: string | null, open?: boolean) => void },
+  selection: {
+    get: () => string | null;
+    set: (key: string | null, open?: boolean) => void;
+    /** A tap on a disc: its HP pad opens beside it (D-032). `at` is in window coordinates. */
+    tap: (colour: DiscColour, letter: string, at: Point) => void;
+  },
 ): { undo: () => void; render: () => void; cancel: () => boolean; shortcut: (key: string) => boolean } {
   let state: TableState | null = null;
   let status: TableStatus | null = null;
   let importing: Importing | null = null;
-  let setupOpen = false;
   /** While dragging the map: how far it has moved so far, in inches. */
   let drag: { pointer: number; pen: boolean; start: Point; dx: number; dy: number } | null = null;
   let tool: Tool = "select";
@@ -126,9 +131,11 @@ export function initMaps(
     importer.hidden = !importing;
     mapView.hidden = !!importing || !map;
     emptyMap.hidden = !!importing || !!map;
-    setupBtn.hidden = !map || !!importing;
-    setupBtn.setAttribute("aria-pressed", String(setupOpen));
-    setupPane.hidden = !!importing || (!!map && !setupOpen);
+    // The map window's own buttons (its second row) and its tab name follow the map (D-032).
+    mapActions.hidden = !map || !!importing;
+    if (mapTitle.textContent !== (map?.name ?? "Map")) mapTitle.textContent = map?.name ?? "Map";
+    zoomState.textContent = map && !importing && zoom > 1 ? `Zoom ${Math.round(zoom * 100)}%` : "";
+    zoomLevel.textContent = `${Math.round(zoom * 100)}%`;
     renderTools(!!map && !importing);
     if (importing) drawImport(importing);
     else if (map) drawMap(map);
@@ -324,11 +331,13 @@ export function initMaps(
   };
 
   function drawMap(map: PlacedMap): void {
-    $<HTMLHeadingElement>("mapTitle").textContent = map.name;
     const locked = !!state?.mapLocked;
     lockBtn.setAttribute("aria-pressed", String(locked));
     lockBtn.innerHTML = `${icon(locked ? "lock" : "unlock")}${locked ? "Locked" : "Lock"}`;
     for (const b of placeBtns) b.disabled = locked;
+    lockBtn.title = locked
+      ? "Locked: dragging pans the view. Unlock to move the map on the table."
+      : "Unlocked: dragging moves the map on the table. Lock it to pan by dragging.";
     const dpr = window.devicePixelRatio || 1;
     const w = mapCanvas.clientWidth;
     const h = mapCanvas.clientHeight;
@@ -595,8 +604,14 @@ export function initMaps(
     discDrag = null;
     const moved = d.at.x !== d.from.x || d.at.y !== d.from.y;
     if (keep && moved) void run({ type: "moveDisc", colour: d.colour, letter: d.letter, ...d.at });
-    // A tap opens the disc's monster window; a drag only moves it.
-    if (keep) selection.set(discKey(d), !moved);
+    if (keep) selection.set(discKey(d));
+    // A tap opens the disc's HP pad beside it; a drag only moves it.
+    if (keep && !moved && state?.map) {
+      const r = mapCanvas.getBoundingClientRect();
+      const { s, ox, oy } = viewport(state.map, r.width, r.height);
+      const t = mapToTable(state.map, d.from);
+      selection.tap(d.colour, d.letter, { x: r.left + ox + t.x * s, y: r.top + oy + t.y * s });
+    }
     render();
   }
   function endPlacing(keep: boolean): void {
@@ -654,10 +669,11 @@ export function initMaps(
     press(toolBtns, (b) => b.dataset.tool === tool);
     press(drawBtns, (b) => b.dataset.draw === drawWith);
     press(sizeBtns, (b) => Number(b.dataset.size) === brushIn);
-    brushSizes.classList.toggle("off", drawWith !== "brush");
-    // Marker swaps the fog's drawing choices for disc colours and sizes.
-    drawWithGroup.hidden = brushSizes.hidden = tool === "marker";
-    markerOpts.hidden = tool !== "marker";
+    brushSizes.hidden = brushHead.hidden = drawWith !== "brush";
+    // Only the options for the tool picked show under the main tools.
+    fogOpts.hidden = !on || (tool !== "reveal" && tool !== "hide");
+    markerOpts.hidden = !on || tool !== "marker";
+    selectHint.hidden = !on || tool !== "select";
     press(colourBtns, (b) => b.dataset.colour === colour);
     press(discSizeBtns, (b) => Number(b.dataset.discSize) === discSize);
     fogBtns.forEach((b) => (b.disabled = !on));
@@ -716,8 +732,6 @@ export function initMaps(
     e.preventDefault();
     run({ type: "moveMap", dx: m[0], dy: m[1] });
   });
-  for (const b of document.querySelectorAll<HTMLButtonElement>("button.move"))
-    b.addEventListener("click", () => run({ type: "moveMap", dx: Number(b.dataset.dx), dy: Number(b.dataset.dy) }));
   $<HTMLButtonElement>("turnMap").addEventListener("click", () => run({ type: "turnMap" }));
   $<HTMLButtonElement>("removeMap").addEventListener("click", () => run({ type: "removeMap" }));
   lockBtn.addEventListener("click", () => run({ type: "lockMap", on: !state?.mapLocked }));
@@ -750,10 +764,6 @@ export function initMaps(
     render();
   });
   $<HTMLButtonElement>("importOk").addEventListener("click", () => void finishImport());
-  setupBtn.addEventListener("click", () => {
-    setupOpen = !setupOpen;
-    render();
-  });
   undoBtn.addEventListener("click", undo);
   window.addEventListener("resize", render);
 

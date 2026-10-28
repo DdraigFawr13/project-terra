@@ -28,38 +28,15 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 1. Press **Import map…** and pick a picture or a phone photo of a map.
 2. Drag corners 1–4 onto the corners of a block of grid squares (or any rectangle you know the size of), and enter its size in squares.
 3. Press **Straighten and place**. A slanted photo comes out square, with each square 1 inch on the table.
-4. Move the map with the arrows or by dragging it (whole inches, so the squares stay on the grid), turn it, or take it off the table. Ctrl+Z undoes map changes.
-5. Once it sits right, press **Lock**: a stray drag mid-game can't shift it under the minis. Discs still move.
-6. Zoom in to paint fog or place discs precisely: pinch, the mouse wheel, or + and − at the map's corner; **Fit** shows it all. With the map locked, dragging pans.
+4. A new map starts **locked**: dragging pans the view. To line it up under the projector, press **Lock** to unlock it, drag it into place (whole inches, so the squares stay on the grid), **Turn** it if needed, and lock it again. Ctrl+Z undoes map changes.
+5. Zoom in to paint fog or place discs precisely: pinch, the mouse wheel, or − and + in the map's button row; **Fit** shows it all. Two fingers or a drag pan.
 
-### Windows
+### The DM window
 
-Initiative, Groups, "On the table now" and the Party and monster sheets are windows around the map. Drag a tab to another edge, beside or into another window, or anywhere else to float it. Drag the dividers to resize. **Windows** at the top shows or hides them and resets the layout; Tab folds them all away.
-
-Imported maps stay in the library on this laptop (`library/maps` in the app's data folder) and are never shared. Turn on **Test grid** under **Table setup** to check the map's squares line up with the table's.
-
-### Fog (step 5)
-
-A map starts all black on the table. In the bottom toolbar:
-
-1. Tap **Reveal** (R) or **Hide** (H), then pick **Brush** (with a 1″, 2″ or 4″ size), **Outline** (draw a loop round a room) or **Box** (snaps to whole squares). S switches between them.
-2. Paint on the map with the pen, a finger or the mouse. The table changes when you lift. A second finger, or Esc, cancels the stroke; a palm resting on the screen while the pen draws is ignored. The pen's eraser end hides.
-3. Hide turns "in view" back to grey with lines ("seen before"). **Party moves on** greys out everything in view; **Reveal all** and **Cover all** sit under the preview.
-4. Ctrl+Z or **Undo** takes back the last stroke. **Select** (V) goes back to moving the map.
-
-The picture at the top right is drawn by the same code as the table. Check it matches the table.
-
-### Initiative, markers and character cards (step 6)
-
-1. **Party** (top bar) opens a window with a tab per character. Tap **+** to add one: name, AC, HP max, speed, passive Perception, and if you like passive Insight and Investigation, spell save DC and notes. To change HP, tap the amount on the number pad, then **Damage**, **Heal** or **Temp HP**. Damage takes temp HP first.
-2. **Marker** (M) in the bottom toolbar: pick a colour and a size (1″ Medium, 2″ Large, 3″ Huge, 4″ Gargantuan), then tap the map. Each colour gives letters A, B, C… New discs start hidden: **Hidden** by the colour in the left panel shows them all, and each disc has its own eye in its monster window.
-3. Tap a disc with **Select** (V) to open its colour's window. Drag a disc to move it by whole squares. In the window, tap a disc, tap the amount, tap **Damage** or **Heal**. The word on the table follows HP: Bloodied at half or below, Near death at a quarter or below; a disc at 0 leaves the table.
-4. **Edit** sets the group's name (only you see it), AC, speed, HP max and notes, and a different HP max for any disc. **Book** shows the stat block: the first time, tap **Import library file…** and pick `data/monsters/mm2024.json` from the private library repo. Only entries checked against the page can be used; picking one fills AC, HP and speed.
-5. Drag any window by its title bar; — folds it to a bar and × closes it. Windows reopen where you left them.
-6. **Start fight**, then type each roll; one roll per colour. Ties keep the order you typed; ↑ ↓ swap them. **Next turn** (N) moves on and counts rounds. The turn strip runs along both long edges of the table; a hidden colour joins it only when shown.
-7. Disc letters read upright from the bottom edge of the picture. If that's the far side of your table, **Flip disc letters** in **Table setup** turns them. Ctrl+Z undoes discs, HP on discs and turns, never a character's HP.
-
-Try a mock round with dice: enter the party, place two colours, link one to its stat block, roll, and press N round the table twice while dealing damage.
+- **Layouts:** Prep, Explore and Fight at the top switch between arrangements of windows; each remembers how you arrange it, and View > Reset this layout puts it back.
+- **Windows:** the map, Tools, Table setup, Initiative, Groups, "On the table now" and the Party and monster sheets. Drag a window by its bar to another edge, beside or into another window, or anywhere else to float it; drag the dividers to resize. Fold a window to its bar; pin a floating one to keep it on top in every layout. The window you last touched has a copper outline. Tab folds the side windows away.
+- **Menus:** Table (setup, calibrate, test grid, flip letters, lock, import), Fight (start or end, Party) and View (layouts, windows, fold, reset). Curtain and Next turn stay on the bar; the status bar at the bottom shows the table screen, the round, the zoom and any problem.
+- **HP from the disc:** tap a disc with Select for a small pad beside it: the amount, Damage or Heal, or Sheet for the whole group. With the pen, a tap on an initiative box opens a number pad too.
 
 ## Develop
 

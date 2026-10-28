@@ -10,29 +10,65 @@
     <link rel="stylesheet" href="dm.css" />
   </head>
   <body>
+    <!-- Menus for everything occasional; the two buttons used every turn stay on the bar (D-032). -->
     <header class="topbar">
       <h1>Project Terra</h1>
-      <span class="scene">No scene yet</span>
-      <p id="status" role="status">Starting…</p>
-      <button id="setupBtn" type="button" aria-pressed="false" data-icon="setup" hidden>Table setup</button>
-      <button id="windowsBtn" type="button" aria-expanded="false" data-icon="dockIn" title="Show, hide or reset the windows">
-        Windows
-      </button>
-      <div id="windowsMenu" class="menu" role="menu" hidden></div>
-      <button id="panels" type="button" aria-pressed="true" data-icon="panelsClose" title="Show or fold the docked windows (Tab)">
-        Panels<kbd>Tab</kbd>
-      </button>
-      <button id="partyBtn" type="button" data-icon="party" title="Characters: HP, AC and the rest">Party</button>
+      <nav class="menus" aria-label="Menus">
+        <button type="button" class="menu-btn" data-menu="table" aria-haspopup="menu" aria-expanded="false">Table</button>
+        <button type="button" class="menu-btn" data-menu="fight" aria-haspopup="menu" aria-expanded="false">Fight</button>
+        <button type="button" class="menu-btn" data-menu="view" aria-haspopup="menu" aria-expanded="false">View</button>
+      </nav>
+      <div id="presets" class="presets" role="group" aria-label="Layout">
+        <button type="button" data-preset="prep" aria-pressed="false" title="Prep: map, setup and library">Prep</button>
+        <button type="button" data-preset="explore" aria-pressed="false" title="Explore: map, fog and the table preview">Explore</button>
+        <button type="button" data-preset="fight" aria-pressed="false" title="Fight: initiative, groups and sheets">Fight</button>
+      </div>
+      <span class="spacer"></span>
       <button id="curtain" type="button" aria-pressed="false" data-icon="curtain" title="Blank the table (B)">Curtain<kbd>B</kbd></button>
       <button id="nextTurn" type="button" class="primary" data-icon="nextTurn" disabled title="Next turn (N)">Next turn<kbd>N</kbd></button>
     </header>
-    <p id="notice" role="alert" hidden></p>
+    <div id="menu" class="menu" role="menu" hidden></div>
 
-    <!-- Windows dock around the map, like an IDE's tool windows (D-031): left, right and bottom areas with dividers. -->
+    <!-- Windows dock around the map, like an IDE's tool windows (D-031): left, beside the map, centre, right and bottom. -->
     <div class="work" id="work">
       <div class="dock-area" data-area="left" aria-label="Left windows"></div>
       <div class="area-split" data-split="left" aria-hidden="true"></div>
-      <main class="stage">
+      <div class="dock-area" data-area="mapside" aria-label="Beside the map"></div>
+      <div class="dock-area" data-area="center" aria-label="Centre"></div>
+      <div class="area-split" data-split="bottom" aria-hidden="true"></div>
+      <div class="dock-area" data-area="bottom" aria-label="Bottom windows"></div>
+      <div class="area-split" data-split="right" aria-hidden="true"></div>
+      <div class="dock-area" data-area="right" aria-label="Right windows"></div>
+    </div>
+
+    <footer class="statusbar" aria-label="Status">
+      <span id="status" role="status">Starting…</span>
+      <span id="notice" role="alert" hidden></span>
+      <span class="spacer"></span>
+      <span id="roundState"></span>
+      <span id="zoomState"></span>
+      <span id="saveState">Saves as you go</span>
+    </footer>
+
+    <!-- The windows' contents, before the dock places them. -->
+    <div hidden>
+      <span id="mapTitle">Map</span>
+      <div id="mapActions" class="maptools">
+        <button id="lockMap" type="button" aria-pressed="false" title="Keep the map where it is: no moving, turning or taking it off">
+          Lock
+        </button>
+        <button id="turnMap" type="button">Turn</button>
+        <button id="removeMap" type="button">Take off table</button>
+        <span class="spacer"></span>
+        <!-- Zoom: also pinch, the mouse wheel, and drag to pan once zoomed (D-030). -->
+        <div class="zoom" role="group" aria-label="Zoom the map">
+          <button id="zoomOut" type="button" aria-label="Zoom out" title="Zoom out">&minus;</button>
+          <span id="zoomLevel" aria-live="polite">100%</span>
+          <button id="zoomIn" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+          <button id="zoomFit" type="button" title="Show the whole map">Fit</button>
+        </div>
+      </div>
+      <div id="mapPanel" class="stage">
         <section id="emptyMap" class="card lead" aria-labelledby="map-heading">
           <span class="lead-icon" data-icon="map"></span>
           <div class="lead-body">
@@ -64,93 +100,202 @@
           </div>
         </section>
 
-        <section id="mapView" class="card wide" aria-labelledby="mapTitle" hidden>
-          <div class="maptools">
-            <h2 id="mapTitle">Map</h2>
-            <button id="lockMap" type="button" aria-pressed="false" title="Keep the map where it is: no moving, turning or taking it off">
-              Lock
-            </button>
-            <button type="button" class="move" data-dx="-1" data-dy="0" aria-label="Move map left 1 inch">←</button>
-            <button type="button" class="move" data-dx="0" data-dy="-1" aria-label="Move map up 1 inch">↑</button>
-            <button type="button" class="move" data-dx="0" data-dy="1" aria-label="Move map down 1 inch">↓</button>
-            <button type="button" class="move" data-dx="1" data-dy="0" aria-label="Move map right 1 inch">→</button>
-            <button id="turnMap" type="button">Turn</button>
-            <button id="removeMap" type="button">Take off table</button>
-          </div>
+        <section id="mapView" hidden>
           <div class="map-frame">
             <canvas
               id="mapCanvas"
               tabindex="0"
               aria-label="The map on the table. With Select, drag it or use the arrow keys to move it by whole inches. With Reveal or Hide, paint the fog. Pinch or use the mouse wheel to zoom."
             ></canvas>
-            <div class="zoom" role="group" aria-label="Zoom the map">
-              <button id="zoomIn" type="button" aria-label="Zoom in">+</button>
-              <button id="zoomOut" type="button" aria-label="Zoom out">&minus;</button>
-              <button id="zoomFit" type="button" aria-label="Show the whole map">Fit</button>
-            </div>
+          </div>
+        </section>
+      </div>
+
+      <div id="setupPanel" class="panel">
+        <section aria-labelledby="table-heading">
+          <h3 id="table-heading">Table screen</h3>
+          <label for="display">Show the table on</label>
+          <select id="display"></select>
+          <div class="row">
+            <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
+            <button id="flipLetters" type="button" aria-pressed="false" title="Turn the disc letters to face the far side">
+              Flip letters
+            </button>
           </div>
           <p class="hint">
-            Select (V) moves the map by whole inches, or a disc by its squares; Lock keeps the map in place, and then dragging pans. Pinch,
-            the mouse wheel or + and &minus; zoom; Fit shows it all. Reveal (R) and Hide (H) paint the fog; Marker (M) places discs. Two
-            fingers cancel a stroke, and so does Esc. The dashed line is the edge of the table screen.
+            The test grid shows 1-inch squares. Disc letters read upright from the bottom edge of the picture; Flip turns them to face the
+            far side.
           </p>
         </section>
-
-        <div id="setupPane" class="setup">
-          <section class="card" aria-labelledby="table-heading">
-            <h2 id="table-heading">Table screen</h2>
-            <label for="display">Show the table on</label>
-            <select id="display"></select>
-            <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
-            <button id="flipLetters" type="button" aria-pressed="false">Flip disc letters</button>
-            <p class="hint">
-              The test grid shows 1-inch squares. The curtain (top right, or B) blanks the table while you set up. Disc letters read upright
-              from the bottom edge of the picture; Flip turns them to face the far side.
-            </p>
-          </section>
-
-          <section class="card" aria-labelledby="cal-heading">
-            <h2 id="cal-heading">Calibration</h2>
-            <p id="calState" class="hint"></p>
-            <button id="calibrate" type="button" aria-pressed="false">Calibrate</button>
-            <div id="calTools" class="cal-tools" hidden>
-              <ol class="steps">
-                <li>With a ruler, mark a rectangle on the mat: a coin or tape at each corner.</li>
-                <li>Enter its size, then drag corners 1–4 below until each lands on its mark on the table.</li>
-                <li>Check one square with the ruler. It should be 1 inch.</li>
-              </ol>
-              <div class="size">
-                <label>Width <input id="calWidth" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
-                <label>Height <input id="calHeight" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
-              </div>
-              <canvas
-                id="calPreview"
-                tabindex="0"
-                aria-label="Table screen. Drag the numbered corners, or select one and use the arrow keys."
-              ></canvas>
-              <div class="row" role="group" aria-label="Selected corner">
-                <button type="button" class="corner" data-corner="0" aria-pressed="true">1</button>
-                <button type="button" class="corner" data-corner="1" aria-pressed="false">2</button>
-                <button type="button" class="corner" data-corner="2" aria-pressed="false">3</button>
-                <button type="button" class="corner" data-corner="3" aria-pressed="false">4</button>
-              </div>
-              <p class="hint">Arrow keys move the selected corner 1 pixel on the table screen; hold Shift for 10.</p>
-              <div class="row">
-                <button id="calReset" type="button">Start over</button>
-                <button id="calDone" type="button" class="primary">Done</button>
-              </div>
+        <section aria-labelledby="cal-heading">
+          <h3 id="cal-heading">Calibration</h3>
+          <p id="calState" class="hint"></p>
+          <button id="calibrate" type="button" aria-pressed="false">Calibrate</button>
+          <div id="calTools" class="cal-tools" hidden>
+            <ol class="steps">
+              <li>With a ruler, mark a rectangle on the mat: a coin or tape at each corner.</li>
+              <li>Enter its size, then drag corners 1–4 below until each lands on its mark on the table.</li>
+              <li>Check one square with the ruler. It should be 1 inch.</li>
+            </ol>
+            <div class="size">
+              <label>Width <input id="calWidth" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
+              <label>Height <input id="calHeight" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
             </div>
-          </section>
-        </div>
-      </main>
-      <div class="area-split" data-split="bottom" aria-hidden="true"></div>
-      <div class="dock-area" data-area="bottom" aria-label="Bottom windows"></div>
-      <div class="area-split" data-split="right" aria-hidden="true"></div>
-      <div class="dock-area" data-area="right" aria-label="Right windows"></div>
-    </div>
+            <canvas
+              id="calPreview"
+              tabindex="0"
+              aria-label="Table screen. Drag the numbered corners, or select one and use the arrow keys."
+            ></canvas>
+            <div class="row" role="group" aria-label="Selected corner">
+              <button type="button" class="corner" data-corner="0" aria-pressed="true">1</button>
+              <button type="button" class="corner" data-corner="1" aria-pressed="false">2</button>
+              <button type="button" class="corner" data-corner="2" aria-pressed="false">3</button>
+              <button type="button" class="corner" data-corner="3" aria-pressed="false">4</button>
+            </div>
+            <p class="hint">Arrow keys move the selected corner 1 pixel on the table screen; hold Shift for 10.</p>
+            <div class="row">
+              <button id="calReset" type="button">Start over</button>
+              <button id="calDone" type="button" class="primary">Done</button>
+            </div>
+          </div>
+        </section>
+      </div>
 
-    <!-- The map's own windows, before the dock places them. -->
-    <div hidden>
+      <!-- Tools (D-032): one column. The main tools on top; below them, the options for the tool picked; Undo at the foot. -->
+      <div id="toolsPanel" class="tools" aria-label="Map tools">
+        <div class="tool-main" role="group" aria-label="Tool">
+          <button
+            type="button"
+            data-tool="select"
+            data-icon="select"
+            aria-pressed="true"
+            disabled
+            title="Select (V): drag to pan, or drag a disc; tap a disc for its HP"
+          >
+            Select<kbd>V</kbd>
+          </button>
+          <button type="button" data-tool="reveal" data-icon="reveal" aria-pressed="false" disabled title="Paint to reveal (R)">
+            Reveal<kbd>R</kbd>
+          </button>
+          <button
+            type="button"
+            data-tool="hide"
+            data-icon="hide"
+            aria-pressed="false"
+            disabled
+            title="Paint to grey out what players see now (H)"
+          >
+            Hide<kbd>H</kbd>
+          </button>
+          <button type="button" data-tool="marker" data-icon="marker" aria-pressed="false" disabled title="Place enemy discs (M)">
+            Marker<kbd>M</kbd>
+          </button>
+        </div>
+
+        <p id="selectHint" class="tool-sub tool-hint">Drag the map or a disc. Tap a disc for its HP.</p>
+
+        <div id="fogOpts" class="tool-sub" hidden>
+          <h4>Draw with <kbd>S</kbd></h4>
+          <div id="drawWith" class="tool-group" role="group" aria-label="Draw with (S switches)" title="Draw with (S switches)">
+            <button type="button" data-draw="brush" data-icon="brush" aria-pressed="true" disabled title="Brush (S)">Brush</button>
+            <button
+              type="button"
+              data-draw="outline"
+              data-icon="outline"
+              aria-pressed="false"
+              disabled
+              title="Outline: draw a loop round a room (S)"
+            >
+              Outline
+            </button>
+            <button type="button" data-draw="box" data-icon="box" aria-pressed="false" disabled title="Box: whole squares (S)">Box</button>
+          </div>
+          <h4 id="brushHead">Brush size</h4>
+          <div id="brushSizes" class="tool-group" role="group" aria-label="Brush size" title="Brush size">
+            <button type="button" data-size="1" aria-pressed="false" aria-label="1-inch brush" title="1-inch brush" disabled>
+              <span class="dot s1"></span>1 inch
+            </button>
+            <button type="button" data-size="2" aria-pressed="true" aria-label="2-inch brush" title="2-inch brush" disabled>
+              <span class="dot s2"></span>2 inches
+            </button>
+            <button type="button" data-size="4" aria-pressed="false" aria-label="4-inch brush" title="4-inch brush" disabled>
+              <span class="dot s4"></span>4 inches
+            </button>
+          </div>
+        </div>
+
+        <div id="markerOpts" class="tool-sub" hidden>
+          <h4>Colour</h4>
+          <div class="tool-group" role="group" aria-label="Disc colour" title="Disc colour">
+            <button type="button" data-colour="yellow" aria-pressed="true" aria-label="Yellow" title="Yellow" disabled>
+              <span class="swatch yellow"></span>Yellow
+            </button>
+            <button type="button" data-colour="red" aria-pressed="false" aria-label="Red" title="Red" disabled>
+              <span class="swatch red"></span>Red
+            </button>
+            <button type="button" data-colour="blue" aria-pressed="false" aria-label="Blue" title="Blue" disabled>
+              <span class="swatch blue"></span>Blue
+            </button>
+            <button type="button" data-colour="green" aria-pressed="false" aria-label="Green" title="Green" disabled>
+              <span class="swatch green"></span>Green
+            </button>
+            <button type="button" data-colour="purple" aria-pressed="false" aria-label="Purple" title="Purple" disabled>
+              <span class="swatch purple"></span>Purple
+            </button>
+            <button type="button" data-colour="orange" aria-pressed="false" aria-label="Orange" title="Orange" disabled>
+              <span class="swatch orange"></span>Orange
+            </button>
+          </div>
+          <h4>Size</h4>
+          <div class="tool-group" role="group" aria-label="Disc size" title="Disc size">
+            <button
+              type="button"
+              data-disc-size="1"
+              aria-pressed="true"
+              aria-label="1-inch disc: Medium or smaller"
+              title="1-inch disc: Medium or smaller"
+              disabled
+            >
+              <b>1″</b>Medium
+            </button>
+            <button
+              type="button"
+              data-disc-size="2"
+              aria-pressed="false"
+              aria-label="2-inch disc: Large"
+              title="2-inch disc: Large"
+              disabled
+            >
+              <b>2″</b>Large
+            </button>
+            <button type="button" data-disc-size="3" aria-pressed="false" aria-label="3-inch disc: Huge" title="3-inch disc: Huge" disabled>
+              <b>3″</b>Huge
+            </button>
+            <button
+              type="button"
+              data-disc-size="4"
+              aria-pressed="false"
+              aria-label="4-inch disc: Gargantuan"
+              title="4-inch disc: Gargantuan"
+              disabled
+            >
+              <b>4″</b>Garg.
+            </button>
+          </div>
+        </div>
+
+        <button
+          id="undo"
+          type="button"
+          class="undo"
+          data-icon="undo"
+          disabled
+          title="Take back the last map, fog, disc or turn change (Ctrl+Z)"
+        >
+          Undo<kbd>Ctrl+Z</kbd>
+        </button>
+      </div>
+
       <div id="initiativePanel" class="panel">
         <div class="panel-head">
           <button id="startFight" type="button" class="primary">Start fight</button>
@@ -164,9 +309,9 @@
         <button id="endFight" type="button" hidden>End fight</button>
       </div>
       <div id="groupsPanel" class="panel">
-        <p id="groupsEmpty" class="empty">Pick Marker (M) below, a colour and a size, then tap the map. New discs start hidden.</p>
+        <p id="groupsEmpty" class="empty">Pick Marker (M) in Tools, a colour and a size, then tap the map. New discs start hidden.</p>
         <ul id="groups" class="entries" aria-label="Enemy groups by colour"></ul>
-        <p class="hint">Open a group for its HP, notes and stat block. Tapping a disc on the map opens it too.</p>
+        <p class="hint">Open a group for its HP, notes and stat block. Tapping a disc on the map opens its HP pad.</p>
       </div>
       <div id="tablePanel" class="panel">
         <div class="preview">
@@ -183,80 +328,7 @@
         </div>
       </div>
     </div>
-
-    <footer class="tools" aria-label="Map tools">
-      <button type="button" data-tool="select" data-icon="select" aria-pressed="true" disabled title="Move the map (V)">
-        Select<kbd>V</kbd>
-      </button>
-      <span class="tool-sep" aria-hidden="true"></span>
-      <button type="button" data-tool="reveal" data-icon="reveal" aria-pressed="false" disabled title="Paint to reveal (R)">
-        Reveal<kbd>R</kbd>
-      </button>
-      <button
-        type="button"
-        data-tool="hide"
-        data-icon="hide"
-        aria-pressed="false"
-        disabled
-        title="Paint to grey out what players see now (H)"
-      >
-        Hide<kbd>H</kbd>
-      </button>
-      <span class="tool-sep" aria-hidden="true"></span>
-      <div id="drawWith" class="tool-group" role="group" aria-label="Draw with (S switches)">
-        <button type="button" data-draw="brush" data-icon="brush" aria-pressed="true" disabled>Brush<kbd>S</kbd></button>
-        <button type="button" data-draw="outline" data-icon="outline" aria-pressed="false" disabled>Outline<kbd>S</kbd></button>
-        <button type="button" data-draw="box" data-icon="box" aria-pressed="false" disabled>Box<kbd>S</kbd></button>
-      </div>
-      <div id="brushSizes" class="tool-group" role="group" aria-label="Brush size">
-        <button type="button" data-size="1" aria-pressed="false" aria-label="1-inch brush" disabled><span class="dot s1"></span>1″</button>
-        <button type="button" data-size="2" aria-pressed="true" aria-label="2-inch brush" disabled><span class="dot s2"></span>2″</button>
-        <button type="button" data-size="4" aria-pressed="false" aria-label="4-inch brush" disabled><span class="dot s4"></span>4″</button>
-      </div>
-      <span class="tool-sep" aria-hidden="true"></span>
-      <button type="button" data-tool="marker" data-icon="marker" aria-pressed="false" disabled title="Place enemy discs (M)">
-        Marker<kbd>M</kbd>
-      </button>
-      <div id="markerOpts" class="tool-group" role="group" aria-label="Disc colour and size" hidden>
-        <button type="button" data-colour="yellow" aria-pressed="true" aria-label="Yellow" disabled>
-          <span class="swatch yellow"></span>Yellow
-        </button>
-        <button type="button" data-colour="red" aria-pressed="false" aria-label="Red" disabled><span class="swatch red"></span>Red</button>
-        <button type="button" data-colour="blue" aria-pressed="false" aria-label="Blue" disabled>
-          <span class="swatch blue"></span>Blue
-        </button>
-        <button type="button" data-colour="green" aria-pressed="false" aria-label="Green" disabled>
-          <span class="swatch green"></span>Green
-        </button>
-        <button type="button" data-colour="purple" aria-pressed="false" aria-label="Purple" disabled>
-          <span class="swatch purple"></span>Purple
-        </button>
-        <button type="button" data-colour="orange" aria-pressed="false" aria-label="Orange" disabled>
-          <span class="swatch orange"></span>Orange
-        </button>
-        <span class="tool-sep" aria-hidden="true"></span>
-        <button type="button" data-disc-size="1" aria-pressed="true" aria-label="1-inch disc: Medium or smaller" disabled>
-          1″<small>M</small>
-        </button>
-        <button type="button" data-disc-size="2" aria-pressed="false" aria-label="2-inch disc: Large" disabled>2″<small>L</small></button>
-        <button type="button" data-disc-size="3" aria-pressed="false" aria-label="3-inch disc: Huge" disabled>3″<small>H</small></button>
-        <button type="button" data-disc-size="4" aria-pressed="false" aria-label="4-inch disc: Gargantuan" disabled>
-          4″<small>G</small>
-        </button>
-      </div>
-      <button type="button" data-icon="ping" disabled title="Arrives in step 7">Ping<kbd>P</kbd></button>
-      <button
-        id="undo"
-        type="button"
-        class="undo"
-        data-icon="undo"
-        disabled
-        title="Take back the last map, fog, disc or turn change (Ctrl+Z)"
-      >
-        Undo<kbd>Ctrl+Z</kbd>
-      </button>
-    </footer>
-    <!-- Floating windows (D-028) sit above everything else in this window. -->
+    <!-- Floating windows and pop-up pads sit above everything else in this window. -->
     <div id="floats"></div>
     <script src="dm.js"></script>
   </body>

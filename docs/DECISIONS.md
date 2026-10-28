@@ -220,7 +220,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   1. Fog never stops taking strokes. A list of 500 ops is baked into one `base` op before the next: seen and explored for each cell at 24 cells per inch (the renderer's mask resolution, so the table looks the same), stored as run lengths. Baking reads the same as replaying the ops at every cell centre (a property test checks it). The 2,000-op limit now only bounds untrusted lists. Save version 7.
   2. Each change reaches the DM window once: the window takes each new state from the bridge in one place and hands it to every panel, and `apply` and `undo` no longer send the state back. Saves are compact JSON.
   3. The app keeps the display awake (`powerSaveBlocker`, "prevent-display-sleep") so Windows can't switch off the projector or sleep the laptop mid-session.
-  4. Lock map: a switch beside the map's name. A locked map can't be moved, turned or taken off; Select still drags discs. A newly placed map starts unlocked. Like the curtain, the lock is outside undo, and a command a lock refuses leaves no undo step.
+  4. Lock map: a switch beside the map's name. A locked map can't be moved, turned or taken off; Select still drags discs. A newly placed map starts unlocked (since D-032: locked). Like the curtain, the lock is outside undo, and a command a lock refuses leaves no undo step.
   5. A failed save never crashes the app: renames retry briefly (on Windows a scanner or indexer can hold the file), then the DM sees a notice and the save is tried again every 2 seconds; the last good save stays on disk. A window whose page crashes reloads itself, up to three times a minute. An unreadable save that Windows won't move is copied aside instead.
 - **Why:** measured on Morgan's PC (Ryzen 7 5800X3D) with fog at the old 2,000-op limit: every change took about 400 ms, as the state was copied once per panel, and the save was 5.9 MB; past the limit new strokes were dropped with only a hint in the right panel. Now: about 9 ms for an HP change and 25 ms for a stroke, about 0.2 s once per 500 strokes to bake, and a 39 KB save. Zoom on the DM map and the floating windows covering the table preview change how the DM screen works, so they go through the planning interview first.
 
@@ -239,3 +239,19 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   3. The layout is kept on this laptop (browser storage); it is not part of the table's save. Everything stays inside the DM window, so nothing DM-only can reach the projector (D-002).
   4. Sizes: 32 px buttons, 36 px list rows, 44 px bottom tools, 14 px text.
 - **Why:** Morgan's instruction on 2026-10-28, after the audit showed the old floating windows covering the map and the table preview. Docking keeps both in view by default, and Morgan can arrange the rest. At 1920 × 1080 (the size the tests now run at) the map fills most of the window and a monster sheet fits without scrolling.
+
+## D-032 DM window redesign
+
+- **Status:** Accepted (2026-10-28), from the UI review ([round 1](https://claude.ai/artifact/N2LH9mtnUHNT5QydAdB8Zz), [round 2 and draft](https://claude.ai/artifact/To2kRT3RWFcb16mti3cDov)): "Approved with the changes I wrote". Builds on D-031; changes D-023 (top bar, bottom tools) and D-028 (a tap on a disc).
+- **Decision:** all of it before step 7 (Morgan: "we have time to do all of these").
+  1. Window look: framed windows on a dark ground with a 6–8 px gap, slightly rounded corners; the window last touched has a copper outline. Headers stay plain until the colour round (Morgan liked none of the three header colours). A window slides into place in about 0.15 s when it docks or floats.
+  2. Window bars: grab a window anywhere on its bar that isn't a button; its own buttons sit in a second row under the tabs, so tab names stay whole; a window folds to its bar; a floating window can be pinned, staying above other floating windows and in place when presets change.
+  3. Tools: one Tools window, docked as a strip directly beside the map by default, or floated as a palette.
+  4. The map is a window: it moves and tabs but never closes; its own buttons (Lock, Turn, Take off, and zoom: − / % / + / Fit) are its second row. Table setup is a window too. A newly placed map starts locked, so a drag pans the view; unlocked, a drag moves it on the table (changes D-029 item 4). The arrow buttons are gone: Morgan pans and zooms by dragging, two fingers and the wheel; the arrow keys still nudge an unlocked map.
+  5. Presets: Prep, Explore and Fight, each remembering its own arrangement; Reset puts one back.
+  6. Menus on the top bar (Table, Fight, View); Curtain and Next turn stay as buttons. A status bar at the bottom: saved, table screen, round, zoom, notices.
+  7. A tap on a disc opens a small HP pad beside it (amount, Damage, Heal, Sheet); dragging still moves it.
+  8. Initiative rolls with a number pad (no on-screen keyboard).
+  9. Unbuilt features are hidden (Ping, the scene name) until they work.
+  10. Later: a colour round (Ember and a light theme designed together), higher contrast, a compact/comfortable switch, a shortcut sheet.
+- **Why:** Morgan found the movable windows blended in and wanted the DM window rethought around them, from a stylus on a 14-inch screen.

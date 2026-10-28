@@ -389,8 +389,8 @@ export function apply(state: TableState, c: Command): TableState {
     case "calibrations":
       return { ...state, calibrations: c.value };
     case "placeMap":
-      // A newly placed map is free to be put in place, then locked.
-      return { ...state, map: c.map, mapLocked: false };
+      // A newly placed map starts locked, so dragging pans the view; unlocking it lets it move on the table (D-032).
+      return { ...state, map: c.map, mapLocked: true };
     case "lockMap":
       return { ...state, mapLocked: c.on };
     case "moveMap": {
