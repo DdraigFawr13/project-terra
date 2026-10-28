@@ -117,3 +117,9 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 - **Status:** Accepted (2026-10-28)
 - **Decision:** Sessions may not have access to AI-Master-Instructions. The synced files (rules, agents, the CI skill, the session hook, the sync script) stay committed. The `planning-interview` skill is a project-owned copy of the AI-Master-Instructions v0.4.0 version, in `.claude/skills/planning-interview/`, not listed in `.ai-master.lock`. Before syncing a master version that includes it (v0.4.0 or later), delete this copy, or sync refuses to overwrite it.
 - **Why:** Morgan's instruction on 2026-10-28. v0.4.0 isn't tagged yet, so the skill can't be synced the normal way.
+
+## D-020 Test upkeep at the end of each step
+
+- **Status:** Accepted (2026-10-28)
+- **Decision:** At the end of each plan step, review every test. Ask: does it guard something Morgan relies on or a settled rule? Is another test already covering it? Can it share setup with a neighbour? Cut or merge what fails those questions, and say so in the commit message. Budgets: the unit suite stays under 2 s and the e2e suite under 60 s locally. A new e2e test needs its own app launch only for a new user journey; otherwise it extends an existing one. Logic is tested in `src/core/`; e2e covers only the wiring between windows, the main process and disk. Use `npm run knip` and `node --test --experimental-test-coverage "src/**/*.test.ts"` in the review to find unused code and untested lines. Never cut a test to get green (VER-01).
+- **Why:** Morgan asked on 2026-10-28 that tests stay efficient and are regularly checked for continued need. Each Electron launch costs about 0.5–1.5 s (measured locally), so e2e cost grows with launches, not assertions.

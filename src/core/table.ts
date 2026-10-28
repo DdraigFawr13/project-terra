@@ -1,6 +1,6 @@
 // What the table shows. Pure data and functions: no Electron, no clock, no randomness (GAME-01).
 
-export const SAVE_VERSION = 1;
+const SAVE_VERSION = 1;
 
 export type TableState = {
   version: typeof SAVE_VERSION;
@@ -23,6 +23,13 @@ export function defaultState(): TableState {
 export function viewOf(state: TableState): TableView {
   if (state.curtain) return "curtain";
   return state.testGrid ? "testGrid" : "idle";
+}
+
+/** Everything the table window receives. Built field by field, so DM-only data can't leak in by default (D-002). */
+export type PlayerView = { view: TableView };
+
+export function playerViewOf(state: TableState): PlayerView {
+  return { view: viewOf(state) };
 }
 
 /** Apply a patch from the DM window, ignoring fields with the wrong type. */

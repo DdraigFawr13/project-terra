@@ -1,8 +1,9 @@
 // DM window: chooses the table screen and switches what the table shows.
 import { describeDisplay } from "../core/displays.ts";
 import type { TableState } from "../core/table.ts";
-import type { TableStatus } from "../main/preload.ts";
+import type { DmApi, TableStatus } from "../main/dm-preload.ts";
 
+const terra = (window as unknown as { terra: DmApi }).terra;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const statusEl = $<HTMLParagraphElement>("status");
 const displaySelect = $<HTMLSelectElement>("display");
@@ -33,11 +34,11 @@ function renderStatus(st: TableStatus): void {
         : "No second screen found. The table window is open on this screen for testing.";
 }
 
-testGridBtn.addEventListener("click", () => window.terra.patch({ testGrid: testGridBtn.getAttribute("aria-pressed") !== "true" }));
-curtainBtn.addEventListener("click", () => window.terra.patch({ curtain: curtainBtn.getAttribute("aria-pressed") !== "true" }));
-displaySelect.addEventListener("change", () => window.terra.patch({ playerDisplayId: Number(displaySelect.value) }));
+testGridBtn.addEventListener("click", () => terra.patch({ testGrid: testGridBtn.getAttribute("aria-pressed") !== "true" }));
+curtainBtn.addEventListener("click", () => terra.patch({ curtain: curtainBtn.getAttribute("aria-pressed") !== "true" }));
+displaySelect.addEventListener("change", () => terra.patch({ playerDisplayId: Number(displaySelect.value) }));
 
-window.terra.onState(renderState);
-window.terra.onStatus(renderStatus);
-window.terra.getState().then(renderState);
-window.terra.getStatus().then(renderStatus);
+terra.onState(renderState);
+terra.onStatus(renderStatus);
+terra.getState().then(renderState);
+terra.getStatus().then(renderStatus);

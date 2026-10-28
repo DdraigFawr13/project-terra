@@ -21,8 +21,6 @@ async function launch(userData) {
   return { app, dm: await byTitle("(DM)"), table: await byTitle("(Table)") };
 }
 
-const view = (page) => page.locator("body").getAttribute("data-view");
-
 test("DM controls what the table shows, and it survives a restart", async () => {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "terra-e2e-"));
   let { app, dm, table } = await launch(userData);
@@ -30,6 +28,12 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     await dm.waitForSelector("#display option", { state: "attached" });
     assert.match(await dm.textContent("#status"), /No second screen found/);
     await table.waitForFunction(() => document.body.dataset.view === "testGrid");
+    // The table window can read the player view and nothing else, and can't be navigated away (D-002).
+    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onView"]);
+    // A file dropped on a window arrives as a file:// navigation.
+    await table.evaluate((url) => (location.href = url), new URL("../package.json", import.meta.url).href);
+    await table.waitForTimeout(300);
+    assert.match(table.url(), /player\.html$/);
 
     await dm.click("#curtain");
     await table.waitForFunction(() => document.body.dataset.view === "curtain");
@@ -57,7 +61,7 @@ test("an unreadable save is kept aside and the app starts fresh", async () => {
   fs.writeFileSync(path.join(userData, "table-state.json"), "{ not json");
   const { app, table } = await launch(userData);
   try {
-    assert.equal(await view(table), "testGrid");
+    await table.waitForFunction(() => document.body.dataset.view === "testGrid");
     assert.ok(fs.readdirSync(userData).some((f) => f.startsWith("table-state.unreadable-")));
   } finally {
     await app.close();

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyPatch, defaultState, parseSave, serialize, viewOf } from "./table.ts";
+import fc from "fast-check";
+import { applyPatch, defaultState, parseSave, playerViewOf, serialize, viewOf } from "./table.ts";
 
 test("curtain wins over the test grid", () => {
   const s = applyPatch(defaultState(), { testGrid: true, curtain: true });
@@ -9,14 +10,25 @@ test("curtain wins over the test grid", () => {
   assert.equal(viewOf(applyPatch(s, { curtain: false, testGrid: false })), "idle");
 });
 
+test("the table window gets only the player view", () => {
+  const s = applyPatch(defaultState(), { curtain: true, playerDisplayId: 7 });
+  assert.deepEqual(playerViewOf(s), { view: "curtain" });
+});
+
 test("patches with wrong types are ignored", () => {
   const s = applyPatch(defaultState(), { curtain: "yes", testGrid: 1, playerDisplayId: 1.5, version: 99 });
   assert.deepEqual(s, defaultState());
 });
 
-test("a saved state round-trips", () => {
-  const s = applyPatch(defaultState(), { curtain: true, playerDisplayId: 7 });
-  assert.deepEqual(parseSave(serialize(s)), { ok: true, state: s });
+test("any series of patches, valid or not, leaves a state that saves and loads unchanged", () => {
+  const anyValue = fc.oneof(fc.boolean(), fc.integer(), fc.double(), fc.string(), fc.constant(null));
+  const patch = fc.record({ curtain: anyValue, testGrid: anyValue, playerDisplayId: anyValue, version: anyValue }, { requiredKeys: [] });
+  fc.assert(
+    fc.property(fc.array(patch), (patches) => {
+      const s = patches.reduce(applyPatch, defaultState());
+      assert.deepEqual(parseSave(serialize(s)), { ok: true, state: s });
+    }),
+  );
 });
 
 test("unreadable or unknown saves are reported, not guessed", () => {

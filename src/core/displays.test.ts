@@ -16,10 +16,6 @@ test("falls back to the first screen that isn't the laptop", () => {
   assert.equal(choosePlayerDisplay([laptop, projector], null), projector);
 });
 
-test("returns null with only the laptop screen", () => {
-  assert.equal(choosePlayerDisplay([laptop], null), null);
-});
-
 test("the table window is fullscreen only on a screen that isn't the laptop", () => {
   assert.deepEqual(playerPlacement([laptop, projector], null), { display: projector, fullscreen: true });
   assert.deepEqual(playerPlacement([laptop, projector], 1), { display: laptop, fullscreen: false });

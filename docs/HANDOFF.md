@@ -16,9 +16,11 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–7). Step 1, two windows
   - Saving survives a restart, and an unreadable save is kept aside.
   - Unit and end-to-end tests pass locally and in CI. A Windows zip builds on Linux.
 - 2026-10-28 Morgan set the PR workflow: summary first, then open and merge when green (D-018).
+- 2026-10-28 Audit ([AUDIT-2026-10-28.md](AUDIT-2026-10-28.md)): the table window now has its own read-only bridge and gets only `playerViewOf(state)`; windows can't navigate (a dropped file was being opened); an e2e race fixed. Morgan approved: D-020 test upkeep accepted; Electron fuses on; knip in `npm run check`; fast-check for property tests.
 
 ## Next
 
+0. Merge the audit PR when green. Then fold audit P1 items 1–2 (built-in screen detection, save-problem notice) into step 2 or a small PR.
 1. **Step 2: calibration** (PLAN.md step 2, D-004). Morgan's projector sits angled from a shelf.
    - Corner-pin (homography) warp of the table view: Morgan drags four corners until a projected square matches a ruler.
    - Store the result per display, with a version (GAME-05).
@@ -53,3 +55,4 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–7). Step 1, two windows
 ## Decisions since the last plan update
 
 - 2026-10-28 D-018 PR workflow; D-019 the repo carries everything a session needs.
+- 2026-10-28 D-020 test upkeep at the end of each step (accepted).

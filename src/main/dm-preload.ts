@@ -1,4 +1,4 @@
-// The only bridge between the windows and the main process. Pages get these calls and nothing else.
+// The DM window's only bridge to the main process. The page gets these calls and nothing else.
 import { contextBridge, ipcRenderer } from "electron";
 import type { TablePatch, TableState } from "../core/table.ts";
 import type { DisplayInfo } from "../core/displays.ts";
@@ -13,5 +13,5 @@ const api = {
   onStatus: (fn: (s: TableStatus) => void) => ipcRenderer.on("table:status", (_e, s: TableStatus) => fn(s)),
 };
 
-export type TerraApi = typeof api;
+export type DmApi = typeof api;
 contextBridge.exposeInMainWorld("terra", api);

@@ -18,8 +18,9 @@
     "format:check": "prettier --check .",
     "test": "node --test \"src/**/*.test.ts\"",
     "test:e2e": "npm run build && node --test \"e2e/*.test.mjs\"",
-    "check": "npm run format:check && npm run typecheck && npm test",
-    "dist:win": "npm run build && electron-builder --win zip --x64 --publish never"
+    "check": "npm run format:check && npm run typecheck && npm run knip && npm test",
+    "dist:win": "npm run build && electron-builder --win zip --x64 --publish never",
+    "knip": "knip"
   },
   "build": {
     "appId": "com.ddraigfawr13.projectterra",
@@ -33,6 +34,13 @@
     },
     "win": {
       "signAndEditExecutable": false
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableCookieEncryption": true,
+      "onlyLoadAppFromAsar": true
     }
   },
   "devDependencies": {
@@ -40,6 +48,8 @@
     "electron": "44.6.0",
     "electron-builder": "26.17.0",
     "esbuild": "0.28.2",
+    "fast-check": "4.10.2",
+    "knip": "6.41.0",
     "playwright": "1.63.0",
     "prettier": "3.9.9",
     "typescript": "6.0.3"

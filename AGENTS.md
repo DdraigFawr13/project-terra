@@ -16,13 +16,13 @@ Sessions on this project may not have the AI-Master-Instructions repo. Everythin
 ## Code layout
 
 - `src/core/`: pure logic (no Electron, no DOM, no clock, no `Math.random`), unit tested next to the code (`*.test.ts`).
-- `src/main/`: Electron main process and the preload bridge, the only way pages reach the main process.
+- `src/main/`: Electron main process and one preload bridge per window, the only way pages reach the main process. The table window's bridge is read-only.
 - `src/renderer/`: the DM window (`dm.*`) and the table window (`player.*`).
 - `e2e/`: end-to-end tests that launch the real app with Playwright.
 
 ## Local checks (run before pushing)
 
-- Every push: `npm run check` (format, typecheck, unit tests).
+- Every push: `npm run check` (format, typecheck, unused-code check with knip, unit tests).
 - App changes: `xvfb-run -a npm run test:e2e` (builds, then drives both windows).
 - UI changes: look at a screenshot of both windows before calling it done (VER-06).
 
@@ -41,6 +41,7 @@ Sessions on this project may not have the AI-Master-Instructions repo. Everythin
 - Player-facing text appears twice, once facing each long side of the table (D-008).
 - Anything projected counts as working only with Morgan's photo of the table (VER-07, D-016).
 - Saves carry a version, and an unreadable save is kept aside, never overwritten (GAME-05).
+- At the end of each plan step, review the tests: cut or merge what is redundant, and keep the time budgets (D-020).
 
 ## Overrides
 
