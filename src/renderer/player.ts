@@ -43,8 +43,24 @@ function surfaceNow(): Surface {
   return { width: window.innerWidth, height: window.innerHeight, scale: window.devicePixelRatio || 1 };
 }
 
-/** Draw the 1-inch grid and the measured rectangle on the layer, then warp the layer onto the screen. */
-function drawTable(cal: Calibration, calibrating: boolean, calibrated: boolean): void {
+const images = new Map<string, HTMLImageElement>();
+/** A library map, loaded once and drawn again when it arrives. */
+function mapImage(id: string): HTMLImageElement {
+  let img = images.get(id);
+  if (!img) {
+    img = new Image();
+    img.src = `terra-map://${id}/`;
+    img.onload = draw;
+    images.set(id, img);
+  }
+  return img;
+}
+
+type TableMode = "calibrate" | "testGrid" | "map";
+
+/** Draw on the layer in inches (the map, the 1-inch grid, the measured rectangle), then warp the layer onto the screen. */
+function drawTable(cal: Calibration, mode: TableMode, calibrated: boolean): void {
+  const calibrating = mode === "calibrate";
   const layer = layerFor(cal, surfaceNow());
   const ppi = layer.pxPerInch;
   layerCanvas.width = Math.round(layer.box.width * ppi);
@@ -60,12 +76,26 @@ function drawTable(cal: Calibration, calibrating: boolean, calibrated: boolean):
   ctx.setTransform(1, 0, 0, 1, -layer.box.x * ppi, -layer.box.y * ppi);
   ctx.clearRect(X(layer.box.x), X(layer.box.y), layerCanvas.width, layerCanvas.height);
   const { x: bx, y: by, width: bw, height: bh } = layer.box;
-  ctx.strokeStyle = "rgba(255,255,255,0.55)";
+  const map = player?.map;
+  if (mode === "map" && map) {
+    const img = mapImage(map.id);
+    if (img.complete && img.naturalWidth) {
+      ctx.save();
+      ctx.translate(X(map.x), X(map.y));
+      ctx.rotate((map.turns * Math.PI) / 2);
+      ctx.drawImage(img, X(map.bounds.x), X(map.bounds.y), X(map.bounds.width), X(map.bounds.height));
+      ctx.restore();
+    }
+    // Over a map, the grid is only for checking that the map's squares line up with the table's.
+    if (!player?.grid) return;
+  }
+  ctx.strokeStyle = mode === "map" ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.55)";
   ctx.lineWidth = Math.max(1, ppi / 24);
   ctx.beginPath();
   for (let x = bx; x <= bx + bw; x++) (ctx.moveTo(X(x), X(by)), ctx.lineTo(X(x), X(by + bh)));
   for (let y = by; y <= by + bh; y++) (ctx.moveTo(X(bx), X(y)), ctx.lineTo(X(bx + bw), X(y)));
   ctx.stroke();
+  if (mode === "map") return;
 
   const rect = { x: 0, y: 0, w: X(cal.widthIn), h: X(cal.heightIn) };
   ctx.strokeStyle = calibrating ? ACCENT : "#ffffff";
@@ -127,9 +157,9 @@ function draw(): void {
   overlayCanvas.width = screenCanvas.width;
   overlayCanvas.height = screenCanvas.height;
   octx.setTransform(s.scale, 0, 0, s.scale, 0, 0);
-  if (view === "testGrid" || view === "calibrate") {
+  if (view === "testGrid" || view === "calibrate" || view === "map") {
     const cal = calibration ?? defaultCalibration(s);
-    drawTable(cal, view === "calibrate", !!calibration);
+    drawTable(cal, view, !!calibration);
     if (view === "calibrate") drawCornerMarks(cal, s);
   } else if (view === "idle") {
     sctx.fillStyle = "rgba(255,255,255,0.35)";

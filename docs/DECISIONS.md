@@ -7,7 +7,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 ## D-001 A Windows desktop app built with Electron and TypeScript
 
 - **Status:** Accepted (2026-10-28)
-- **Decision:** Project Terra is an Electron app written in TypeScript. Morgan starts it by double-clicking a program on a Windows laptop. It works offline and uses no paid services. Map drawing moves to WebGL (PixiJS) when maps arrive; step 1 draws its test grid with Canvas 2D.
+- **Decision:** Project Terra is an Electron app written in TypeScript. Morgan starts it by double-clicking a program on a Windows laptop. It works offline and uses no paid services. Step 1 drew with Canvas 2D; maps are Canvas 2D too, and PixiJS (WebGL) is reconsidered at step 5 with a speed measurement (D-024).
 - **Why:** Morgan wanted a program to double-click, offline, with a budget under 50 one-off. Electron handles two screens and offline use well, and agents build with it reliably.
 
 ## D-002 Two windows: the table shows only the player view
@@ -148,4 +148,15 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   - Between scenes: a black curtain for session 1. A per-scene choice comes with scene switching after session 1.
   - Step 3 builds the styled shell: theme, fonts, layout with empty panels, toolbar, folding, and the curtain and next-turn keys. Steps 4–6 fill it.
 - **Why:** Morgan wants a clean tool with a light fantasy touch that reads fast mid-fight, in a dark room, on a 1080p laptop with mouse and touch. On a projector, strong colours and plain bold text survive best.
+
+## D-024 Map import, undo and the library
+
+- **Status:** Accepted (2026-10-28), Morgan chose all five recommendations in chat.
+- **Decision:**
+  1. Import straightens: the DM drags four corners onto a rectangle of known size on the picture (for example 8 × 6 grid squares), the same gesture as calibration. One square becomes 1 inch (D-005). The picture is straightened once at import; the parts of a slanted photo squashed more than 4 times are left out.
+  2. Imported maps go to the personal library, `<app data>/library/maps/` on the laptop, as a straightened PNG plus a JSON file with its name and extent (D-010). Saves hold only the map's id and place. Windows load maps through `terra-map://<id>/`, which serves only library files.
+  3. The table window gets the whole map image. From step 5, fog is drawn over the hidden parts. The map's name stays DM-only.
+  4. Every change is a command applied by one function in `src/core/table.ts`. Map commands (place, move, turn, take off) can be undone with Ctrl+Z or the Undo button; switches such as the curtain, and calibration, are not part of undo. The undo history lasts for the session.
+  5. Maps are drawn with Canvas 2D on the calibrated table layer (D-021). PixiJS is reconsidered at step 5, with a speed measurement, before adding it (SAFE-03).
+- **Why:** a phone photo of a book page is never square on, so one marked square can't fix it; four corners fix scale and slant together and reuse the calibration maths. Commands give undo and replayable, testable state (GAME-02, GAME-06). Sending only revealed parts to the table would be slower and more work; Morgan accepted fog over the whole map.
 
