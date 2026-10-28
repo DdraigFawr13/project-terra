@@ -1,8 +1,9 @@
 // DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004).
 import { defaultCalibration, moveCorner, nudgeCorner, type Calibration } from "../core/calibration.ts";
 import { describeDisplay } from "../core/displays.ts";
-import type { TableState } from "../core/table.ts";
+import { viewOf, type TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
+import { icon, type IconName } from "./icons.ts";
 
 const terra = (window as unknown as { terra: DmApi }).terra;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -18,6 +19,21 @@ const calWidth = $<HTMLInputElement>("calWidth");
 const calHeight = $<HTMLInputElement>("calHeight");
 const preview = $<HTMLCanvasElement>("calPreview");
 const cornerBtns = [...document.querySelectorAll<HTMLButtonElement>("button.corner")];
+const panelsBtn = $<HTMLButtonElement>("panels");
+const previewText = $<HTMLSpanElement>("previewText");
+
+// Icons go in front of each labelled control.
+for (const el of document.querySelectorAll<HTMLElement>("[data-icon]"))
+  el.insertAdjacentHTML("afterbegin", icon(el.dataset.icon as IconName));
+const css = getComputedStyle(document.documentElement);
+const ACCENT = css.getPropertyValue("--accent").trim();
+const FOCUS = css.getPropertyValue("--focus").trim();
+const PREVIEW_TEXT = {
+  curtain: "Curtain: the table is blank",
+  calibrate: "Calibration pattern",
+  testGrid: "Test grid",
+  idle: "Title only",
+} as const;
 
 let state: TableState | null = null;
 let status: TableStatus | null = null;
@@ -50,6 +66,7 @@ function renderState(s: TableState): void {
   testGridBtn.setAttribute("aria-pressed", String(s.testGrid));
   curtainBtn.setAttribute("aria-pressed", String(s.curtain));
   calibrateBtn.setAttribute("aria-pressed", String(s.calibrating));
+  previewText.textContent = PREVIEW_TEXT[viewOf(s)];
   renderCalibration();
 }
 
@@ -107,7 +124,7 @@ function drawPreview(cal: Calibration): void {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, w, h);
   const pts = cal.corners.map((p) => ({ x: p.x * w, y: p.y * h }));
-  ctx.strokeStyle = "#6cb8a4";
+  ctx.strokeStyle = ACCENT;
   ctx.lineWidth = 2;
   ctx.beginPath();
   pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
@@ -119,7 +136,7 @@ function drawPreview(cal: Calibration): void {
   pts.forEach((p, i) => {
     ctx.beginPath();
     ctx.arc(p.x, p.y, 11, 0, Math.PI * 2);
-    ctx.fillStyle = i === selected ? "#d6a75a" : "#6cb8a4";
+    ctx.fillStyle = i === selected ? FOCUS : ACCENT;
     ctx.fill();
     ctx.fillStyle = "#0f1617";
     ctx.fillText(String(i + 1), p.x, p.y + 0.5);
@@ -193,8 +210,30 @@ calHeight.addEventListener("change", sizeChanged);
 $<HTMLButtonElement>("calReset").addEventListener("click", () => status && saveCalibration(defaultCalibration(status.surface)));
 $<HTMLButtonElement>("calDone").addEventListener("click", () => terra.patch({ calibrating: false }));
 calibrateBtn.addEventListener("click", () => terra.patch({ calibrating: calibrateBtn.getAttribute("aria-pressed") !== "true" }));
+const toggleCurtain = () => terra.patch({ curtain: curtainBtn.getAttribute("aria-pressed") !== "true" });
+function togglePanels(): void {
+  const open = panelsBtn.getAttribute("aria-pressed") !== "true";
+  panelsBtn.setAttribute("aria-pressed", String(open));
+  document.body.dataset.panels = open ? "open" : "folded";
+  panelsBtn.querySelector("svg")?.remove();
+  panelsBtn.insertAdjacentHTML("afterbegin", icon(open ? "panelsClose" : "panelsOpen"));
+  renderCalibration();
+}
+
 testGridBtn.addEventListener("click", () => terra.patch({ testGrid: testGridBtn.getAttribute("aria-pressed") !== "true" }));
-curtainBtn.addEventListener("click", () => terra.patch({ curtain: curtainBtn.getAttribute("aria-pressed") !== "true" }));
+curtainBtn.addEventListener("click", toggleCurtain);
+panelsBtn.addEventListener("click", togglePanels);
+
+// Shortcuts (D-023). They never fire while typing, and Tab folds the panels only when no control has focus, so
+// Tab still moves between controls.
+window.addEventListener("keydown", (e) => {
+  const t = e.target as HTMLElement;
+  if (e.ctrlKey || e.altKey || e.metaKey || t.closest("input, textarea, select, [contenteditable]")) return;
+  if (e.key === "Tab" && !e.shiftKey && (t === document.body || t === document.documentElement)) {
+    e.preventDefault();
+    togglePanels();
+  } else if (e.key === "b" || e.key === "B") toggleCurtain();
+});
 displaySelect.addEventListener("change", () => terra.patch({ playerDisplayId: Number(displaySelect.value) }));
 window.addEventListener("resize", renderCalibration);
 

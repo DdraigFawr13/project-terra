@@ -1,5 +1,5 @@
 // Bundles the app into dist/: main and one preload per window for Electron, one script per window, plus the
-// window HTML and CSS.
+// window HTML, CSS and assets.
 import { build } from "esbuild";
 import fs from "node:fs";
 
@@ -23,4 +23,6 @@ await build({
   format: "iife",
 });
 for (const f of ["dm.html", "dm.css", "player.html", "player.css"]) fs.copyFileSync(`src/renderer/${f}`, `dist/${f}`);
+// Fonts and licences (D-023), bundled so the app looks the same on any laptop and works offline.
+fs.cpSync("src/renderer/assets", "dist/assets", { recursive: true });
 console.log("build: dist/ ready");

@@ -26,7 +26,7 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 3. **Generator.** Ruined town and interiors first in the pencil style, then dungeon and cave. Edit after generating.
 4. **Living effects.** Fire first, then ice, water, lightning and collapse, spreading each round.
 5. **Story tools.** NPC conversation player, world map linked to battle maps, handouts, item cards, names, loot, ambient sound.
-6. **Later.** Remote players, hex and gridless, encounter tester, camera tracking.
+6. **Later.** Remote players, hex and gridless, encounter tester, camera tracking, fantasy icons (D-023).
 
 ## How we work
 

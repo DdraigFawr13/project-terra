@@ -1,108 +1,282 @@
+/* Ember look (D-023): dark warm brown, copper-red highlight, Alegreya SC headings, Source Sans 3 for everything read mid-fight. */
+@font-face {
+  font-family: "Alegreya SC";
+  font-weight: 500;
+  src: url("assets/fonts/alegreya-sc-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Alegreya SC";
+  font-weight: 700;
+  src: url("assets/fonts/alegreya-sc-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-weight: 400;
+  src: url("assets/fonts/source-sans-3-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-weight: 600;
+  src: url("assets/fonts/source-sans-3-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-weight: 700;
+  src: url("assets/fonts/source-sans-3-latin-700-normal.woff2") format("woff2");
+}
 :root {
-  --bg: #141b1c;
-  --surface: #1c2526;
-  --ink: #e3e8e2;
-  --muted: #9aa6a1;
-  --line: #2f3b3c;
-  --accent: #6cb8a4;
-  --accent-ink: #0f1617;
-  --focus: #d6a75a;
+  --bg: #17120f;
+  --surface: #211a15;
+  --raised: #2c231c;
+  --ink: #efe6da;
+  --muted: #a8998a;
+  --line: #3a2e25;
+  /* Copper-red, not amber, so it can't be mistaken for the yellow enemy disc (D-023). */
+  --accent: #c8623f;
+  --accent-ink: #1a0e09;
+  --focus: #f0d3a8;
+  --display: "Alegreya SC", Georgia, serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  /* Touch and mouse both: no target smaller than 40 px (D-023). */
+  --target: 40px;
   color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
 }
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font:
-    16px/1.45 "Segoe UI",
-    system-ui,
-    sans-serif;
-}
-header {
+  font: 15px/1.45 var(--body);
+  /* A column, not a grid: the notice bar is often hidden, and hidden rows would shift a grid's rows. */
   display: flex;
-  align-items: baseline;
-  gap: 16px;
-  padding: 12px 20px;
+  flex-direction: column;
+  overflow: hidden;
+}
+h1,
+h2 {
+  font-family: var(--display);
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+h2 {
+  font-size: 1.05rem;
+  color: var(--muted);
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
-h1 {
-  margin: 0;
-  font-size: 1.2rem;
+.scene {
+  font: 500 1.05rem var(--display);
   letter-spacing: 0.03em;
 }
 #status {
+  flex: 1;
   margin: 0;
   color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-main {
+#notice {
+  margin: 0;
+  padding: 10px 16px;
+  background: #4a2a1c;
+  color: #f6dfcf;
+  border-bottom: 1px solid var(--accent);
+}
+.work {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 290px 1fr 340px;
+  min-height: 0;
+}
+body[data-panels="folded"] .work {
+  grid-template-columns: 0 1fr 0;
+}
+body[data-panels="folded"] .side {
+  visibility: hidden;
+  padding: 0;
+  border: 0;
+}
+.side {
+  background: var(--surface);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+}
+.side.left {
+  border-right: 1px solid var(--line);
+}
+.side.right {
+  border-left: 1px solid var(--line);
+}
+.empty {
+  margin: 0 0 8px;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.preview {
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 600;
+}
+.stage {
+  overflow: auto;
   padding: 20px;
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 16px;
-  /* Setup panels sit side by side; the map layout (D-012) arrives with maps in step 3. */
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  align-content: start;
   align-items: start;
-  max-width: 1040px;
 }
-.panel {
+.card {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 16px;
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
-h2 {
-  margin: 0;
-  font-size: 1rem;
+.card.lead {
+  grid-column: 1 / -1;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 14px;
 }
-select,
-button {
-  font: inherit;
+.lead-icon svg {
+  width: 32px;
+  height: 32px;
+  color: var(--accent);
+}
+.card.lead h2 {
   color: var(--ink);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px 10px;
-  min-height: 40px;
-}
-.toggles {
-  display: flex;
-  gap: 8px;
-}
-button {
-  cursor: pointer;
-  flex: 1;
-}
-button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-}
-button:focus-visible,
-select:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
 }
 .hint {
   margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
 }
-#notice {
-  margin: 0;
-  padding: 10px 20px;
-  background: #4a3a1c;
-  color: #f3e6c8;
-  border-bottom: 1px solid var(--focus);
+.row,
+.size {
+  display: flex;
+  gap: 8px;
 }
-#notice[hidden],
-.cal-tools[hidden] {
-  display: none;
+.size {
+  gap: 16px;
+}
+.row button {
+  flex: 1;
+}
+select,
+button,
+input[type="number"] {
+  font: inherit;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: var(--target);
+}
+select,
+button {
+  padding: 0 12px;
+}
+button {
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+button svg {
+  flex: none;
+}
+button[aria-pressed="true"],
+button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+/* Folding is a view switch, not an on/off the table sees, so it stays quiet. */
+#panels[aria-pressed="true"] {
+  background: var(--raised);
+  color: var(--ink);
+  border-color: var(--line);
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+kbd {
+  font: 600 0.72rem var(--body);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+button[aria-pressed="true"] kbd,
+button.primary kbd {
+  color: inherit;
+  border-color: rgba(0, 0, 0, 0.3);
+}
+input[type="number"] {
+  width: 4.5em;
+  padding: 0 8px;
+}
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+.tools-note {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 .cal-tools {
   display: grid;
   gap: 10px;
+}
+.cal-tools[hidden],
+#notice[hidden] {
+  display: none;
 }
 .steps {
   margin: 0;
@@ -110,28 +284,10 @@ select:focus-visible {
   color: var(--muted);
   font-size: 0.9rem;
 }
-.size {
-  display: flex;
-  gap: 16px;
-}
-input[type="number"] {
-  font: inherit;
-  width: 4.5em;
-  color: var(--ink);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 6px 8px;
-}
 #calPreview {
   width: 100%;
   background: #000;
   border-radius: 6px;
   touch-action: none;
   cursor: crosshair;
-}
-#calPreview:focus-visible,
-input:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
 }
