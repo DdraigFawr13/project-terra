@@ -53,8 +53,7 @@ export function initMonsters(
   function panel(c: DiscColour): Panel {
     let p = panels.get(c);
     if (p) return p;
-    const i = panels.size;
-    const win = floatWin(`monster-${c}`, { width: 380, at: { x: 330 + i * 28, y: 70 + i * 28 } });
+    const win = floatWin(`monster-${c}`);
     const pad = numpad(
       [
         { label: "− Damage", kind: "damage", className: "damage" },
@@ -362,7 +361,7 @@ export function initMonsters(
     if (!state) return;
     const focused = (document.activeElement as HTMLElement | null)?.dataset?.key;
     for (const [c, p] of panels) if (p.win.isOpen()) renderPanel(state, c, p);
-    if (focused) document.querySelector<HTMLElement>(`#floats [data-key="${focused}"]`)?.focus();
+    if (focused) document.querySelector<HTMLElement>(`[data-float] [data-key="${focused}"]`)?.focus();
   }
 
   terra.onState((s) => {

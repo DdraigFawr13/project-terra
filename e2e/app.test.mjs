@@ -19,6 +19,10 @@ async function launch(userData) {
     }
     throw new Error(`no window titled ${t}`);
   };
+  // Every journey runs with the DM window at 1920 x 1080, the target laptop's screen.
+  await app.evaluate(({ BrowserWindow }) => {
+    for (const w of BrowserWindow.getAllWindows()) if (w.getTitle().includes("(DM)")) w.setContentSize(1920, 1080);
+  });
   return { app, dm: await byTitle("(DM)"), table: await byTitle("(Table)") };
 }
 
@@ -275,21 +279,36 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.waitForSelector("button.move[data-dx='1']:enabled");
     assert.equal((await table.evaluate(() => window.terra.getView())).map.x, 0);
 
-    // Zoom (D-030): + zooms about the middle, so a tap there still lands on the same square.
+    // Zoom (D-030): zooming keeps the square under the pointer where it is, so a tap there lands on the same square.
     await dm.click("button[data-tool='marker']");
-    const placeAtMiddle = async () => {
-      const now = await dm.locator("#mapCanvas").boundingBox();
-      await dm.mouse.click(now.x + now.width / 2, now.y + now.height / 2);
+    const placeAt = async (x, y) => {
+      await dm.mouse.click(x, y);
       await dm.waitForFunction(async () => (await window.terra.getState()).map.discs.length === 1);
-      const { x, y } = (await dm.evaluate(() => window.terra.getState())).map.discs[0];
+      const d = (await dm.evaluate(() => window.terra.getState())).map.discs[0];
       await dm.keyboard.press("Control+z");
       await dm.waitForFunction(async () => (await window.terra.getState()).map.discs.length === 0);
-      return [x, y];
+      return [d.x, d.y];
     };
-    const unzoomed = await placeAtMiddle();
+    // A point well inside a square: a few pixels either way still places the same disc.
+    const now = await dm.locator("#mapCanvas").boundingBox();
+    let spot = null;
+    for (const k of [0.5, 0.42, 0.58, 0.35]) {
+      const [x, y] = [now.x + now.width * k, now.y + now.height * k];
+      const here = await placeAt(x, y);
+      if (
+        JSON.stringify(await placeAt(x - 4, y - 4)) === JSON.stringify(here) &&
+        JSON.stringify(await placeAt(x + 4, y + 4)) === JSON.stringify(here)
+      ) {
+        spot = { x, y, here };
+        break;
+      }
+    }
+    assert.ok(spot, "no point well inside a square");
+    await dm.mouse.move(spot.x, spot.y);
+    await dm.mouse.wheel(0, -400);
+    await dm.waitForTimeout(100);
+    assert.deepEqual(await placeAt(spot.x, spot.y), spot.here);
     await dm.click("#zoomIn");
-    await dm.click("#zoomIn");
-    assert.deepEqual(await placeAtMiddle(), unzoomed);
     await dm.click("#zoomFit");
     await dm.click("button[data-tool='select']");
   } finally {
@@ -335,7 +354,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
 
     // A character in the Party window; damage from the pad takes temp HP first.
     await dm.click("#partyBtn");
-    const party = dm.locator(".float[data-float='party']");
+    const party = dm.locator("[data-float='party']");
     await party.locator("[aria-label='Add a character']").click();
     await dm.fill('[data-key="pc-name"]', "Ash");
     await dm.fill('[data-key="pc-ac"]', "16");
@@ -383,7 +402,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     // A tap on the disc with Select opens its monster window. Book: import a library file and link the stat block.
     await dm.click("button[data-tool='select']");
     await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    const mon = dm.locator(".float[data-float='monster-yellow']");
+    const mon = dm.locator("[data-float='monster-yellow']");
     await mon.locator("button", { hasText: "Book" }).click();
     await mon.locator("input[type=file]").setInputFiles({
       name: "library.json",
@@ -428,7 +447,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
 
     // Drag the disc two squares; Ctrl+Z puts it back and doesn't take back the character's HP.
     const before = (await dm.evaluate(() => window.terra.getState())).map.discs[0];
-    await mon.locator("header button[aria-label='Close']").click();
+    await mon.locator(".dock-bar button[aria-label='Close']").click();
     await dm.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await dm.mouse.down();
     await dm.mouse.move(box.x + box.width / 2 + box.width / 6, box.y + box.height / 2, { steps: 4 });
@@ -445,7 +464,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
   ({ app, dm, table } = await launch(userData));
   try {
     await dm.click("#partyBtn");
-    await dm.locator(".float[data-float='party'] .tabs [role=tab]", { hasText: "Ash" }).waitFor();
+    await dm.locator("[data-float='party'] .tabs [role=tab]", { hasText: "Ash" }).waitFor();
     assert.equal(await dm.evaluate(() => window.terra.countCreatures()), 2);
   } finally {
     await app.close();

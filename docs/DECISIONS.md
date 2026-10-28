@@ -72,7 +72,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-012 DM screen layout
 
-- **Status:** Accepted (2026-10-28)
+- **Status:** Accepted (2026-10-28). Side panels became movable windows in D-031.
 - **Decision:** Side panels: initiative and markers on the left, the map in the middle, and on the right a live table preview above the notes. Tools run along the bottom.
 - **Why:** Morgan liked side panels most and also wanted to always see what the table shows.
 
@@ -138,7 +138,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-023 UI design
 
-- **Status:** Accepted (2026-10-28), approved by Morgan in the UI design interview ([round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)).
+- **Status:** Accepted (2026-10-28), approved by Morgan in the UI design interview; control sizes changed by D-031 ([round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)).
 - **Decision:**
   - DM window: the "Ember" look. Dark warm brown, a copper-red highlight (not amber, so it can't be mistaken for the yellow enemy disc), Alegreya SC for headings only, and Source Sans 3 for everything else. Both fonts are bundled (SIL OFL), so the app looks the same on any laptop and works offline.
   - Layout: D-012 with the "Classic" sizes (left about 290 px, right about 340 px). The side panels fold away with a button or Tab. Tools run along the bottom with icons, names and keys.
@@ -202,7 +202,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-028 Step 6 redo: floating windows, monster HP and stat blocks
 
-- **Status:** Accepted (2026-10-28), from Morgan's review of step 6 and the [sketch](https://claude.ai/artifact/7RHmUtvNBaQGqk7sw95thk): floating windows, party and monster windows, per-disc editing, then "go with recommended for the rest". Changes D-027 items 3, 4 and 6, brings HP on discs (D-013) and the library stat block (D-026) into session 1, and makes disc letters an exception to D-008.
+- **Status:** Accepted (2026-10-28), from Morgan's review of step 6 and the [sketch](https://claude.ai/artifact/7RHmUtvNBaQGqk7sw95thk): floating windows, party and monster windows, per-disc editing, then "go with recommended for the rest". Changes D-027 items 3, 4 and 6, brings HP on discs (D-013) and the library stat block (D-026) into session 1, and makes disc letters an exception to D-008. Items 1 and 7 changed by D-031: sheets are dockable windows, and controls are smaller.
 - **Decision:**
   1. Character cards and monster info move out of the left panel into floating windows inside the DM window: dragged by the title bar, folded to a bar, closed, and reopened where they were left. They never become OS windows, so none can land on the projector. The left panel keeps initiative and the colour groups, with more room.
   2. A Party window with a tab per character: name, AC, HP, temp HP, speed, passive Perception, Insight and Investigation, spell save DC (optional) and notes. Damage takes temp HP first.
@@ -223,3 +223,19 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   4. Lock map: a switch beside the map's name. A locked map can't be moved, turned or taken off; Select still drags discs. A newly placed map starts unlocked. Like the curtain, the lock is outside undo, and a command a lock refuses leaves no undo step.
   5. A failed save never crashes the app: renames retry briefly (on Windows a scanner or indexer can hold the file), then the DM sees a notice and the save is tried again every 2 seconds; the last good save stays on disk. A window whose page crashes reloads itself, up to three times a minute. An unreadable save that Windows won't move is copied aside instead.
 - **Why:** measured on Morgan's PC (Ryzen 7 5800X3D) with fog at the old 2,000-op limit: every change took about 400 ms, as the state was copied once per panel, and the save was 5.9 MB; past the limit new strokes were dropped with only a hint in the right panel. Now: about 9 ms for an HP change and 25 ms for a stroke, about 0.2 s once per 500 strokes to bake, and a 39 KB save. Zoom on the DM map and the floating windows covering the table preview change how the DM screen works, so they go through the planning interview first.
+
+## D-030 Zoom on the DM map
+
+- **Status:** Accepted (2026-10-28), Morgan chose "Pinch + buttons" in the audit follow-up.
+- **Decision:** The DM's map view zooms from fitting the whole map up to 8 times: pinch with two fingers (which also pans), the mouse wheel about the pointer, and + / − / Fit buttons over the map's corner. With the map locked, dragging with Select pans; the middle mouse button pans with any tool. Zooming keeps the square under the pointer where it is. The view is the DM's own: it never reaches the table or the save, and a newly placed map starts fitted.
+- **Why:** at the laptop's 1280 × 680 a 40 × 28 inch map drew about 11 pixels per inch, too small to paint fog along a wall by finger or pen. Two fingers already cancel a stroke (D-025), so a pinch fits the same gesture.
+
+## D-031 Movable windows and smaller controls
+
+- **Status:** Accepted (2026-10-28). Morgan asked for windows that move "like Visual Studio" and for buttons "smaller by a bit", since a stylus doesn't need big targets. Changes D-012 (fixed side panels), D-023 (40 px controls, 56 px tools) and D-028 items 1 and 7 (floating sheets, button sizes).
+- **Decision:**
+  1. The map stays in the middle. Initiative, Groups, "On the table now" (with the whole-map fog buttons), the Party sheet and each monster sheet are windows. A window docks in the left, right or bottom area, where windows share a group as tabs and groups stack with dividers; or it floats over the DM window and is sized from its corner. Drag a tab or a floating title bar: a highlight shows where it lands (an area's edge, beside or into a group, or floating).
+  2. Areas and groups resize by dragging the dividers. Tab (or Panels) folds every docked window away. The Windows menu shows or hides the map's windows and resets the layout. Sheets close when done and open where they were last, as tabs beside any open sheet by default.
+  3. The layout is kept on this laptop (browser storage); it is not part of the table's save. Everything stays inside the DM window, so nothing DM-only can reach the projector (D-002).
+  4. Sizes: 32 px buttons, 36 px list rows, 44 px bottom tools, 14 px text.
+- **Why:** Morgan's instruction on 2026-10-28, after the audit showed the old floating windows covering the map and the table preview. Docking keeps both in view by default, and Morgan can arrange the rest. At 1920 × 1080 (the size the tests now run at) the map fills most of the window and a monster sheet fits without scrolling.

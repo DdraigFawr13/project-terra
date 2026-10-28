@@ -15,7 +15,11 @@
       <span class="scene">No scene yet</span>
       <p id="status" role="status">Starting…</p>
       <button id="setupBtn" type="button" aria-pressed="false" data-icon="setup" hidden>Table setup</button>
-      <button id="panels" type="button" aria-pressed="true" data-icon="panelsClose" title="Show or fold the side panels (Tab)">
+      <button id="windowsBtn" type="button" aria-expanded="false" data-icon="dockIn" title="Show, hide or reset the windows">
+        Windows
+      </button>
+      <div id="windowsMenu" class="menu" role="menu" hidden></div>
+      <button id="panels" type="button" aria-pressed="true" data-icon="panelsClose" title="Show or fold the docked windows (Tab)">
         Panels<kbd>Tab</kbd>
       </button>
       <button id="partyBtn" type="button" data-icon="party" title="Characters: HP, AC and the rest">Party</button>
@@ -24,29 +28,10 @@
     </header>
     <p id="notice" role="alert" hidden></p>
 
-    <div class="work">
-      <aside class="side left" aria-label="Initiative, markers and characters">
-        <section class="panel" aria-labelledby="init-heading">
-          <div class="panel-head">
-            <h2 id="init-heading">Initiative</h2>
-            <span id="round" class="round"></span>
-          </div>
-          <button id="startFight" type="button" class="primary">Start fight</button>
-          <ol id="order" class="entries" aria-label="Turn order"></ol>
-          <div id="unrolledBox" hidden>
-            <h3>Not rolled yet</h3>
-            <ul id="unrolled" class="entries" aria-label="Not rolled yet"></ul>
-          </div>
-          <button id="endFight" type="button" hidden>End fight</button>
-        </section>
-        <section class="panel" aria-labelledby="groups-heading">
-          <h2 id="groups-heading">Groups</h2>
-          <p id="groupsEmpty" class="empty">Pick Marker (M) below, a colour and a size, then tap the map. New discs start hidden.</p>
-          <ul id="groups" class="entries" aria-label="Enemy groups by colour"></ul>
-          <p class="hint">Open a group for its HP, notes and stat block. Tapping a disc on the map opens it too.</p>
-        </section>
-      </aside>
-
+    <!-- Windows dock around the map, like an IDE's tool windows (D-031): left, right and bottom areas with dividers. -->
+    <div class="work" id="work">
+      <div class="dock-area" data-area="left" aria-label="Left windows"></div>
+      <div class="area-split" data-split="left" aria-hidden="true"></div>
       <main class="stage">
         <section id="emptyMap" class="card lead" aria-labelledby="map-heading">
           <span class="lead-icon" data-icon="map"></span>
@@ -158,15 +143,35 @@
           </section>
         </div>
       </main>
+      <div class="area-split" data-split="bottom" aria-hidden="true"></div>
+      <div class="dock-area" data-area="bottom" aria-label="Bottom windows"></div>
+      <div class="area-split" data-split="right" aria-hidden="true"></div>
+      <div class="dock-area" data-area="right" aria-label="Right windows"></div>
+    </div>
 
-      <aside class="side right" aria-label="Table preview and notes">
-        <!-- The preview stays at the top while the sheets below it scroll (D-030). -->
-        <div class="sticky-preview">
-          <h2>On the table now</h2>
-          <div class="preview">
-            <canvas id="tablePreview" aria-label="A live picture of what the table shows"></canvas>
-            <span id="previewText">Starting…</span>
-          </div>
+    <!-- The map's own windows, before the dock places them. -->
+    <div hidden>
+      <div id="initiativePanel" class="panel">
+        <div class="panel-head">
+          <button id="startFight" type="button" class="primary">Start fight</button>
+          <span id="round" class="round"></span>
+        </div>
+        <ol id="order" class="entries" aria-label="Turn order"></ol>
+        <div id="unrolledBox" hidden>
+          <h3>Not rolled yet</h3>
+          <ul id="unrolled" class="entries" aria-label="Not rolled yet"></ul>
+        </div>
+        <button id="endFight" type="button" hidden>End fight</button>
+      </div>
+      <div id="groupsPanel" class="panel">
+        <p id="groupsEmpty" class="empty">Pick Marker (M) below, a colour and a size, then tap the map. New discs start hidden.</p>
+        <ul id="groups" class="entries" aria-label="Enemy groups by colour"></ul>
+        <p class="hint">Open a group for its HP, notes and stat block. Tapping a disc on the map opens it too.</p>
+      </div>
+      <div id="tablePanel" class="panel">
+        <div class="preview">
+          <canvas id="tablePreview" aria-label="A live picture of what the table shows"></canvas>
+          <span id="previewText">Starting…</span>
         </div>
         <p id="fogHint" class="hint">Black: never seen. Grey with lines: seen before. Clear: in view now.</p>
         <div class="fog-actions" role="group" aria-label="Fog on the whole map">
@@ -176,11 +181,7 @@
             <button id="fogCoverAll" type="button" disabled>Cover all</button>
           </div>
         </div>
-        <!-- Party and monster sheets dock here as tabs (D-030), so they never cover the map or the preview. -->
-        <div id="dockTabs" class="tabs dock-tabs" role="tablist" aria-label="Open sheets"></div>
-        <div id="dock"></div>
-        <p id="dockEmpty" class="empty">Party and monster sheets open here. Tap Party at the top, a group on the left, or a disc.</p>
-      </aside>
+      </div>
     </div>
 
     <footer class="tools" aria-label="Map tools">
