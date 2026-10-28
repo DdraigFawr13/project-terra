@@ -6,3 +6,4 @@ Format: `- <area> · <mistake> · <root cause> · <rule> · ×<n> (<YYYY-MM-DD>)
 
 - windows · Choosing the laptop's own screen for the table would have put the fullscreen table window over the DM window · placement only checked that a display existed · the table window is fullscreen only on a non-primary screen (`playerPlacement`) · ×1 (2026-10-28)
 - e2e · read a page attribute once instead of waiting for it · the table shows "curtain" until its state arrives, so a slow start could fail the check · in e2e, wait for state (`waitForFunction`), never read it once · ×1 (2026-10-28)
+- saves · a display id of -0 passed the integer check but saved as 0, so a saved state didn't load back equal; the property test caught it about 1 run in 10 · `Number.isInteger(-0)` is true and JSON writes -0 as 0 · normalise numbers from patches with `+ 0` before storing · ×1 (2026-10-28)

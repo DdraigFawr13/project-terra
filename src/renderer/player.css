@@ -6,8 +6,18 @@ body {
   overflow: hidden;
   cursor: none;
 }
-canvas {
+#table {
   display: block;
   width: 100%;
   height: 100%;
+}
+/* The table layer: drawn in inches, warped onto the screen by a matrix3d transform from layer pixels to screen pixels. */
+#layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+#layer[hidden] {
+  display: none;
 }

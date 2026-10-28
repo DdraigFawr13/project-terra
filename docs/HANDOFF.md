@@ -4,7 +4,7 @@ Updated: 2026-10-28. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md), steps 1–7). Step 1, two windows, is merged. It has not yet been run on Windows. Next is step 2, calibration.
+Building toward session 1 ([PLAN.md](PLAN.md), steps 1–7). Steps 1 (two windows) and 2 (calibration) are built and tested in the cloud. Neither has run on Windows: Morgan can't test on a Windows computer for now (2026-10-28), so steps stay "built, awaiting Morgan's check" (VER-07). Next is step 3, map import.
 
 ## Just done
 
@@ -17,24 +17,23 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–7). Step 1, two windows
   - Unit and end-to-end tests pass locally and in CI. A Windows zip builds on Linux.
 - 2026-10-28 Morgan set the PR workflow: summary first, then open and merge when green (D-018).
 - 2026-10-28 Audit ([AUDIT-2026-10-28.md](AUDIT-2026-10-28.md)): the table window now has its own read-only bridge and gets only `playerViewOf(state)`; windows can't navigate (a dropped file was being opened); an e2e race fixed. Morgan approved: D-020 test upkeep accepted; Electron fuses on; knip in `npm run check`; fast-check for property tests.
+- 2026-10-28 Step 2, calibration (branch `ccr-9a5d3541-2loy31`, not yet a PR):
+  - Corner-pin warp: the DM drags four corners (or nudges by one physical pixel) until they sit on a measured rectangle. The table draws in inches on one layer, warped by CSS `matrix3d` (D-021, proposed).
+  - One calibration per projector, plus one for the laptop's table window. Save version 2; version 1 saves upgrade.
+  - Audit P1 items 1, 2, 5 done: the laptop is the built-in screen (`Display.internal`, unverified on Windows), the DM window opens on it, and an unreadable save shows a notice in the DM window.
+  - Fixed a flaky unit test: a display id of -0 didn't survive a save (LESSONS).
+  - Tests: 15 unit (0.2 s), 2 e2e journeys (3.1 s). Screenshots of both windows checked.
 
 ## Next
 
-0. Merge the audit PR when green. Then fold audit P1 items 1–2 (built-in screen detection, save-problem notice) into step 2 or a small PR.
-1. **Step 2: calibration** (PLAN.md step 2, D-004). Morgan's projector sits angled from a shelf.
-   - Corner-pin (homography) warp of the table view: Morgan drags four corners until a projected square matches a ruler.
-   - Store the result per display, with a version (GAME-05).
-   - Make it redoable in under a minute.
-   - Account for Windows display scaling: measure in physical pixels, not CSS pixels.
-   - Keep the warp maths in `src/core/` with unit tests.
-   - It must be testable without the projector: calibrate against a ruler held to the laptop screen.
-2. Before step 4, Morgan does the 5-minute laptop test of step 1. See README "Try it on Windows": run the "Build Windows app" workflow, unzip, double-click, Win+P → Extend.
-3. Steps 3–5 can be tested on the laptop alone. Calibration needs the projector for its final proof (a photo of a ruler on the grid).
-
+0. Step 2 branch `ccr-9a5d3541-2loy31`: summary sent to Morgan; open the PR after approval (D-018). Approval also settles D-021.
+1. **Step 3: map import** (PLAN.md step 3, D-009, D-010). Design first: decide the state model (audit P1 item 4: commands with `apply(state, command)` in `src/core/`, giving undo and a determinism test), and where the personal library lives on the laptop. Draw maps on the table layer in inches (D-021). Testable in the cloud with a sample SRD or self-made image; never commit book maps.
+2. When Morgan has a Windows laptop: the 5-minute step 1 test (README "Try it on Windows"), then calibration with a ruler on the laptop screen, then the projector photo. Check `Display.internal` on that laptop (the built-in screen must say "this laptop" in the screen list).
+3. Steps 3–5 can be built and tested without Windows; their projected proof waits for Morgan's photos.
 ## Open questions
 
 - Windows SmartScreen warns on the unsigned app ("More info" → "Run anyway"). Recommended: accept for now; code signing costs money.
-- Morgan still has to find and set up the projector.
+- Morgan still has to find and set up the projector, and has no Windows computer to test on for now.
 - CI logs warn that `actions/checkout` and `actions/setup-node` at the pinned versions target Node.js 20, which GitHub is retiring. They still run. Bump both pins to Node 24 versions when convenient, using the `efficient-github-actions` skill.
 
 ## How to work here

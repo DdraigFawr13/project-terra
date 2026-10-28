@@ -3,7 +3,8 @@
 import { app, BrowserWindow, ipcMain, screen, type Display } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { playerPlacement, type DisplayInfo } from "../core/displays.ts";
+import type { Surface } from "../core/calibration.ts";
+import { laptopDisplay, playerPlacement, type DisplayInfo } from "../core/displays.ts";
 import { applyPatch, defaultState, parseSave, playerViewOf, serialize, type TableState } from "../core/table.ts";
 
 // Tests point this at a temporary folder so they never touch real saves.
@@ -13,6 +14,8 @@ let state: TableState = defaultState();
 let dmWindow: BrowserWindow | null = null;
 let playerWindow: BrowserWindow | null = null;
 let quitting = false;
+/** A problem the DM should see, such as a save that couldn't be read. The packaged app has no console. */
+let notice: string | null = null;
 
 const savePath = () => path.join(app.getPath("userData"), "table-state.json");
 
@@ -24,7 +27,8 @@ function loadState(): TableState {
   // Keep the unreadable file for inspection instead of overwriting it (GAME-05).
   const kept = file.replace(/\.json$/, `.unreadable-${Date.now()}.json`);
   fs.renameSync(file, kept);
-  console.error(`table-state.json could not be read (${parsed.reason}); kept it as ${path.basename(kept)}`);
+  notice = `The last save couldn't be read (${parsed.reason}), so the table started fresh. The old file is kept as ${path.basename(kept)}.`;
+  console.error(notice);
   return defaultState();
 }
 
@@ -43,7 +47,14 @@ function saveNow(): void {
 }
 
 function displayInfo(d: Display): DisplayInfo {
-  return { id: d.id, label: d.label, width: d.size.width, height: d.size.height, primary: d.id === screen.getPrimaryDisplay().id };
+  return {
+    id: d.id,
+    label: d.label,
+    width: d.size.width,
+    height: d.size.height,
+    primary: d.id === screen.getPrimaryDisplay().id,
+    internal: d.internal,
+  };
 }
 const listDisplays = (): DisplayInfo[] => screen.getAllDisplays().map(displayInfo);
 
@@ -51,15 +62,28 @@ function send(w: BrowserWindow | null, channel: string, payload: unknown): void 
   if (w && !w.isDestroyed()) w.webContents.send(channel, payload);
 }
 
+const placement = () => playerPlacement(listDisplays(), state.playerDisplayId);
+
+/** What the table window draws on: its size in CSS pixels and its screen's scaling. */
+function surface(): Surface {
+  if (!playerWindow || playerWindow.isDestroyed()) return { width: 960, height: 600, scale: 1 };
+  const [width, height] = playerWindow.getContentSize() as [number, number];
+  return { width, height, scale: screen.getDisplayMatching(playerWindow.getBounds()).scaleFactor };
+}
+
 function tableStatus() {
-  const { display, fullscreen } = playerPlacement(listDisplays(), state.playerDisplayId);
-  return { displays: listDisplays(), playerDisplayId: display?.id ?? null, fullscreen };
+  const { display, fullscreen, surfaceKey } = placement();
+  return { displays: listDisplays(), playerDisplayId: display?.id ?? null, fullscreen, surfaceKey, surface: surface(), notice };
+}
+
+function sendPlayerView(): void {
+  send(playerWindow, "player:changed", playerViewOf(state, placement().surfaceKey));
 }
 
 /** Put the player window fullscreen on its screen, or in a normal window when only the laptop screen exists. */
 function placePlayerWindow(): void {
   if (!playerWindow || playerWindow.isDestroyed()) return;
-  const { display, fullscreen } = playerPlacement(listDisplays(), state.playerDisplayId);
+  const { display, fullscreen } = placement();
   const target = screen.getAllDisplays().find((d) => d.id === display?.id) ?? screen.getPrimaryDisplay();
   playerWindow.setFullScreen(false);
   if (fullscreen) {
@@ -69,6 +93,7 @@ function placePlayerWindow(): void {
     playerWindow.setBounds({ x: target.workArea.x + 40, y: target.workArea.y + 40, width: 960, height: 600 });
   }
   send(dmWindow, "table:status", tableStatus());
+  sendPlayerView();
 }
 
 function createWindows(): void {
@@ -80,9 +105,13 @@ function createWindows(): void {
     nodeIntegration: false,
   });
 
+  // The DM window opens on the laptop's own screen, never on the projector (D-002).
+  const laptop = screen.getAllDisplays().find((d) => d.id === laptopDisplay(listDisplays())?.id) ?? screen.getPrimaryDisplay();
   dmWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    x: laptop.workArea.x + 20,
+    y: laptop.workArea.y + 20,
+    width: Math.min(1280, laptop.workArea.width - 40),
+    height: Math.min(800, laptop.workArea.height - 40),
     title: "Project Terra (DM)",
     backgroundColor: "#1c2526",
     webPreferences: webPreferences("dm-preload.cjs"),
@@ -104,6 +133,8 @@ function createWindows(): void {
     if (!quitting) e.preventDefault();
   });
   playerWindow.once("ready-to-show", placePlayerWindow);
+  // The DM's calibration preview follows the table window's size.
+  playerWindow.on("resize", () => send(dmWindow, "table:status", tableStatus()));
   playerWindow.webContents.once("did-finish-load", placePlayerWindow);
 }
 
@@ -125,13 +156,13 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     state = loadState();
     ipcMain.handle("state:get", () => state);
-    ipcMain.handle("player:get", () => playerViewOf(state));
+    ipcMain.handle("player:get", () => playerViewOf(state, placement().surfaceKey));
     ipcMain.handle("table:status", () => tableStatus());
     ipcMain.handle("state:patch", (_e, patch: unknown) => {
       const before = state.playerDisplayId;
       state = applyPatch(state, patch);
       send(dmWindow, "state:changed", state);
-      send(playerWindow, "player:changed", playerViewOf(state));
+      sendPlayerView();
       saveSoon();
       if (state.playerDisplayId !== before) placePlayerWindow();
       return state;
