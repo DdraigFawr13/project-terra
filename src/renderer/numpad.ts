@@ -24,14 +24,17 @@ export function numpad(actions: PadAction[], onAct: (kind: string, amount: numbe
   const num = document.createElement("b");
   show.append(who, num);
   el.append(show);
-  const key = (label: string, cls: string, aria: string, press: () => void) => {
+  /** The bottom row: the actions (and a sign key), sharing the full width equally. */
+  const row = document.createElement("div");
+  row.className = "pad-acts";
+  const key = (label: string, cls: string, aria: string, press: () => void, parent: HTMLElement = el) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = `k ${cls}`;
     b.textContent = label;
     b.setAttribute("aria-label", aria);
     b.addEventListener("click", press);
-    el.append(b);
+    parent.append(b);
     return b;
   };
   for (const d of ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"])
@@ -43,24 +46,37 @@ export function numpad(actions: PadAction[], onAct: (kind: string, amount: numbe
     amount = Math.floor(amount / 10);
     render();
   });
-  if (opts.signed)
-    key("±", "", "Make it negative or positive", () => {
-      negative = !negative;
-      render();
-    });
   key("C", "", "Clear the amount", () => {
     amount = 0;
     negative = false;
     render();
   });
+  el.append(row);
+  if (opts.signed)
+    key(
+      "±",
+      "",
+      "Make it negative or positive",
+      () => {
+        negative = !negative;
+        render();
+      },
+      row,
+    );
   const acts = actions.map((a) =>
-    key(a.label, `act ${a.className}`, a.label, () => {
-      if (!target || (amount === 0 && !a.zeroOk)) return;
-      onAct(a.kind, negative ? -amount : amount);
-      amount = 0;
-      negative = false;
-      render();
-    }),
+    key(
+      a.label,
+      `act ${a.className}`,
+      a.label,
+      () => {
+        if (!target || (amount === 0 && !a.zeroOk)) return;
+        onAct(a.kind, negative ? -amount : amount);
+        amount = 0;
+        negative = false;
+        render();
+      },
+      row,
+    ),
   );
   function render(): void {
     who.textContent = target ?? "Pick who";

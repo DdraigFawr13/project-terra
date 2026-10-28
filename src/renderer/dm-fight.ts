@@ -44,8 +44,9 @@ function rollBox(value: number | null, attrs: Attrs, who: string, onChange: (v: 
       },
       { signed: true },
     );
-    pad.setTarget(`Initiative: ${who}`);
-    const p = popover({ x: r.right, y: r.top + r.height / 2 }, [pad.el]);
+    pad.setTarget("Roll");
+    const head = el("header", { class: "pop-head" }, el("b", {}, "Initiative"), el("span", { class: "hp-word" }, who));
+    const p = popover({ x: r.right, y: r.top + r.height / 2 }, [head, pad.el]);
     p.el.classList.add("roll-pad");
   });
   return input;
@@ -61,7 +62,13 @@ export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { r
 
   /** A label for an initiative row: the character's name, or the colour group's name and its letters. */
   function whoLabel(s: TableState, who: Who): HTMLElement {
-    if (!isColour(who)) return el("span", { class: "who" }, s.party.find((p) => p.id === who)?.name ?? "?");
+    if (!isColour(who))
+      return el(
+        "span",
+        { class: "who" },
+        el("span", { class: "swatch blank", "aria-hidden": "true" }),
+        s.party.find((p) => p.id === who)?.name ?? "?",
+      );
     const groups = s.map?.groups ?? {};
     const discs = (s.map?.discs ?? []).filter((d) => d.colour === who && conditionOf(d, groups) !== "down");
     const hidden = discs.length > 0 && discs.every((d) => !d.shown);
