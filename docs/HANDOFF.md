@@ -4,11 +4,11 @@ Updated: 2026-10-28. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are merged; step 5, fog, is built on branch `ccr-9aae693d-a3httu` and awaits Morgan's OK on the PR summary (D-018). All tested in the cloud only. The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1); Morgan doesn't have it yet, so projected steps stay "built, awaiting Morgan's check" (VER-07).
+Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–5 are merged (step 5, fog: [PR #8](https://github.com/DdraigFawr13/project-terra/pull/8)). All tested in the cloud only. **Next is step 6, initiative and markers.** The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1); Morgan doesn't have it yet, so projected steps stay "built, awaiting Morgan's check" (VER-07).
 
 ## Just done
 
-- 2026-10-28 Step 5, fog (D-025), not yet merged. Morgan asked for touch-friendly tools and a freehand brush; approved the [touch sketch](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg).
+- 2026-10-28 Step 5, fog ([PR #8](https://github.com/DdraigFawr13/project-terra/pull/8), D-025). Morgan asked for touch-friendly tools and a freehand brush; approved the [touch sketch](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg).
   - Fog ops in map inches on the placed map (`src/core/fog.ts`, save version 4), one undoable `fog` command per stroke.
   - Drawing: `src/renderer/fog-draw.ts` (masks, patch-only redraw, cheap undo of the last stroke) and `table-draw.ts`, shared by the table and the DM's live preview.
   - DM: 56 px bottom tools, brush ring, ghost while painting, whole-map buttons under the preview (`dm-map.ts`, `dm.ts`). Morgan uses a stylus: palm touches are ignored while the pen draws (e2e-tested with simulated pen and touch), pen hover shows the ring, and the eraser hides (untested: needs a real pen).
@@ -26,10 +26,10 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1–4 are mer
 
 ## Next
 
-1. **Step 5 PR**: Morgan gets the summary; on approval open the PR from `ccr-9aae693d-a3httu`, merge when green (D-018). Then restart the branch from main.
-2. Then step 6, initiative and markers, and step 7, ping, autosave and curtain (PLAN.md).
+1. **Step 6: initiative and markers** (PLAN.md step 6, D-013, D-023). Before building, give Morgan a short design proposal, touch and stylus first (D-025): Morgan uses a pen on the HP's touchscreen. Morgan was asked whether the 56 px bottom tools could shrink for the pen; recommended keeping them, no answer yet.
+2. Then step 7, ping, autosave and curtain (PLAN.md).
 - **Book library** (separate thread, D-010 changed 2026-10-28). In private repo `project-terra-library`: Phandelver and Below and PHB 2024 as Markdown (PHB lacks subclass features). MM and DMG PDFs come from Drive `_AI_Directories` via drive.usercontent.google.com: MM is a scan with an error-filled OCR layer, DMG is images only. Round 1 answered (form under Planning pages, collection `books1`): next is round 2 or a review page, then extraction. Never use 5e.tools. Book data never enters this public repo.
-3. When Morgan has a Windows laptop: run "Build Windows app", then the README checks in order: two windows, calibration with a ruler, map import with the Thundertree photo, then the projector photo. Confirm the built-in screen says "this laptop" (`Display.internal`) and the display scale: a 14" 1080p screen usually defaults to 150%, leaving the DM window about 1280 × 680 (checked in screenshots: the step 5 layout fits). Try fog with a finger.
+3. When Morgan has a Windows laptop: run "Build Windows app", then the README checks in order: two windows, calibration with a ruler, map import with the Thundertree photo, then the projector photo. Confirm the built-in screen says "this laptop" (`Display.internal`) and the display scale: a 14" 1080p screen usually defaults to 150%, leaving the DM window about 1280 × 680 (checked in screenshots: the step 5 layout fits). Try fog with the pen (including its eraser end) and a finger.
 
 ## Open questions
 
