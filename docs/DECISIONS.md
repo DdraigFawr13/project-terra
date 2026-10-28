@@ -267,3 +267,15 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   5. HP keeps green, orange and red, always with a sign or word: Damage and Heal carry − and +, and the Party sheet shows its condition word beside the bar.
   6. The map, calibration and table previews stay black in every look, since they show the table; the table window never changes (D-023).
 - **Why:** Morgan liked the deeper Ember best but asked for several looks to choose from, dark and light, and wanted to switch between them. 7:1 suits reading at a glance in a dim room or in daylight. The line under each header plus the copper header makes the window in use easy to find without colouring every header.
+
+## D-034 Ping, pins and reopening (step 7)
+
+- **Status:** Accepted (2026-10-28), from the [step 7 form](https://claude.ai/artifact/UmVczUweJXm3EdVEXRJNm7). Builds PLAN.md step 7. Two behaviours change: sheets no longer start closed each run, and placing a map switches the test grid off.
+- **Decision:**
+  1. Ping: a Ping tool (P). A tap pings the table: thin white rings, at most two at once, for about 2 seconds, around a fading dot. Pings are moments: never saved or undone, and not shown while the curtain is down. The DM sees the rings over the map too, faint under the curtain.
+  2. Pins: holding still with Ping for half a second leaves a pin; a tap on a pin takes it away; Table → Clear pins removes them all; Ctrl+Z undoes all three. A pin is a white diamond with a ring. Under Ping, "Players see" or "Only me" sets who sees new pins; the DM's own pins are hollow copper on the DM's map and never reach the table window (D-002). Pins live on the map in its inches, like discs, at most 40. Save version 8; older saves load with no pins.
+  3. Reopening: the Party and monster sheets open when the DM window closed open again where they were; a monster sheet whose colour has no discs left is dropped. Docked windows such as Initiative already kept their place.
+  4. From the audit: Remove on a character card asks first ("Remove Ash? This can't be undone.", Keep or Remove). The turn strip covers about 0.75 inch of map instead of about 1 inch (chips just taller than their text, same text size). Placing a map switches the test grid off. The placeholders were already hidden by D-032.
+  5. Not in step 7: Morgan also asked for marks, symbols and freehand drawing on the map. That is new scope and gets its own planning round.
+- **Why:** rings read from every side of the table without covering the minis or pointing one way (D-008); white stands apart from the six disc colours. A separate tool keeps a tap with Select for a disc's HP pad and a drag for panning (D-032). Pins in undo match discs and fog.
+

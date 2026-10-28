@@ -29,7 +29,12 @@ async function launch(userData) {
   await app.evaluate(({ BrowserWindow }) => {
     for (const w of BrowserWindow.getAllWindows()) if (w.getTitle().includes("(DM)")) w.setContentSize(1920, 1080);
   });
-  return { app, dm: await byTitle("(DM)"), table: await byTitle("(Table)") };
+  const dm = await byTitle("(DM)");
+  // Errors in the DM page: a panel that throws can stop the others from showing a new state, and nothing else says so.
+  const errors = [];
+  dm.on("pageerror", (e) => errors.push(e.message));
+  dm.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  return { app, dm, table: await byTitle("(Table)"), errors };
 }
 
 test("DM controls what the table shows, and it survives a restart", async () => {
@@ -40,7 +45,7 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     assert.match(await dm.textContent("#status"), /No second screen found/);
     await table.waitForFunction(() => document.body.dataset.view === "testGrid");
     // The table window can read the player view and nothing else, and can't be navigated away (D-002).
-    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onView"]);
+    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onPing", "onView"]);
     // A file dropped on a window arrives as a file:// navigation.
     await table.evaluate((url) => (location.href = url), new URL("../package.json", import.meta.url).href);
     await table.waitForTimeout(300);
@@ -359,7 +364,7 @@ const srdZombie = {
 
 test("a fight: party and monster windows, discs placed with the pen, HP by number pad, a stat block, and nothing DM-only on the table", async () => {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "terra-e2e-"));
-  let { app, dm, table } = await launch(userData);
+  let { app, dm, table, errors } = await launch(userData);
   try {
     await dm.setInputFiles("#mapFile", { name: "board.png", mimeType: "image/png", buffer: checkerboardPng() });
     await dm.fill("#markW", "2");
@@ -476,7 +481,23 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     const shown = JSON.stringify({ ...view, map: view.map && { ...view.map, id: "" } });
     for (const secret of ["Zombie", "SRD52", "board", "hp", "ac", "passive", "init", "notes"]) assert.ok(!shown.includes(secret), secret);
     // The table window's bridge has no way to the library.
-    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onView"]);
+    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onPing", "onView"]);
+
+    // Ping (D-034): a tap pings the table; holding leaves a pin the players see; a tap on the pin takes it away.
+    await dm.keyboard.press("p");
+    const spot = { x: box.x + box.width * 0.3, y: box.y + box.height * 0.3 };
+    const pinged = table.evaluate(() => new Promise((resolve) => window.terra.onPing(resolve)));
+    await dm.mouse.click(spot.x, spot.y);
+    const at = await pinged;
+    assert.ok(Number.isFinite(at.x) && Number.isFinite(at.y));
+    await dm.mouse.move(spot.x, spot.y);
+    await dm.mouse.down();
+    await dm.waitForFunction(async () => (await window.terra.getState()).map.pins.length === 1);
+    await dm.mouse.up();
+    await table.waitForFunction(async () => (await window.terra.getView()).pins.length === 1);
+    await dm.mouse.click(spot.x, spot.y);
+    await table.waitForFunction(async () => (await window.terra.getView()).pins.length === 0);
+    await dm.keyboard.press("v");
 
     // Drag the disc two squares; Ctrl+Z puts it back and doesn't take back the character's HP.
     const before = (await dm.evaluate(() => window.terra.getState())).map.discs[0];
@@ -489,15 +510,23 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await dm.keyboard.press("Control+z");
     await dm.waitForFunction((x) => window.terra.getState().then((s) => s.map.discs[0].x === x), before.x);
     assert.equal((await dm.evaluate(() => window.terra.getState())).party[0].hp, 22);
+    // The Fight layout closes Table setup; its buttons must still follow the state (they once threw on every change).
+    assert.deepEqual(errors, []);
   } finally {
     await app.close();
   }
 
-  // The party and the imported library are kept between sessions.
+  // The party and the imported library are kept between sessions, and the Party sheet open at the end opens again (D-034).
   ({ app, dm, table } = await launch(userData));
   try {
-    await openParty(dm);
-    await dm.locator("[data-float='party'] .tabs [role=tab]", { hasText: "Ash" }).waitFor();
+    const party = dm.locator("[data-float='party']");
+    await party.locator(".tabs [role=tab]", { hasText: "Ash" }).waitFor();
+    // Remove asks first; Keep keeps the card.
+    await party.locator("button", { hasText: "Edit" }).click();
+    await party.locator("button", { hasText: "Remove…" }).click();
+    await party.locator(".confirm .hint", { hasText: "Remove Ash?" }).waitFor();
+    await party.locator(".confirm button", { hasText: "Keep" }).click();
+    assert.equal((await dm.evaluate(() => window.terra.getState())).party.length, 1);
     assert.equal(await dm.evaluate(() => window.terra.countCreatures()), 2);
   } finally {
     await app.close();

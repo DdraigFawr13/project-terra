@@ -17,13 +17,15 @@ body {
   height: 100%;
 }
 /* The table layer: drawn in inches, warped onto the screen by a matrix3d transform from layer pixels to screen pixels. */
-#layer {
+#layer,
+#pings {
   position: absolute;
   left: 0;
   top: 0;
   transform-origin: 0 0;
 }
-#layer[hidden] {
+#layer[hidden],
+#pings[hidden] {
   display: none;
 }
 /* Marks that keep their size on screen, such as the calibration corners. Drawn over the layer, unwarped. */

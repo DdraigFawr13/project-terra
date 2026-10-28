@@ -16,6 +16,9 @@ export type FloatWin = {
 let dock: ReturnType<typeof initDock> | null = null;
 /** The DM window hands over its dock before any sheet is made. */
 export const useDock = (d: ReturnType<typeof initDock>) => void (dock = d);
+/** Whether the sheet `id` was open when the DM window last closed (D-034), and dropping it if it won't be made now. */
+export const wasOpen = (id: string) => dock!.wasOpen(`sheet:${id}`);
+export const forgetSheet = (id: string) => dock!.forget(`sheet:${id}`);
 
 export function floatWin(id: string): FloatWin {
   const div = (cls: string) => {

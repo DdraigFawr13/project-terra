@@ -43,7 +43,13 @@ const listeners: ((s: TableState) => void)[] = [];
 let latest: TableState | null = null;
 bridge.onState((s) => {
   latest = s;
-  for (const fn of listeners) fn(s);
+  // One panel failing mustn't stop the others, such as the table preview, from showing the new state.
+  for (const fn of listeners)
+    try {
+      fn(s);
+    } catch (e) {
+      console.error(e);
+    }
 });
 const first = bridge.getState().then((s) => (latest ??= s));
 const terra: DmApi = {
@@ -51,7 +57,10 @@ const terra: DmApi = {
   onState: (fn) => void listeners.push(fn),
   getState: () => first.then(() => latest!),
 };
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+// Found once, before any window is closed: a closed window's content leaves the page, and getElementById no longer
+// finds its buttons (Table setup's Test grid and Flip letters, say). Elements made later are looked up as usual.
+const byId = new Map([...document.querySelectorAll<HTMLElement>("[id]")].map((e) => [e.id, e]));
+const $ = <T extends HTMLElement>(id: string) => (byId.get(id) ?? document.getElementById(id)) as T;
 const statusEl = $<HTMLSpanElement>("status");
 const noticeEl = $<HTMLSpanElement>("notice");
 const displaySelect = $<HTMLSelectElement>("display");
@@ -416,6 +425,7 @@ function menuItems(name: string): Item[] {
       { text: "Test grid", checked: pressed("testGrid"), act: () => testGridBtn.click() },
       { text: "Flip disc letters", checked: pressed("flipLetters"), act: () => flipBtn.click() },
       { text: "Lock map", checked: pressed("lockMap"), disabled: !latest?.map, act: () => $("lockMap").click() },
+      { text: "Clear pins", disabled: !latest?.map?.pins.length, act: () => void terra.apply({ type: "clearPins" }) },
       "-",
       {
         text: "Import map…",

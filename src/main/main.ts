@@ -14,6 +14,7 @@ import {
   parseSave,
   playerViewOf,
   serialize,
+  viewOf,
   UNDOABLE,
   type TableState,
 } from "../core/table.ts";
@@ -271,6 +272,11 @@ if (!app.requestSingleInstanceLock()) {
       if (previous) commit(dropMissingCharacters({ ...previous, ...keepOnUndo(state) }));
     });
     ipcMain.handle("history:get", () => history.length > 0);
+    // A ping is a moment, not a change: it goes to the table and is never saved or undone (D-034). The curtain hides it.
+    ipcMain.handle("table:ping", (_e, x: unknown, y: unknown) => {
+      const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 500;
+      if (ok(x) && ok(y) && viewOf(state) === "map") send(playerWindow, "player:ping", { x: x + 0, y: y + 0 });
+    });
     ipcMain.handle("library:list", () => listMaps(app.getPath("userData")));
     ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown) =>
       saveMap(app.getPath("userData"), name, png, bounds),

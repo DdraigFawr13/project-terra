@@ -40,8 +40,14 @@ import {
 } from "./fight.ts";
 import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, type Bounds } from "./map.ts";
+import type { Point } from "./homography.ts";
 
-const SAVE_VERSION = 7;
+const SAVE_VERSION = 8;
+/** Pins on one map at most: plenty for marks, and a stuck pen can't fill the save. */
+export const MAX_PINS = 40;
+
+/** A lasting mark on the map (D-034), in the map's own inches so it moves and turns with it. `table`: players see it; else only the DM. */
+type Pin = { id: number; x: number; y: number; table: boolean };
 
 /** A straightened map from the personal library (D-010), placed on the table. Positions are in inches (D-005). */
 export type PlacedMap = {
@@ -62,6 +68,8 @@ export type PlacedMap = {
   discs: Disc[];
   /** What the DM knows about each colour group: name, stat block link, AC, HP max (D-028). DM-only. */
   groups: Groups;
+  /** Pins (D-034). A newly placed map has none. */
+  pins: Pin[];
 };
 
 export type TableState = {
@@ -122,7 +130,11 @@ export type Command =
   | { type: "endFight" }
   | { type: "initiative"; who: Who; init: number | null }
   | { type: "swapTie"; who: Who; by: -1 | 1 }
-  | { type: "nextTurn" };
+  | { type: "nextTurn" }
+  /** A pin where the DM long-pressed with Ping, in map inches (D-034). */
+  | { type: "placePin"; x: number; y: number; table: boolean }
+  | { type: "removePin"; id: number }
+  | { type: "clearPins" };
 
 /**
  * Commands the DM can take back with Undo. Switches such as the curtain, calibration drags and character cards are not
@@ -147,6 +159,9 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
   "initiative",
   "swapTie",
   "nextTurn",
+  "placePin",
+  "removePin",
+  "clearPins",
 ]);
 
 export type TableView = "curtain" | "calibrate" | "map" | "testGrid" | "idle";
@@ -189,6 +204,8 @@ export type PlayerView = {
   /** Discs' letters face the far side of the picture (D-028). */
   flipLetters: boolean;
   grid: boolean;
+  /** Pins the players may see, in table inches (D-034); the DM's own pins never come here. */
+  pins: Point[];
 };
 
 /** The player view for the surface the table window is on now. */
@@ -204,6 +221,7 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
     strip: stripOf(state.fight, m?.discs ?? [], m?.groups ?? {}, state.party),
     flipLetters: state.flipLetters,
     grid: state.testGrid,
+    pins: (m?.pins ?? []).filter((p) => p.table).map((p) => mapToTable(m!, p)),
   };
 }
 
@@ -237,14 +255,29 @@ export function parsePlacedMap(raw: unknown): PlacedMap | null {
   // Likewise with no discs before step 6.
   const discs = raw.discs === undefined ? [] : parseDiscs(raw.discs);
   const groups = raw.groups === undefined ? {} : parseGroups(raw.groups);
+  // And with no pins before step 7.
+  const pins = raw.pins === undefined ? [] : parsePins(raw.pins);
   const b = raw.bounds;
   const bounds = { x: inches(b.x), y: inches(b.y), width: inches(b.width, 1), height: inches(b.height, 1) };
   if (typeof id !== "string" || !MAP_ID.test(id) || typeof name !== "string" || name.length > 120) return null;
   if (bounds.x === null || bounds.y === null || bounds.width === null || bounds.height === null) return null;
   if (inches(x) === null || inches(y) === null || !(turns === 0 || turns === 1 || turns === 2 || turns === 3) || !fog) return null;
-  if (!discs || !groups) return null;
+  if (!discs || !groups || !pins) return null;
   const at = { x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"] };
-  return { id, name, bounds: bounds as Bounds, ...at, fog, discs, groups };
+  return { id, name, bounds: bounds as Bounds, ...at, fog, discs, groups, pins };
+}
+
+/** Saved pins: each id once, at most MAX_PINS, each in reach. Anything else and the list isn't read. */
+function parsePins(raw: unknown): Pin[] | null {
+  if (!Array.isArray(raw) || raw.length > MAX_PINS) return null;
+  const pins: Pin[] = [];
+  for (const p of raw) {
+    const at = isObject(p) ? point(p) : null;
+    const id = isObject(p) ? inches(p.id, 1, 99_999) : null;
+    if (!at || id === null || typeof (p as Pin).table !== "boolean" || pins.some((q) => q.id === id)) return null;
+    pins.push({ id, ...at, table: (p as Pin).table });
+  }
+  return pins;
 }
 
 /** A command from the DM window, or null if any part is wrong. */
@@ -351,6 +384,16 @@ export function parseCommand(raw: unknown): Command | null {
     }
     case "swapTie":
       return isWho(raw.who) && (raw.by === -1 || raw.by === 1) ? { type: "swapTie", who: raw.who, by: raw.by } : null;
+    case "placePin": {
+      const at = point(raw);
+      return at && typeof raw.table === "boolean" ? { type: "placePin", ...at, table: raw.table } : null;
+    }
+    case "removePin": {
+      const id = inches(raw.id, 1, 99_999);
+      return id === null ? null : { type: "removePin", id };
+    }
+    case "clearPins":
+      return { type: "clearPins" };
     default:
       return null;
   }
@@ -358,6 +401,8 @@ export function parseCommand(raw: unknown): Command | null {
 
 /** An HP change: a whole number from -999 to 999. */
 const change999 = (v: unknown): number | null => inches(v, -MAX_HP, MAX_HP);
+
+const hundredths = (v: number) => Math.round(v * 100) / 100 + 0;
 
 /** A point within reach, from a command's `x` and `y`. */
 function point(raw: Record<string, unknown>): { x: number; y: number } | null {
@@ -389,8 +434,9 @@ export function apply(state: TableState, c: Command): TableState {
     case "calibrations":
       return { ...state, calibrations: c.value };
     case "placeMap":
-      // A newly placed map starts locked, so dragging pans the view; unlocking it lets it move on the table (D-032).
-      return { ...state, map: c.map, mapLocked: true };
+      // A newly placed map starts locked, so dragging pans the view; unlocking it lets it move on the table (D-032). The
+      // test grid goes off: over a map it is only for checking the squares line up, and the DM turns it on for that (D-034).
+      return { ...state, map: c.map, mapLocked: true, testGrid: false };
     case "lockMap":
       return { ...state, mapLocked: c.on };
     case "moveMap": {
@@ -452,6 +498,19 @@ export function apply(state: TableState, c: Command): TableState {
       return withFight(state, (f) => swapTie(f, c.who, c.by));
     case "nextTurn":
       return withFight(state, (f) => nextTurn(f, (who) => takesTurns(who, state.map?.discs ?? [], state.map?.groups ?? {}, state.party)));
+    case "placePin": {
+      const m = state.map;
+      if (!m || m.pins.length >= MAX_PINS) return state;
+      // Hundredths of an inch: finer than anyone can place, and saves stay short.
+      const pin = { id: Math.max(0, ...m.pins.map((p) => p.id)) + 1, x: hundredths(c.x), y: hundredths(c.y), table: c.table };
+      return { ...state, map: { ...m, pins: [...m.pins, pin] } };
+    }
+    case "removePin":
+      return state.map?.pins.some((p) => p.id === c.id)
+        ? { ...state, map: { ...state.map, pins: state.map.pins.filter((p) => p.id !== c.id) } }
+        : state;
+    case "clearPins":
+      return state.map?.pins.length ? { ...state, map: { ...state.map, pins: [] } } : state;
   }
 }
 
@@ -476,7 +535,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, 6, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, 7, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.
@@ -487,8 +546,9 @@ export function parseSave(text: string): ParsedSave {
     { type: "playerDisplay", id: raw.playerDisplayId },
     { type: "calibrations", value: raw.calibrations },
     { type: "placeMap", map: raw.map },
-    // After the map, which places it unlocked.
+    // After the map, which places it locked and switches the test grid off.
     { type: "lockMap", on: raw.mapLocked },
+    { type: "testGrid", on: raw.testGrid },
     { type: "flipLetters", on: raw.flipLetters },
   ];
   const state = fields.reduce<TableState>((s, f) => {

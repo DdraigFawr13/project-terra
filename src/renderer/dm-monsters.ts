@@ -4,6 +4,7 @@ import type { CreatureHit, StatBlock } from "../core/creatures.ts";
 import {
   blankGroup,
   conditionOf,
+  DISC_COLOURS,
   parseGroupInfo,
   discHp,
   discMax,
@@ -16,7 +17,7 @@ import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { discKey } from "./dm-map.ts";
 import { button, COLOUR_NAME, el, field, NUMBER, stat, swatch, wholeOrNull } from "./dom.ts";
-import { floatWin, type FloatWin } from "./float-win.ts";
+import { floatWin, forgetSheet, wasOpen, type FloatWin } from "./float-win.ts";
 import { numpad, type Numpad } from "./numpad.ts";
 
 const WORD: Record<Condition, string> = { fine: "Fine", bloodied: "Bloodied", nearDeath: "Near death", down: "Down" };
@@ -370,6 +371,12 @@ export function initMonsters(
   });
   terra.getState().then((s) => {
     state = s;
+    // The sheets open when the DM window last closed open again, for colours that still have discs (D-034).
+    for (const c of DISC_COLOURS)
+      if (wasOpen(`monster-${c}`)) {
+        if (discsOf(s, c).length) panel(c);
+        else forgetSheet(`monster-${c}`);
+      }
     render();
   });
   return { show, render };

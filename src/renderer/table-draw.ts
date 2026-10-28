@@ -20,6 +20,54 @@ const DISC_HEX: Record<DiscColour, { fill: string; ink: string }> = {
 };
 const CONDITION_WORD = { bloodied: "Bloodied", nearDeath: "Near death" } as const;
 
+/** How long a ping lasts on the table, in milliseconds (D-034). */
+export const PING_MS = 2000;
+
+/**
+ * A ping `ms` milliseconds old at (x, y), `inch` units to the inch: thin white rings spreading out, three in turn and
+ * never more than two at once, around a dot that fades (D-034).
+ */
+export function drawPing(ctx: CanvasRenderingContext2D, x: number, y: number, inch: number, ms: number): void {
+  const RING_MS = 800;
+  for (const start of [0, 600, 1200]) {
+    const t = (ms - start) / RING_MS;
+    if (t < 0 || t > 1) continue;
+    ctx.beginPath();
+    ctx.arc(x, y, inch * (0.2 + 1.4 * t), 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,255,255,${(1 - t).toFixed(3)})`;
+    ctx.lineWidth = inch * 0.07;
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(x, y, inch * 0.12, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(255,255,255,${Math.max(0, 1 - ms / PING_MS).toFixed(3)})`;
+  ctx.fill();
+}
+
+/**
+ * A pin at (x, y), `inch` units to the inch: a white diamond with a dark edge and a ring, so it shows on light and dark
+ * map. `own`: the DM's own pin, drawn hollow in copper on the DM's map only (D-034).
+ */
+export function drawPin(ctx: CanvasRenderingContext2D, x: number, y: number, inch: number, own = false, copper = "#d8653d"): void {
+  const r = inch * 0.22;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 2, 0, Math.PI * 2);
+  ctx.strokeStyle = own ? copper : "rgba(255,255,255,0.7)";
+  ctx.lineWidth = Math.max(1.5, inch * 0.05);
+  ctx.setLineDash(own ? [r / 2, r / 3] : []);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = own ? "rgba(0,0,0,0.6)" : "#ffffff";
+  ctx.fillRect(-r, -r, r * 2, r * 2);
+  ctx.strokeStyle = own ? copper : "#000000";
+  ctx.lineWidth = Math.max(1.5, inch * 0.06);
+  ctx.strokeRect(-r, -r, r * 2, r * 2);
+  ctx.restore();
+}
+
 /**
  * A disc centred at (x, y) with diameter `d`, in the context's units, its letter once (D-028: an exception to D-008's
  * text twice). `turn` turns the letter, half a turn when the DM flips the letters to face the far side.
@@ -59,7 +107,7 @@ function chipWidth(ctx: CanvasRenderingContext2D, chip: Chip, t: number): number
   const pad = size * 0.6;
   if (chip.kind === "pc") return ctx.measureText(chip.name).width + pad * 2;
   const word = chip.condition ? ctx.measureText(CONDITION_WORD[chip.condition]).width + size * 0.4 : 0;
-  return size * 1.5 + word + pad * 2;
+  return size * 1.3 + word + pad * 2;
 }
 
 /**
@@ -68,7 +116,8 @@ function chipWidth(ctx: CanvasRenderingContext2D, chip: Chip, t: number): number
  */
 function drawStripSide(ctx: CanvasRenderingContext2D, strip: Strip, length: number, t: number): void {
   const gap = t * 0.35;
-  const h = t * 2;
+  // Chips just taller than their text: the strip covers about 0.75 inch of map, down from about 1 inch (D-034).
+  const h = t * 1.45;
   const more = (n: number) => `+${n} more`;
   ctx.font = `700 ${t}px ${FONT}`;
   const roundText = strip.round ? `Round ${strip.round}` : "Initiative";
@@ -93,7 +142,7 @@ function drawStripSide(ctx: CanvasRenderingContext2D, strip: Strip, length: numb
   strip.chips.slice(0, fits).forEach((chip, i) => {
     const w = widths[i]!;
     const size = chip.current ? t * 1.25 : t;
-    const ch = chip.current ? h * 1.2 : h;
+    const ch = chip.current ? h * 1.15 : h;
     const top = -h * 0.65 - ch / 2;
     ctx.beginPath();
     ctx.roundRect(x, top, w, ch, ch * 0.25);
@@ -110,12 +159,12 @@ function drawStripSide(ctx: CanvasRenderingContext2D, strip: Strip, length: numb
     const mid = top + ch / 2;
     if (chip.kind === "pc") ctx.fillText(chip.name, x + size * 0.6, mid);
     else {
-      drawDisc(ctx, chip, x + size * 0.6 + size * 0.75, mid, size * 1.5);
+      drawDisc(ctx, chip, x + size * 0.6 + size * 0.65, mid, size * 1.3);
       if (chip.condition) {
         ctx.font = `700 ${size}px ${FONT}`;
         ctx.textAlign = "left";
         ctx.fillStyle = "#ffffff";
-        ctx.fillText(CONDITION_WORD[chip.condition], x + size * 0.6 + size * 1.9, mid);
+        ctx.fillText(CONDITION_WORD[chip.condition], x + size * 0.6 + size * 1.7, mid);
       }
     }
     x += w + gap;
@@ -207,6 +256,7 @@ export type TableScene = {
 function drawFight(ctx: CanvasRenderingContext2D, scene: TableScene, X: (inches: number) => number): void {
   const { view, area } = scene;
   for (const d of view.discs) drawDisc(ctx, d, X(d.x), X(d.y), X(d.size), view.flipLetters ? Math.PI : 0);
+  for (const p of view.pins) drawPin(ctx, X(p.x), X(p.y), X(1));
   if (view.strip) {
     drawStrip(ctx, view.strip, { x: X(area.x), y: X(area.y), width: X(area.width), height: X(area.height) }, X(0.42));
   }
