@@ -4,7 +4,7 @@ Updated: 2026-10-28. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md), steps 1–7). Steps 1 (two windows) and 2 (calibration) are built and tested in the cloud. Neither has run on Windows: Morgan can't test on a Windows computer for now (2026-10-28), so steps stay "built, awaiting Morgan's check" (VER-07). Next is step 3, map import.
+Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two windows) and 2 (calibration, [PR #3](https://github.com/DdraigFawr13/project-terra/pull/3)) are merged and tested in the cloud. Neither has run on Windows: Morgan can't test on a Windows computer for now (2026-10-28), so steps stay "built, awaiting Morgan's check" (VER-07). Next is step 3, UI design (D-022), then step 4, map import.
 
 ## Just done
 
@@ -17,7 +17,7 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–7). Steps 1 (two window
   - Unit and end-to-end tests pass locally and in CI. A Windows zip builds on Linux.
 - 2026-10-28 Morgan set the PR workflow: summary first, then open and merge when green (D-018).
 - 2026-10-28 Audit ([AUDIT-2026-10-28.md](AUDIT-2026-10-28.md)): the table window now has its own read-only bridge and gets only `playerViewOf(state)`; windows can't navigate (a dropped file was being opened); an e2e race fixed. Morgan approved: D-020 test upkeep accepted; Electron fuses on; knip in `npm run check`; fast-check for property tests.
-- 2026-10-28 Step 2, calibration (branch `ccr-9a5d3541-2loy31`, approved):
+- 2026-10-28 Step 2, calibration ([PR #3](https://github.com/DdraigFawr13/project-terra/pull/3), merged):
   - Corner-pin warp: the DM drags four corners (or nudges by one physical pixel) until they sit on a measured rectangle. The table draws in inches on one layer, warped by CSS `matrix3d` (D-021, proposed).
   - One calibration per projector, plus one for the laptop's table window. Save version 2; version 1 saves upgrade.
   - Audit P1 items 1, 2, 5 done: the laptop is the built-in screen (`Display.internal`, unverified on Windows), the DM window opens on it, and an unreadable save shows a notice in the DM window.
@@ -26,10 +26,10 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–7). Steps 1 (two window
 
 ## Next
 
-0. Step 2: Morgan approved on 2026-10-28 (D-021 accepted); merge the PR when green. Then add a UI design step to PLAN.md (Morgan's request) and plan it with the `planning-interview` skill.
-1. **Step 3: map import** (PLAN.md step 3, D-009, D-010). Design first: decide the state model (audit P1 item 4: commands with `apply(state, command)` in `src/core/`, giving undo and a determinism test), and where the personal library lives on the laptop. Draw maps on the table layer in inches (D-021). Testable in the cloud with a sample SRD or self-made image; never commit book maps.
+0. **Step 3: UI design** (D-022). Round 1 form is out: https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx (collection `uiround1`). When Morgan says "UI round 1 done", read the answers, then make round 2 visual (mockups of the DM window and table), following `.claude/skills/planning-interview/`.
+1. **Step 4: map import** (PLAN.md step 4, D-009, D-010). Design first: decide the state model (audit P1 item 4: commands with `apply(state, command)` in `src/core/`, giving undo and a determinism test), and where the personal library lives on the laptop. Draw maps on the table layer in inches (D-021). Testable in the cloud with a sample SRD or self-made image; never commit book maps.
 2. When Morgan has a Windows laptop: the 5-minute step 1 test (README "Try it on Windows"), then calibration with a ruler on the laptop screen, then the projector photo. Check `Display.internal` on that laptop (the built-in screen must say "this laptop" in the screen list).
-3. Steps 3–5 can be built and tested without Windows; their projected proof waits for Morgan's photos.
+3. Steps 3–6 can be built and tested without Windows; their projected proof waits for Morgan's photos.
 ## Open questions
 
 - Windows SmartScreen warns on the unsigned app ("More info" → "Run anyway"). Recommended: accept for now; code signing costs money.
@@ -45,6 +45,8 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–7). Steps 1 (two window
 
 ## Planning pages (Morgan's answers are saved in each)
 
+- UI design round 1: https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx
+
 - Round 1: https://claude.ai/artifact/KbAFZXKteAj4mrahwNW2S3
 - Review: https://claude.ai/artifact/Abqb6FvUU9G1tq3KUYyhBG
 - Round 2: https://claude.ai/artifact/Y1ync7v4p39K8rmimHFXsb
@@ -55,3 +57,4 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–7). Steps 1 (two window
 
 - 2026-10-28 D-018 PR workflow; D-019 the repo carries everything a session needs.
 - 2026-10-28 D-020 test upkeep at the end of each step (accepted).
+- 2026-10-28 D-021 calibration storage and warp (accepted); D-022 UI design becomes step 3.
