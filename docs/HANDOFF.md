@@ -25,6 +25,7 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
 
 ## Next
 
+- **Book library** (D-010 changed 2026-10-28). In private repo `project-terra-library`: Phandelver and Below and PHB 2024 as Markdown (PHB lacks subclass features). MM and DMG PDFs come from Drive `_AI_Directories` via drive.usercontent.google.com: MM is a scan with an error-filled OCR layer, DMG is images only. Round 1 answered (form under Planning pages, collection `books1`): next is round 2 or a review page, then extraction. Never use 5e.tools.
 0. **Step 3: UI design** (D-023, approved). Styled shell built on branch `ccr-9a5d3541-2loy31`: Ember theme, bundled fonts (`src/renderer/assets/SOURCES.md`), Lucide icons, Classic layout with empty panels, folding panels (Tab), curtain key (B), disabled tools for later steps, bold table lettering. Summary to Morgan, then PR (D-018).
 1. **Step 4: map import** (PLAN.md step 4, D-009, D-010). Design first: decide the state model (audit P1 item 4: commands with `apply(state, command)` in `src/core/`, giving undo and a determinism test), and where the personal library lives on the laptop. Draw maps on the table layer in inches (D-021), into the shell's middle area (D-023). Testable in the cloud with a sample SRD or self-made image; never commit book maps.
 2. When Morgan has a Windows laptop: the 5-minute step 1 test (README "Try it on Windows"), then calibration with a ruler on the laptop screen, then the projector photo. Check `Display.internal` on that laptop (the built-in screen must say "this laptop" in the screen list).
@@ -45,7 +46,7 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
 ## Planning pages (Morgan's answers are saved in each)
 
 - UI design: [round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)
-
+- Book library: [round 1](https://claude.ai/artifact/FUAenSA2tNkCqRnp62DZ2v)
 - Round 1: https://claude.ai/artifact/KbAFZXKteAj4mrahwNW2S3
 - Review: https://claude.ai/artifact/Abqb6FvUU9G1tq3KUYyhBG
 - Round 2: https://claude.ai/artifact/Y1ync7v4p39K8rmimHFXsb
@@ -54,6 +55,6 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
 
 ## Decisions since the last plan update
 
-- 2026-10-28 D-018 PR workflow; D-019 the repo carries everything a session needs.
-- 2026-10-28 D-020 test upkeep at the end of each step (accepted).
+- 2026-10-28 D-018 PR workflow; D-019 the repo carries everything a session needs; D-020 test upkeep at the end of each step (accepted).
 - 2026-10-28 D-021 calibration storage and warp (accepted); D-022 UI design becomes step 3.
+- 2026-10-28 D-010 changed: book data goes in the private repo `project-terra-library`, never in this public repo.
