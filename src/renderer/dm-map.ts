@@ -33,8 +33,11 @@ const toolBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-t
 const drawBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-draw]")];
 const sizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-size]")];
 const brushSizes = $<HTMLDivElement>("brushSizes");
-const drawWithGroup = $<HTMLDivElement>("drawWith");
+const brushHead = $<HTMLElement>("brushHead");
+/** The options under the main tools, one set for each tool (D-032). */
+const fogOpts = $<HTMLDivElement>("fogOpts");
 const markerOpts = $<HTMLDivElement>("markerOpts");
+const selectHint = $<HTMLElement>("selectHint");
 const colourBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-colour]")];
 const discSizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-disc-size]")];
 const fogBtns = ["fogDim", "fogRevealAll", "fogCoverAll"].map((id) => $<HTMLButtonElement>(id));
@@ -665,10 +668,11 @@ export function initMaps(
     press(toolBtns, (b) => b.dataset.tool === tool);
     press(drawBtns, (b) => b.dataset.draw === drawWith);
     press(sizeBtns, (b) => Number(b.dataset.size) === brushIn);
-    brushSizes.classList.toggle("off", drawWith !== "brush");
-    // Marker swaps the fog's drawing choices for disc colours and sizes.
-    drawWithGroup.hidden = brushSizes.hidden = tool === "marker";
-    markerOpts.hidden = tool !== "marker";
+    brushSizes.hidden = brushHead.hidden = drawWith !== "brush";
+    // Only the options for the tool picked show under the main tools.
+    fogOpts.hidden = !on || (tool !== "reveal" && tool !== "hide");
+    markerOpts.hidden = !on || tool !== "marker";
+    selectHint.hidden = !on || tool !== "select";
     press(colourBtns, (b) => b.dataset.colour === colour);
     press(discSizeBtns, (b) => Number(b.dataset.discSize) === discSize);
     fogBtns.forEach((b) => (b.disabled = !on));

@@ -160,73 +160,88 @@
         </section>
       </div>
 
+      <!-- Tools (D-032): one column. The main tools on top; below them, the options for the tool picked; Undo at the foot. -->
       <div id="toolsPanel" class="tools" aria-label="Map tools">
-        <button type="button" data-tool="select" data-icon="select" aria-pressed="true" disabled title="Move the map, or a disc (V)">
-          Select<kbd>V</kbd>
-        </button>
-        <span class="tool-sep" aria-hidden="true"></span>
-        <button type="button" data-tool="reveal" data-icon="reveal" aria-pressed="false" disabled title="Paint to reveal (R)">
-          Reveal<kbd>R</kbd>
-        </button>
-        <button
-          type="button"
-          data-tool="hide"
-          data-icon="hide"
-          aria-pressed="false"
-          disabled
-          title="Paint to grey out what players see now (H)"
-        >
-          Hide<kbd>H</kbd>
-        </button>
-        <span class="tool-sep" aria-hidden="true"></span>
-        <div id="drawWith" class="tool-group" role="group" aria-label="Draw with (S switches)">
-          <button type="button" data-draw="brush" data-icon="brush" aria-pressed="true" disabled>Brush<kbd>S</kbd></button>
-          <button type="button" data-draw="outline" data-icon="outline" aria-pressed="false" disabled>Outline<kbd>S</kbd></button>
-          <button type="button" data-draw="box" data-icon="box" aria-pressed="false" disabled>Box<kbd>S</kbd></button>
-        </div>
-        <div id="brushSizes" class="tool-group" role="group" aria-label="Brush size">
-          <button type="button" data-size="1" aria-pressed="false" aria-label="1-inch brush" disabled>
-            <span class="dot s1"></span>1″
+        <div class="tool-main" role="group" aria-label="Tool">
+          <button type="button" data-tool="select" data-icon="select" aria-pressed="true" disabled title="Move the map, or a disc (V)">
+            Select<kbd>V</kbd>
           </button>
-          <button type="button" data-size="2" aria-pressed="true" aria-label="2-inch brush" disabled><span class="dot s2"></span>2″</button>
-          <button type="button" data-size="4" aria-pressed="false" aria-label="4-inch brush" disabled>
-            <span class="dot s4"></span>4″
+          <button type="button" data-tool="reveal" data-icon="reveal" aria-pressed="false" disabled title="Paint to reveal (R)">
+            Reveal<kbd>R</kbd>
+          </button>
+          <button
+            type="button"
+            data-tool="hide"
+            data-icon="hide"
+            aria-pressed="false"
+            disabled
+            title="Paint to grey out what players see now (H)"
+          >
+            Hide<kbd>H</kbd>
+          </button>
+          <button type="button" data-tool="marker" data-icon="marker" aria-pressed="false" disabled title="Place enemy discs (M)">
+            Marker<kbd>M</kbd>
           </button>
         </div>
-        <span class="tool-sep" aria-hidden="true"></span>
-        <button type="button" data-tool="marker" data-icon="marker" aria-pressed="false" disabled title="Place enemy discs (M)">
-          Marker<kbd>M</kbd>
-        </button>
-        <div id="markerOpts" class="tool-group" role="group" aria-label="Disc colour and size" hidden>
-          <button type="button" data-colour="yellow" aria-pressed="true" aria-label="Yellow" disabled>
-            <span class="swatch yellow"></span>Yellow
-          </button>
-          <button type="button" data-colour="red" aria-pressed="false" aria-label="Red" disabled>
-            <span class="swatch red"></span>Red
-          </button>
-          <button type="button" data-colour="blue" aria-pressed="false" aria-label="Blue" disabled>
-            <span class="swatch blue"></span>Blue
-          </button>
-          <button type="button" data-colour="green" aria-pressed="false" aria-label="Green" disabled>
-            <span class="swatch green"></span>Green
-          </button>
-          <button type="button" data-colour="purple" aria-pressed="false" aria-label="Purple" disabled>
-            <span class="swatch purple"></span>Purple
-          </button>
-          <button type="button" data-colour="orange" aria-pressed="false" aria-label="Orange" disabled>
-            <span class="swatch orange"></span>Orange
-          </button>
-          <span class="tool-sep" aria-hidden="true"></span>
-          <button type="button" data-disc-size="1" aria-pressed="true" aria-label="1-inch disc: Medium or smaller" disabled>
-            1″<small>M</small>
-          </button>
-          <button type="button" data-disc-size="2" aria-pressed="false" aria-label="2-inch disc: Large" disabled>2″<small>L</small></button>
-          <button type="button" data-disc-size="3" aria-pressed="false" aria-label="3-inch disc: Huge" disabled>3″<small>H</small></button>
-          <button type="button" data-disc-size="4" aria-pressed="false" aria-label="4-inch disc: Gargantuan" disabled>
-            4″<small>G</small>
-          </button>
+
+        <p id="selectHint" class="tool-sub tool-hint">Drag the map or a disc. Tap a disc for its HP.</p>
+
+        <div id="fogOpts" class="tool-sub" hidden>
+          <h4>Draw with <kbd>S</kbd></h4>
+          <div id="drawWith" class="tool-group" role="group" aria-label="Draw with (S switches)">
+            <button type="button" data-draw="brush" data-icon="brush" aria-pressed="true" disabled>Brush</button>
+            <button type="button" data-draw="outline" data-icon="outline" aria-pressed="false" disabled>Outline</button>
+            <button type="button" data-draw="box" data-icon="box" aria-pressed="false" disabled>Box</button>
+          </div>
+          <h4 id="brushHead">Brush size</h4>
+          <div id="brushSizes" class="tool-group" role="group" aria-label="Brush size">
+            <button type="button" data-size="1" aria-pressed="false" aria-label="1-inch brush" disabled>
+              <span class="dot s1"></span>1 inch
+            </button>
+            <button type="button" data-size="2" aria-pressed="true" aria-label="2-inch brush" disabled>
+              <span class="dot s2"></span>2 inches
+            </button>
+            <button type="button" data-size="4" aria-pressed="false" aria-label="4-inch brush" disabled>
+              <span class="dot s4"></span>4 inches
+            </button>
+          </div>
         </div>
-        <span class="tool-sep" aria-hidden="true"></span>
+
+        <div id="markerOpts" class="tool-sub" hidden>
+          <h4>Colour</h4>
+          <div class="tool-group" role="group" aria-label="Disc colour">
+            <button type="button" data-colour="yellow" aria-pressed="true" aria-label="Yellow" disabled>
+              <span class="swatch yellow"></span>Yellow
+            </button>
+            <button type="button" data-colour="red" aria-pressed="false" aria-label="Red" disabled>
+              <span class="swatch red"></span>Red
+            </button>
+            <button type="button" data-colour="blue" aria-pressed="false" aria-label="Blue" disabled>
+              <span class="swatch blue"></span>Blue
+            </button>
+            <button type="button" data-colour="green" aria-pressed="false" aria-label="Green" disabled>
+              <span class="swatch green"></span>Green
+            </button>
+            <button type="button" data-colour="purple" aria-pressed="false" aria-label="Purple" disabled>
+              <span class="swatch purple"></span>Purple
+            </button>
+            <button type="button" data-colour="orange" aria-pressed="false" aria-label="Orange" disabled>
+              <span class="swatch orange"></span>Orange
+            </button>
+          </div>
+          <h4>Size</h4>
+          <div class="tool-group" role="group" aria-label="Disc size">
+            <button type="button" data-disc-size="1" aria-pressed="true" aria-label="1-inch disc: Medium or smaller" disabled>
+              <b>1″</b>Medium
+            </button>
+            <button type="button" data-disc-size="2" aria-pressed="false" aria-label="2-inch disc: Large" disabled><b>2″</b>Large</button>
+            <button type="button" data-disc-size="3" aria-pressed="false" aria-label="3-inch disc: Huge" disabled><b>3″</b>Huge</button>
+            <button type="button" data-disc-size="4" aria-pressed="false" aria-label="4-inch disc: Gargantuan" disabled>
+              <b>4″</b>Garg.
+            </button>
+          </div>
+        </div>
+
         <button
           id="undo"
           type="button"
