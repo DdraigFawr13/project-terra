@@ -15,7 +15,6 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
   - It has a test grid and a curtain, and the DM picks its screen.
   - Saving survives a restart, and an unreadable save is kept aside.
   - Unit and end-to-end tests pass locally and in CI. A Windows zip builds on Linux.
-- 2026-10-28 Morgan set the PR workflow: summary first, then open and merge when green (D-018).
 - 2026-10-28 Audit ([AUDIT-2026-10-28.md](AUDIT-2026-10-28.md)): the table window now has its own read-only bridge and gets only `playerViewOf(state)`; windows can't navigate (a dropped file was being opened); an e2e race fixed. Morgan approved: D-020 test upkeep accepted; Electron fuses on; knip in `npm run check`; fast-check for property tests.
 - 2026-10-28 Step 2, calibration ([PR #3](https://github.com/DdraigFawr13/project-terra/pull/3), merged):
   - Corner-pin warp: the DM drags four corners (or nudges by one physical pixel) until they sit on a measured rectangle. The table draws in inches on one layer, warped by CSS `matrix3d` (D-021, proposed).
