@@ -18,9 +18,9 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-003 Session 1 scope
 
-- **Status:** Accepted (2026-10-28)
-- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers, ping, autosave and the curtain. Everything else waits until after session 1 (PLAN.md).
-- **Why:** 22 features were ranked "Now" against 1–3 months with games monthly or less. Both reviews flagged it, and Morgan cut the list in the review.
+- **Status:** Accepted (2026-10-28); character cards added 2026-10-28 in the book library interview.
+- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain. Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
+- **Why:** 22 features were ranked "Now" against 1–3 months with games monthly or less. Both reviews flagged it, and Morgan cut the list in the review. In the book library interview Morgan first moved six library features into session 1, then kept only character cards after the review showed the cost.
 
 ## D-004 Projector rig and calibration
 
@@ -80,7 +80,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 - **Status:** Accepted (2026-10-28)
 - **Decision:** Enemies in session 1 are coloured discs with a letter; Morgan tracks HP on paper. The turn strip shows turn order, whose turn it is, and enemy condition in words (bloodied, near death), never enemy names. Players roll physical dice.
-- **Why:** it keeps session 1 small. Full tokens with HP come in the battle drama phase.
+- **Why:** it keeps session 1 small. After session 1, the library phase links a disc to a stat block and tracks HP on it: tap the disc, type damage or healing, with temp HP, each disc separate. The condition word is then worked out from HP on the DM side, and only the word reaches the table (D-024).
 
 ## D-014 Effects spread each round; the DM decides damage
 
@@ -149,3 +149,15 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   - Step 3 builds the styled shell: theme, fonts, layout with empty panels, toolbar, folding, and the curtain and next-turn keys. Steps 4–6 fill it.
 - **Why:** Morgan wants a clean tool with a light fantasy touch that reads fast mid-fight, in a dark room, on a 1080p laptop with mouse and touch. On a projector, strong colours and plain bold text survive best.
 
+## D-024 Book library: data track and first features
+
+- **Status:** Accepted (2026-10-28), approved by Morgan in the book library interview ([round 1](https://claude.ai/artifact/FUAenSA2tNkCqRnp62DZ2v), [round 2](https://claude.ai/artifact/FJbNz8xutdeTdynbCB6gQT), [review and approval](https://claude.ai/artifact/DtmiYuaqWcob54HQt5rjpB)).
+- **Decision:**
+  - Data is extracted now, in the private repo only (D-010), alongside the app work: every Monster Manual 2024 creature with habitat, treasure, a short lore summary in Claude's words, encounter tables by habitat and cropped art; the Phandelver and Below creatures and its magic items; PHB spells; DMG treasure tables. DMG traps, hazards, weather and the other magic items come after session 1. Subclasses: SRD for now; Morgan adds the rest later.
+  - Every stat block carries a "checked against the page" mark. Only checked entries can be linked to a disc; unchecked ones show a warning in the DM window. Session 1's creatures are all checked.
+  - Monster Manual entries are transcribed from page images, with the scan's text and arithmetic checks as cross-checks (pilot: 3 of 20 entries came clean from the scan's text alone). DMG tables are read twice and compared.
+  - The app gets an import button that loads a library file from the private repo.
+  - After session 1, first phase: import, monster search, a stat block and HP per disc (D-013), portraits shown in the DM window and revealed to the table per monster by a tap, spell lookup, and a treasure roller on the DMG tables with seeded dice (GAME-01). Items not yet extracted show name and rarity only.
+  - Character cards (name, AC, HP, passive Perception, speed), typed in by Morgan, are in session 1 (D-003). Full character sheets are a later phase.
+  - The table window never receives library data. A test asserts the player view holds no monster, HP or library fields.
+- **Why:** Morgan wants the books in the app without typing. The review showed the cost of putting the library in session 1, so Morgan kept only the cards there. The scan's text needed image fixes in 17 of 20 pilot entries, and wrong text such as an immunity can't be caught by arithmetic, hence the checked mark.
