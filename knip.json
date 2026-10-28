@@ -1,0 +1,5 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["src/main/main.ts", "src/main/*-preload.ts", "src/renderer/dm.ts", "src/renderer/player.ts", "scripts/*.mjs", "e2e/*.test.mjs"],
+  "project": ["src/**/*.ts", "scripts/**/*.mjs", "e2e/**/*.mjs"]
+}

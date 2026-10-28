@@ -22,7 +22,7 @@ Sessions on this project may not have the AI-Master-Instructions repo. Everythin
 
 ## Local checks (run before pushing)
 
-- Every push: `npm run check` (format, typecheck, unit tests).
+- Every push: `npm run check` (format, typecheck, unused-code check with knip, unit tests).
 - App changes: `xvfb-run -a npm run test:e2e` (builds, then drives both windows).
 - UI changes: look at a screenshot of both windows before calling it done (VER-06).
 
@@ -41,6 +41,7 @@ Sessions on this project may not have the AI-Master-Instructions repo. Everythin
 - Player-facing text appears twice, once facing each long side of the table (D-008).
 - Anything projected counts as working only with Morgan's photo of the table (VER-07, D-016).
 - Saves carry a version, and an unreadable save is kept aside, never overwritten (GAME-05).
+- At the end of each plan step, review the tests: cut or merge what is redundant, and keep the time budgets (D-020).
 
 ## Overrides
 

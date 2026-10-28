@@ -1,6 +1,6 @@
 // What the table shows. Pure data and functions: no Electron, no clock, no randomness (GAME-01).
 
-export const SAVE_VERSION = 1;
+const SAVE_VERSION = 1;
 
 export type TableState = {
   version: typeof SAVE_VERSION;
