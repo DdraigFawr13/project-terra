@@ -666,6 +666,13 @@ button.eye {
 .float.folded .float-body {
   display: none;
 }
+/* Folded, a window is a short bar: its name and the buttons to unfold or close it. */
+.float.folded {
+  width: 260px !important;
+}
+.float.folded .float-actions {
+  display: none;
+}
 .float-title {
   flex: 1;
   min-width: 0;

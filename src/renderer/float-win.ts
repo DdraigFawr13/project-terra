@@ -68,6 +68,8 @@ export function floatWin(id: string, opts: { width: number; at: { x: number; y: 
     place.y = Math.max(0, Math.min(window.innerHeight - 48, place.y));
     el.style.left = `${place.x}px`;
     el.style.top = `${place.y}px`;
+    // A window dragged low scrolls inside instead of running off the bottom of the screen.
+    body.style.maxHeight = `${Math.max(160, window.innerHeight - place.y - 64)}px`;
   }
   function render(): void {
     el.classList.toggle("folded", place.folded);
