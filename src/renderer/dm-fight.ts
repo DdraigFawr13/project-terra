@@ -158,7 +158,7 @@ export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { r
     const focused = (document.activeElement as HTMLElement | null)?.dataset?.key;
     renderFight(state);
     renderGroups(state);
-    if (focused) document.querySelector<HTMLElement>(`.side.left [data-key="${focused}"]`)?.focus();
+    if (focused) document.querySelector<HTMLElement>(`#initiativePanel [data-key="${focused}"]`)?.focus();
   }
 
   startBtn.addEventListener("click", () => run({ type: "startFight" }));

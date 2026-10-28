@@ -15,7 +15,11 @@
       <span class="scene">No scene yet</span>
       <p id="status" role="status">Starting…</p>
       <button id="setupBtn" type="button" aria-pressed="false" data-icon="setup" hidden>Table setup</button>
-      <button id="panels" type="button" aria-pressed="true" data-icon="panelsClose" title="Show or fold the side panels (Tab)">
+      <button id="windowsBtn" type="button" aria-expanded="false" data-icon="dockIn" title="Show, hide or reset the windows">
+        Windows
+      </button>
+      <div id="windowsMenu" class="menu" role="menu" hidden></div>
+      <button id="panels" type="button" aria-pressed="true" data-icon="panelsClose" title="Show or fold the docked windows (Tab)">
         Panels<kbd>Tab</kbd>
       </button>
       <button id="partyBtn" type="button" data-icon="party" title="Characters: HP, AC and the rest">Party</button>
@@ -24,29 +28,10 @@
     </header>
     <p id="notice" role="alert" hidden></p>
 
-    <div class="work">
-      <aside class="side left" aria-label="Initiative, markers and characters">
-        <section class="panel" aria-labelledby="init-heading">
-          <div class="panel-head">
-            <h2 id="init-heading">Initiative</h2>
-            <span id="round" class="round"></span>
-          </div>
-          <button id="startFight" type="button" class="primary">Start fight</button>
-          <ol id="order" class="entries" aria-label="Turn order"></ol>
-          <div id="unrolledBox" hidden>
-            <h3>Not rolled yet</h3>
-            <ul id="unrolled" class="entries" aria-label="Not rolled yet"></ul>
-          </div>
-          <button id="endFight" type="button" hidden>End fight</button>
-        </section>
-        <section class="panel" aria-labelledby="groups-heading">
-          <h2 id="groups-heading">Groups</h2>
-          <p id="groupsEmpty" class="empty">Pick Marker (M) below, a colour and a size, then tap the map. New discs start hidden.</p>
-          <ul id="groups" class="entries" aria-label="Enemy groups by colour"></ul>
-          <p class="hint">Open a group for its HP, notes and stat block. Tapping a disc on the map opens it too.</p>
-        </section>
-      </aside>
-
+    <!-- Windows dock around the map, like an IDE's tool windows (D-031): left, right and bottom areas with dividers. -->
+    <div class="work" id="work">
+      <div class="dock-area" data-area="left" aria-label="Left windows"></div>
+      <div class="area-split" data-split="left" aria-hidden="true"></div>
       <main class="stage">
         <section id="emptyMap" class="card lead" aria-labelledby="map-heading">
           <span class="lead-icon" data-icon="map"></span>
@@ -92,14 +77,22 @@
             <button id="turnMap" type="button">Turn</button>
             <button id="removeMap" type="button">Take off table</button>
           </div>
-          <canvas
-            id="mapCanvas"
-            tabindex="0"
-            aria-label="The map on the table. With Select, drag it or use the arrow keys to move it by whole inches. With Reveal or Hide, paint the fog."
-          ></canvas>
+          <div class="map-frame">
+            <canvas
+              id="mapCanvas"
+              tabindex="0"
+              aria-label="The map on the table. With Select, drag it or use the arrow keys to move it by whole inches. With Reveal or Hide, paint the fog. Pinch or use the mouse wheel to zoom."
+            ></canvas>
+            <div class="zoom" role="group" aria-label="Zoom the map">
+              <button id="zoomIn" type="button" aria-label="Zoom in">+</button>
+              <button id="zoomOut" type="button" aria-label="Zoom out">&minus;</button>
+              <button id="zoomFit" type="button" aria-label="Show the whole map">Fit</button>
+            </div>
+          </div>
           <p class="hint">
-            Select (V) moves the map by whole inches, or a disc by its squares; Lock keeps the map in place. Reveal (R) and Hide (H) paint
-            the fog; Marker (M) places discs. Two fingers cancel a stroke, and so does Esc. The dashed line is the edge of the table screen.
+            Select (V) moves the map by whole inches, or a disc by its squares; Lock keeps the map in place, and then dragging pans. Pinch,
+            the mouse wheel or + and &minus; zoom; Fit shows it all. Reveal (R) and Hide (H) paint the fog; Marker (M) places discs. Two
+            fingers cancel a stroke, and so does Esc. The dashed line is the edge of the table screen.
           </p>
         </section>
 
@@ -150,9 +143,32 @@
           </section>
         </div>
       </main>
+      <div class="area-split" data-split="bottom" aria-hidden="true"></div>
+      <div class="dock-area" data-area="bottom" aria-label="Bottom windows"></div>
+      <div class="area-split" data-split="right" aria-hidden="true"></div>
+      <div class="dock-area" data-area="right" aria-label="Right windows"></div>
+    </div>
 
-      <aside class="side right" aria-label="Table preview and notes">
-        <h2>On the table now</h2>
+    <!-- The map's own windows, before the dock places them. -->
+    <div hidden>
+      <div id="initiativePanel" class="panel">
+        <div class="panel-head">
+          <button id="startFight" type="button" class="primary">Start fight</button>
+          <span id="round" class="round"></span>
+        </div>
+        <ol id="order" class="entries" aria-label="Turn order"></ol>
+        <div id="unrolledBox" hidden>
+          <h3>Not rolled yet</h3>
+          <ul id="unrolled" class="entries" aria-label="Not rolled yet"></ul>
+        </div>
+        <button id="endFight" type="button" hidden>End fight</button>
+      </div>
+      <div id="groupsPanel" class="panel">
+        <p id="groupsEmpty" class="empty">Pick Marker (M) below, a colour and a size, then tap the map. New discs start hidden.</p>
+        <ul id="groups" class="entries" aria-label="Enemy groups by colour"></ul>
+        <p class="hint">Open a group for its HP, notes and stat block. Tapping a disc on the map opens it too.</p>
+      </div>
+      <div id="tablePanel" class="panel">
         <div class="preview">
           <canvas id="tablePreview" aria-label="A live picture of what the table shows"></canvas>
           <span id="previewText">Starting…</span>
@@ -165,9 +181,7 @@
             <button id="fogCoverAll" type="button" disabled>Cover all</button>
           </div>
         </div>
-        <h2>Notes</h2>
-        <p class="empty">Notes for the DM only. Not built yet.</p>
-      </aside>
+      </div>
     </div>
 
     <footer class="tools" aria-label="Map tools">

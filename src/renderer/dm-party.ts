@@ -16,7 +16,7 @@ export function initParty(terra: DmApi): { show: () => void } {
   /** The card being edited (null id: a new one), with what has been typed so far. */
   let editing: { id: string | null; draft: Draft } | null = null;
   const run = (c: Command) => void terra.apply(c);
-  const win = floatWin("party", { width: 400, at: { x: 860, y: 70 } });
+  const win = floatWin("party");
   win.title.append(el("b", {}, "Party"));
   const pad = numpad(
     [

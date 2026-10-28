@@ -1,5 +1,5 @@
-// DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004). The right panel
-// shows a live picture of the table, drawn by the table's own drawing code (D-025).
+// DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004). Its windows dock
+// around the map (D-031); one shows a live picture of the table, drawn by the table's own drawing code (D-025).
 import { defaultCalibration, layerFor, moveCorner, nudgeCorner, visibleRect, type Calibration } from "../core/calibration.ts";
 import { describeDisplay } from "../core/displays.ts";
 import { playerViewOf, viewOf, type TableState } from "../core/table.ts";
@@ -9,6 +9,8 @@ import { initMaps } from "./dm-map.ts";
 import { initMonsters } from "./dm-monsters.ts";
 import { initParty } from "./dm-party.ts";
 import type { DiscColour } from "../core/fight.ts";
+import { initDock } from "./dock.ts";
+import { useDock } from "./float-win.ts";
 import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
 import { drawTable, mapImages } from "./table-draw.ts";
@@ -297,7 +299,55 @@ const selection = {
     else monsters.render();
   },
 };
+// Windows around the map (D-031). A change of layout redraws what depends on sizes, once the drawing is set up.
+let afterLayout = () => {};
+const dock = initDock(() => afterLayout());
+useDock(dock);
+const label = (text: string) => Object.assign(document.createElement("span"), { textContent: text });
+dock.add({ id: "initiative", title: label("Initiative"), content: $("initiativePanel"), sheet: false, home: { area: "left", with: null } });
+dock.add({ id: "groups", title: label("Groups"), content: $("groupsPanel"), sheet: false, home: { area: "left", with: null } });
+dock.add({ id: "table", title: label("On the table now"), content: $("tablePanel"), sheet: false, home: { area: "right", with: null } });
 const maps = initMaps(terra, ACCENT, fog, image, selection);
+afterLayout = () => {
+  maps.render();
+  drawTablePreview();
+};
+// Windows and the map change size when a divider moves or a window docks: draw them again at their new size.
+new ResizeObserver(() => afterLayout()).observe($("mapCanvas"));
+new ResizeObserver(() => drawTablePreview()).observe($("tablePanel"));
+
+// The Windows menu: show or hide each of the map's windows, or put them all back where they started.
+const windowsBtn = $<HTMLButtonElement>("windowsBtn");
+const windowsMenu = $<HTMLDivElement>("windowsMenu");
+function renderWindowsMenu(): void {
+  const item = (text: string, pressed: boolean | null, act: () => void) => {
+    const b = Object.assign(document.createElement("button"), { type: "button", textContent: text });
+    b.setAttribute("role", pressed === null ? "menuitem" : "menuitemcheckbox");
+    if (pressed !== null) b.setAttribute("aria-checked", String(pressed));
+    b.addEventListener("click", () => {
+      act();
+      renderWindowsMenu();
+    });
+    return b;
+  };
+  windowsMenu.replaceChildren(
+    ...dock.list().map((w) => item(w.name, w.open, () => dock.toggle(w.id))),
+    item("Reset layout", null, () => dock.reset()),
+  );
+}
+windowsBtn.addEventListener("click", () => {
+  const r = windowsBtn.getBoundingClientRect();
+  Object.assign(windowsMenu.style, { left: `${r.left}px`, top: `${r.bottom + 4}px` });
+  windowsMenu.hidden = !windowsMenu.hidden;
+  windowsBtn.setAttribute("aria-expanded", String(!windowsMenu.hidden));
+  renderWindowsMenu();
+});
+document.addEventListener("pointerdown", (e) => {
+  if (!windowsMenu.hidden && !(e.target as HTMLElement).closest("#windowsMenu, #windowsBtn")) {
+    windowsMenu.hidden = true;
+    windowsBtn.setAttribute("aria-expanded", "false");
+  }
+});
 const monsters = initMonsters(terra, selection);
 const fight = initFight(terra, monsters.show);
 const party = initParty(terra);

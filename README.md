@@ -30,6 +30,11 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 3. Press **Straighten and place**. A slanted photo comes out square, with each square 1 inch on the table.
 4. Move the map with the arrows or by dragging it (whole inches, so the squares stay on the grid), turn it, or take it off the table. Ctrl+Z undoes map changes.
 5. Once it sits right, press **Lock**: a stray drag mid-game can't shift it under the minis. Discs still move.
+6. Zoom in to paint fog or place discs precisely: pinch, the mouse wheel, or + and − at the map's corner; **Fit** shows it all. With the map locked, dragging pans.
+
+### Windows
+
+Initiative, Groups, "On the table now" and the Party and monster sheets are windows around the map. Drag a tab to another edge, beside or into another window, or anywhere else to float it. Drag the dividers to resize. **Windows** at the top shows or hides them and resets the layout; Tab folds them all away.
 
 Imported maps stay in the library on this laptop (`library/maps` in the app's data folder) and are never shared. Turn on **Test grid** under **Table setup** to check the map's squares line up with the table's.
 
