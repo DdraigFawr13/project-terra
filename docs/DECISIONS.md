@@ -138,7 +138,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-023 UI design
 
-- **Status:** Accepted (2026-10-28), approved by Morgan in the UI design interview; control sizes changed by D-031 ([round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)).
+- **Status:** Accepted (2026-10-28), approved by Morgan in the UI design interview; control sizes changed by D-031, colours by D-033 ([round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)).
 - **Decision:**
   - DM window: the "Ember" look. Dark warm brown, a copper-red highlight (not amber, so it can't be mistaken for the yellow enemy disc), Alegreya SC for headings only, and Source Sans 3 for everything else. Both fonts are bundled (SIL OFL), so the app looks the same on any laptop and works offline.
   - Layout: D-012 with the "Classic" sizes (left about 290 px, right about 340 px). The side panels fold away with a button or Tab. Tools run along the bottom with icons, names and keys.
@@ -244,7 +244,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 - **Status:** Accepted (2026-10-28), from the UI review ([round 1](https://claude.ai/artifact/N2LH9mtnUHNT5QydAdB8Zz), [round 2 and draft](https://claude.ai/artifact/To2kRT3RWFcb16mti3cDov)): "Approved with the changes I wrote". Builds on D-031; changes D-023 (top bar, bottom tools) and D-028 (a tap on a disc).
 - **Decision:** all of it before step 7 (Morgan: "we have time to do all of these").
-  1. Window look: framed windows on a dark ground with a 6–8 px gap, slightly rounded corners; the window last touched has a copper outline. Headers stay plain until the colour round (Morgan liked none of the three header colours). A window slides into place in about 0.15 s when it docks or floats.
+  1. Window look: framed windows on a dark ground with a 6–8 px gap, slightly rounded corners; the window last touched has a copper outline. Headers: see D-033. A window slides into place in about 0.15 s when it docks or floats.
   2. Window bars: grab a window anywhere on its bar that isn't a button; its own buttons sit in a second row under the tabs, so tab names stay whole; a window folds to its bar; a floating window can be pinned, staying above other floating windows and in place when presets change.
   3. Tools: one Tools window, docked as a strip directly beside the map by default, or floated as a palette.
   4. The map is a window: it moves and tabs but never closes; its own buttons (Lock, Turn, Take off, and zoom: − / % / + / Fit) are its second row. Table setup is a window too. A newly placed map starts locked, so a drag pans the view; unlocked, a drag moves it on the table (changes D-029 item 4). The arrow buttons are gone: Morgan pans and zooms by dragging, two fingers and the wheel; the arrow keys still nudge an unlocked map.
@@ -253,5 +253,17 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   7. A tap on a disc opens a small HP pad beside it (amount, Damage, Heal, Sheet); dragging still moves it.
   8. Initiative rolls with a number pad (no on-screen keyboard).
   9. Unbuilt features are hidden (Ping, the scene name) until they work.
-  10. Later: a colour round (Ember and a light theme designed together), higher contrast, a compact/comfortable switch, a shortcut sheet.
+  10. Later: a compact/comfortable switch and a shortcut sheet. The colour round is D-033.
 - **Why:** Morgan found the movable windows blended in and wanted the DM window rethought around them, from a stylus on a 14-inch screen.
+
+## D-033 Looks: three dark, two light, high contrast
+
+- **Status:** Accepted (2026-10-28), from the colour round ([round 1](https://claude.ai/artifact/BCikF4kJUnR1eN1kHRQBvN), [round 2](https://claude.ai/artifact/QsR6UJcgnXaj39py6Dqjj2), [final](https://claude.ai/artifact/FPq4WeyfgBsefRwU1Vyuap)): "Approved, start building". Changes D-023 (the Ember colours) and D-032 items 1 and 10.
+- **Decision:**
+  1. Looks for the DM window: dark Ember (the default: a deeper, near-black brown), Deep water (dark teal-grey) and Soot (near-neutral black); light Parchment (the default) and Linen (pale warm grey). Copper-red stays the highlight in every look (D-023). Cut: Midnight and Moonlit paper.
+  2. View → Appearance… picks Dark or Light, and the dark and light look; picking a look switches to its mode. The choice stays on this laptop, like the layouts. No keyboard shortcut (Morgan: the menu is enough).
+  3. Contrast: text and grey text at least 7:1 on every surface in every look; copper, warning and notice colours at least 4.5:1; a unit test (`src/core/looks.test.ts`) checks every look. Light looks keep full contrast, since Morgan uses them at the desk and in a bright room.
+  4. Headers: a line under every window header, and the window in use has a copper header as well as its copper outline. A floating window is copper only while in use.
+  5. HP keeps green, orange and red, always with a sign or word: Damage and Heal carry − and +, and the Party sheet shows its condition word beside the bar.
+  6. The map, calibration and table previews stay black in every look, since they show the table; the table window never changes (D-023).
+- **Why:** Morgan liked the deeper Ember best but asked for several looks to choose from, dark and light, and wanted to switch between them. 7:1 suits reading at a glance in a dim room or in daylight. The line under each header plus the copper header makes the window in use easy to find without colouring every header.

@@ -93,6 +93,13 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     await dm.keyboard.press("b");
     await table.waitForFunction(() => document.body.dataset.view === "curtain");
 
+    // View → Appearance… picks a light look; the table window keeps its own colours (D-033).
+    assert.equal(await dm.getAttribute("html", "data-look"), "ember");
+    await dm.click(".menu-btn[data-menu='view']");
+    await dm.click("#menu >> text=Appearance…");
+    await dm.click("#menu >> text=Linen");
+    assert.equal(await dm.getAttribute("html", "data-look"), "linen");
+    assert.equal(await table.getAttribute("html", "data-look"), null);
     // A crashed table page loads again and shows the table as it was, so the projector isn't left blank (D-029).
     const crashed = new Promise((resolve) => table.once("crash", resolve));
     await app.evaluate(({ BrowserWindow }) =>
@@ -122,6 +129,7 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     assert.equal(await dm.getAttribute("#testGrid", "aria-pressed"), "true");
     assert.equal(await table.getAttribute("body", "data-calibrated"), "true");
     assert.match(await dm.textContent("#calState"), /^Calibrated for/);
+    assert.equal(await dm.getAttribute("html", "data-look"), "linen");
   } finally {
     await app.close();
   }
