@@ -1,3 +1,8 @@
+@font-face {
+  font-family: "Source Sans 3";
+  font-weight: 700;
+  src: url("assets/fonts/source-sans-3-latin-700-normal.woff2") format("woff2");
+}
 html,
 body {
   margin: 0;

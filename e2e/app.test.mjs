@@ -74,7 +74,12 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     await table.waitForFunction((b) => document.getElementById("layer").style.transform !== b, before);
     await dm.click("#calDone");
     await table.waitForFunction(() => document.body.dataset.view === "testGrid");
-    await dm.click("#curtain");
+
+    // Shortcuts (D-023): Tab folds the side panels when no control has focus, and B blanks the table.
+    await dm.evaluate(() => document.activeElement.blur());
+    await dm.keyboard.press("Tab");
+    assert.equal(await dm.getAttribute("body", "data-panels"), "folded");
+    await dm.keyboard.press("b");
     await table.waitForFunction(() => document.body.dataset.view === "curtain");
   } finally {
     await app.close();

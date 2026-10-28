@@ -4,7 +4,7 @@ Updated: 2026-10-28. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two windows) and 2 (calibration, [PR #3](https://github.com/DdraigFawr13/project-terra/pull/3)) are merged and tested in the cloud. Neither has run on Windows: Morgan can't test on a Windows computer for now (2026-10-28), so steps stay "built, awaiting Morgan's check" (VER-07). Next is step 3, UI design (D-022), then step 4, map import.
+Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two windows) and 2 (calibration, [PR #3](https://github.com/DdraigFawr13/project-terra/pull/3)) are merged; the plan change is [PR #4](https://github.com/DdraigFawr13/project-terra/pull/4) and tested in the cloud. Neither has run on Windows: Morgan can't test on a Windows computer for now (2026-10-28), so steps stay "built, awaiting Morgan's check" (VER-07). Step 3, UI design, is decided (D-023) and its styled shell is built on the branch, awaiting a PR. Next is step 4, map import.
 
 ## Just done
 
@@ -15,7 +15,6 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
   - It has a test grid and a curtain, and the DM picks its screen.
   - Saving survives a restart, and an unreadable save is kept aside.
   - Unit and end-to-end tests pass locally and in CI. A Windows zip builds on Linux.
-- 2026-10-28 Morgan set the PR workflow: summary first, then open and merge when green (D-018).
 - 2026-10-28 Audit ([AUDIT-2026-10-28.md](AUDIT-2026-10-28.md)): the table window now has its own read-only bridge and gets only `playerViewOf(state)`; windows can't navigate (a dropped file was being opened); an e2e race fixed. Morgan approved: D-020 test upkeep accepted; Electron fuses on; knip in `npm run check`; fast-check for property tests.
 - 2026-10-28 Step 2, calibration ([PR #3](https://github.com/DdraigFawr13/project-terra/pull/3), merged):
   - Corner-pin warp: the DM drags four corners (or nudges by one physical pixel) until they sit on a measured rectangle. The table draws in inches on one layer, warped by CSS `matrix3d` (D-021, proposed).
@@ -26,9 +25,9 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
 
 ## Next
 
-- **Book library** (D-010 changed 2026-10-28). In private repo `project-terra-library`: Phandelver and Below and PHB 2024 as Markdown (PHB lacks subclass features). MM and DMG PDFs come from Drive `_AI_Directories` via drive.usercontent.google.com: MM is a scan with an error-filled OCR layer, DMG is images only. Round 1 form: https://claude.ai/artifact/FUAenSA2tNkCqRnp62DZ2v (collection `books1`); read it when Morgan says "books round 1 done". Never use 5e.tools.
-0. **Step 3: UI design** (D-022). Round 1 form is out: https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx (collection `uiround1`). When Morgan says "UI round 1 done", read the answers, then make round 2 visual (mockups of the DM window and table), following `.claude/skills/planning-interview/`.
-1. **Step 4: map import** (PLAN.md step 4, D-009, D-010). Design first: decide the state model (audit P1 item 4: commands with `apply(state, command)` in `src/core/`, giving undo and a determinism test), and where the personal library lives on the laptop. Draw maps on the table layer in inches (D-021). Testable in the cloud with a sample SRD or self-made image; never commit book maps.
+- **Book library** (D-010 changed 2026-10-28). In private repo `project-terra-library`: Phandelver and Below and PHB 2024 as Markdown (PHB lacks subclass features). MM and DMG PDFs come from Drive `_AI_Directories` via drive.usercontent.google.com: MM is a scan with an error-filled OCR layer, DMG is images only. Round 1 answered (form under Planning pages, collection `books1`): next is round 2 or a review page, then extraction. Never use 5e.tools.
+0. **Step 3: UI design** (D-023, approved). Styled shell built on branch `ccr-9a5d3541-2loy31`: Ember theme, bundled fonts (`src/renderer/assets/SOURCES.md`), Lucide icons, Classic layout with empty panels, folding panels (Tab), curtain key (B), disabled tools for later steps, bold table lettering. Summary to Morgan, then PR (D-018).
+1. **Step 4: map import** (PLAN.md step 4, D-009, D-010). Design first: decide the state model (audit P1 item 4: commands with `apply(state, command)` in `src/core/`, giving undo and a determinism test), and where the personal library lives on the laptop. Draw maps on the table layer in inches (D-021), into the shell's middle area (D-023). Testable in the cloud with a sample SRD or self-made image; never commit book maps.
 2. When Morgan has a Windows laptop: the 5-minute step 1 test (README "Try it on Windows"), then calibration with a ruler on the laptop screen, then the projector photo. Check `Display.internal` on that laptop (the built-in screen must say "this laptop" in the screen list).
 3. Steps 3–6 can be built and tested without Windows; their projected proof waits for Morgan's photos.
 ## Open questions
@@ -46,7 +45,8 @@ Building toward session 1 ([PLAN.md](PLAN.md), steps 1–8). Steps 1 (two window
 
 ## Planning pages (Morgan's answers are saved in each)
 
-- UI design round 1: https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx
+- UI design: [round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)
+- Book library: [round 1](https://claude.ai/artifact/FUAenSA2tNkCqRnp62DZ2v)
 - Round 1: https://claude.ai/artifact/KbAFZXKteAj4mrahwNW2S3
 - Review: https://claude.ai/artifact/Abqb6FvUU9G1tq3KUYyhBG
 - Round 2: https://claude.ai/artifact/Y1ync7v4p39K8rmimHFXsb
