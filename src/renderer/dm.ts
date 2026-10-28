@@ -8,8 +8,9 @@ import { initFight } from "./dm-fight.ts";
 import { initMaps } from "./dm-map.ts";
 import { initMonsters } from "./dm-monsters.ts";
 import { initParty } from "./dm-party.ts";
+import { initQuickHp } from "./quick-hp.ts";
 import type { DiscColour } from "../core/fight.ts";
-import { initDock } from "./dock.ts";
+import { initDock, type Home, type Preset } from "./dock.ts";
 import { useDock } from "./float-win.ts";
 import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
@@ -31,8 +32,8 @@ const terra: DmApi = {
   getState: () => first.then(() => latest!),
 };
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const statusEl = $<HTMLParagraphElement>("status");
-const noticeEl = $<HTMLParagraphElement>("notice");
+const statusEl = $<HTMLSpanElement>("status");
+const noticeEl = $<HTMLSpanElement>("notice");
 const displaySelect = $<HTMLSelectElement>("display");
 const testGridBtn = $<HTMLButtonElement>("testGrid");
 const curtainBtn = $<HTMLButtonElement>("curtain");
@@ -43,7 +44,6 @@ const calWidth = $<HTMLInputElement>("calWidth");
 const calHeight = $<HTMLInputElement>("calHeight");
 const preview = $<HTMLCanvasElement>("calPreview");
 const cornerBtns = [...document.querySelectorAll<HTMLButtonElement>("button.corner")];
-const panelsBtn = $<HTMLButtonElement>("panels");
 const previewText = $<HTMLSpanElement>("previewText");
 const tablePreview = $<HTMLCanvasElement>("tablePreview");
 
@@ -265,12 +265,9 @@ calibrateBtn.addEventListener("click", () =>
   terra.apply({ type: "calibrating", on: calibrateBtn.getAttribute("aria-pressed") !== "true" }),
 );
 const toggleCurtain = () => terra.apply({ type: "curtain", on: curtainBtn.getAttribute("aria-pressed") !== "true" });
+/** Tab, or View > Fold: every docked window folds away except the map and its tools, so the map has the room. */
 function togglePanels(): void {
-  const open = panelsBtn.getAttribute("aria-pressed") !== "true";
-  panelsBtn.setAttribute("aria-pressed", String(open));
-  document.body.dataset.panels = open ? "open" : "folded";
-  panelsBtn.querySelector("svg")?.remove();
-  panelsBtn.insertAdjacentHTML("afterbegin", icon(open ? "panelsClose" : "panelsOpen"));
+  document.body.dataset.panels = document.body.dataset.panels === "folded" ? "open" : "folded";
   renderCalibration();
   maps.render();
   drawTablePreview();
@@ -278,17 +275,14 @@ function togglePanels(): void {
 
 testGridBtn.addEventListener("click", () => terra.apply({ type: "testGrid", on: testGridBtn.getAttribute("aria-pressed") !== "true" }));
 curtainBtn.addEventListener("click", toggleCurtain);
-panelsBtn.addEventListener("click", togglePanels);
 
-// Shortcuts (D-023). They never fire while typing, and Tab folds the panels only when no control has focus, so
-// Tab still moves between controls.
 // One fog painter and one image cache serve the map view and the preview.
 const fog = new FogPainter();
 const image = mapImages(() => {
   maps.render();
   drawTablePreview();
 });
-// The disc picked on the map or in its monster window, highlighted in both. A tap on a disc also opens its window.
+// The disc picked on the map or in its monster sheet, highlighted in both. A tap on a disc opens its HP pad (D-032).
 let picked: string | null = null;
 const selection = {
   get: () => picked,
@@ -298,62 +292,174 @@ const selection = {
     if (key && open) monsters.show(key.split("-")[0] as DiscColour);
     else monsters.render();
   },
+  tap: (colour: DiscColour, letter: string, at: { x: number; y: number }) => quick.show(colour, letter, at),
 };
-// Windows around the map (D-031). A change of layout redraws what depends on sizes, once the drawing is set up.
+
+// Windows around the map (D-031, D-032), each with where it starts in the Prep, Explore and Fight layouts. Windows that
+// share an area stack in the order they are added here. A change of layout redraws what depends on sizes.
 let afterLayout = () => {};
 const dock = initDock(() => afterLayout());
 useDock(dock);
 const label = (text: string) => Object.assign(document.createElement("span"), { textContent: text });
-dock.add({ id: "initiative", title: label("Initiative"), content: $("initiativePanel"), sheet: false, home: { area: "left", with: null } });
-dock.add({ id: "groups", title: label("Groups"), content: $("groupsPanel"), sheet: false, home: { area: "left", with: null } });
-dock.add({ id: "table", title: label("On the table now"), content: $("tablePanel"), sheet: false, home: { area: "right", with: null } });
+const at = (area: "left" | "mapside" | "center" | "right" | "bottom", weight?: number): Home => ({ area, with: null, weight });
+const everywhere = (h: Home) => ({ prep: h, explore: h, fight: h });
+dock.add({
+  id: "map",
+  title: $("mapTitle"),
+  actions: $("mapActions"),
+  content: $("mapPanel"),
+  sheet: false,
+  closable: false,
+  homes: everywhere(at("center")),
+  fallback: at("center"),
+});
+dock.add({
+  id: "tools",
+  title: label("Tools"),
+  content: $("toolsPanel"),
+  sheet: false,
+  homes: everywhere(at("mapside")),
+  fallback: at("mapside"),
+});
+dock.add({
+  id: "setup",
+  title: label("Table setup"),
+  content: $("setupPanel"),
+  sheet: false,
+  homes: { prep: at("left"), explore: null, fight: null },
+  fallback: { area: "right", with: "table" },
+});
+dock.add({
+  id: "initiative",
+  title: label("Initiative"),
+  content: $("initiativePanel"),
+  sheet: false,
+  homes: { prep: null, explore: null, fight: at("left") },
+  fallback: at("left"),
+});
+dock.add({
+  id: "table",
+  title: label("On the table now"),
+  content: $("tablePanel"),
+  sheet: false,
+  homes: { prep: at("right"), explore: at("right", 2), fight: at("right") },
+  fallback: at("right"),
+});
+dock.add({
+  id: "groups",
+  title: label("Groups"),
+  content: $("groupsPanel"),
+  sheet: false,
+  homes: { prep: at("left"), explore: at("right"), fight: at("left") },
+  fallback: at("left"),
+});
 const maps = initMaps(terra, ACCENT, fog, image, selection);
 afterLayout = () => {
   maps.render();
   drawTablePreview();
+  renderCalibration();
 };
 // Windows and the map change size when a divider moves or a window docks: draw them again at their new size.
 new ResizeObserver(() => afterLayout()).observe($("mapCanvas"));
 new ResizeObserver(() => drawTablePreview()).observe($("tablePanel"));
+new ResizeObserver(() => renderCalibration()).observe($("setupPanel"));
 
-// The Windows menu: show or hide each of the map's windows, or put them all back where they started.
-const windowsBtn = $<HTMLButtonElement>("windowsBtn");
-const windowsMenu = $<HTMLDivElement>("windowsMenu");
-function renderWindowsMenu(): void {
-  const item = (text: string, pressed: boolean | null, act: () => void) => {
-    const b = Object.assign(document.createElement("button"), { type: "button", textContent: text });
-    b.setAttribute("role", pressed === null ? "menuitem" : "menuitemcheckbox");
-    if (pressed !== null) b.setAttribute("aria-checked", String(pressed));
-    b.addEventListener("click", () => {
-      act();
-      renderWindowsMenu();
-    });
-    return b;
-  };
-  windowsMenu.replaceChildren(
-    ...dock.list().map((w) => item(w.name, w.open, () => dock.toggle(w.id))),
-    item("Reset layout", null, () => dock.reset()),
-  );
-}
-windowsBtn.addEventListener("click", () => {
-  const r = windowsBtn.getBoundingClientRect();
-  Object.assign(windowsMenu.style, { left: `${r.left}px`, top: `${r.bottom + 4}px` });
-  windowsMenu.hidden = !windowsMenu.hidden;
-  windowsBtn.setAttribute("aria-expanded", String(!windowsMenu.hidden));
-  renderWindowsMenu();
-});
-document.addEventListener("pointerdown", (e) => {
-  if (!windowsMenu.hidden && !(e.target as HTMLElement).closest("#windowsMenu, #windowsBtn")) {
-    windowsMenu.hidden = true;
-    windowsBtn.setAttribute("aria-expanded", "false");
-  }
-});
 const monsters = initMonsters(terra, selection);
+const quick = initQuickHp(terra, monsters.show);
 const fight = initFight(terra, monsters.show);
 const party = initParty(terra);
-$<HTMLButtonElement>("partyBtn").addEventListener("click", party.show);
 const flipBtn = $<HTMLButtonElement>("flipLetters");
 flipBtn.addEventListener("click", () => terra.apply({ type: "flipLetters", on: flipBtn.getAttribute("aria-pressed") !== "true" }));
+
+// ---- Layout presets and menus (D-032) ----
+
+const PRESET_NAME: Record<Preset, string> = { prep: "Prep", explore: "Explore", fight: "Fight" };
+for (const b of document.querySelectorAll<HTMLButtonElement>("[data-preset]"))
+  b.addEventListener("click", () => dock.usePreset(b.dataset.preset as Preset));
+
+type Item = { text: string; act: () => void; checked?: boolean; disabled?: boolean; id?: string } | "-";
+const pressed = (id: string) => $(id).getAttribute("aria-pressed") === "true";
+/** What each menu offers, worked out when it opens so ticks match the table now. */
+function menuItems(name: string): Item[] {
+  if (name === "table")
+    return [
+      { text: "Table setup", act: () => dock.open("setup") },
+      {
+        text: "Calibrate…",
+        act: () => {
+          dock.open("setup");
+          if (!pressed("calibrate")) calibrateBtn.click();
+        },
+      },
+      "-",
+      { text: "Test grid", checked: pressed("testGrid"), act: () => testGridBtn.click() },
+      { text: "Flip disc letters", checked: pressed("flipLetters"), act: () => flipBtn.click() },
+      { text: "Lock map", checked: pressed("lockMap"), disabled: !latest?.map, act: () => $("lockMap").click() },
+      "-",
+      {
+        text: "Import map…",
+        act: () => {
+          dock.open("map");
+          $<HTMLInputElement>("mapFile").click();
+        },
+      },
+    ];
+  if (name === "fight")
+    return [
+      latest?.fight
+        ? { text: "End fight", act: () => $("endFight").click() }
+        : {
+            text: "Start fight",
+            act: () => {
+              dock.open("initiative");
+              $("startFight").click();
+            },
+          },
+      { text: "Party", id: "partyBtn", act: party.show },
+    ];
+  return [
+    ...(Object.keys(PRESET_NAME) as Preset[]).map((p) => ({
+      text: `${PRESET_NAME[p]} layout`,
+      checked: dock.preset() === p,
+      act: () => dock.usePreset(p),
+    })),
+    "-",
+    ...dock.list().map((w) => ({ text: w.name, checked: w.open, disabled: !w.closable, act: () => dock.toggle(w.id) })),
+    "-",
+    { text: "Fold the windows (Tab)", checked: document.body.dataset.panels === "folded", act: togglePanels },
+    { text: "Reset this layout", act: () => dock.reset() },
+  ];
+}
+const menuEl = $<HTMLDivElement>("menu");
+const menuBtns = [...document.querySelectorAll<HTMLButtonElement>(".menu-btn")];
+function closeMenu(): void {
+  menuEl.hidden = true;
+  for (const b of menuBtns) b.setAttribute("aria-expanded", "false");
+}
+function openMenu(btn: HTMLButtonElement): void {
+  const items = menuItems(btn.dataset.menu!).map((it) => {
+    if (it === "-") return Object.assign(document.createElement("hr"), { className: "menu-sep" });
+    const b = Object.assign(document.createElement("button"), { type: "button", textContent: it.text, disabled: !!it.disabled });
+    if (it.id) b.id = it.id;
+    b.setAttribute("role", it.checked === undefined ? "menuitem" : "menuitemcheckbox");
+    if (it.checked !== undefined) b.setAttribute("aria-checked", String(it.checked));
+    b.addEventListener("click", () => {
+      closeMenu();
+      it.act();
+    });
+    return b;
+  });
+  menuEl.replaceChildren(...items);
+  const r = btn.getBoundingClientRect();
+  Object.assign(menuEl.style, { left: `${r.left}px`, top: `${r.bottom + 4}px` });
+  menuEl.hidden = false;
+  for (const b of menuBtns) b.setAttribute("aria-expanded", String(b === btn));
+}
+for (const b of menuBtns)
+  b.addEventListener("click", () => (menuEl.hidden || b.getAttribute("aria-expanded") !== "true" ? openMenu(b) : closeMenu()));
+document.addEventListener("pointerdown", (e) => {
+  if (!menuEl.hidden && !(e.target as HTMLElement).closest("#menu, .menu-btn")) closeMenu();
+});
 window.addEventListener("keydown", (e) => {
   const t = e.target as HTMLElement;
   if (t.closest("input, textarea, select, [contenteditable]")) return;
@@ -369,8 +475,10 @@ window.addEventListener("keydown", (e) => {
   } else if (e.key === "b" || e.key === "B") toggleCurtain();
   // A held N would skip turns.
   else if ((e.key === "n" || e.key === "N") && !e.repeat) fight.next();
-  else if (e.key === "Escape") maps.cancel();
-  else maps.shortcut(e.key);
+  else if (e.key === "Escape") {
+    closeMenu();
+    maps.cancel();
+  } else maps.shortcut(e.key);
 });
 displaySelect.addEventListener("change", () => terra.apply({ type: "playerDisplay", id: Number(displaySelect.value) }));
 window.addEventListener("resize", () => {

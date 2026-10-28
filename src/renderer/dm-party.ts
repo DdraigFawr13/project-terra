@@ -22,7 +22,7 @@ export function initParty(terra: DmApi): { show: () => void } {
     [
       { label: "− Damage", kind: "damage", className: "damage" },
       { label: "+ Heal", kind: "heal", className: "heal" },
-      { label: "Temp HP", kind: "temp", className: "temp" },
+      { label: "Temp HP", kind: "temp", className: "temp", zeroOk: true },
     ],
     (kind, amount) => {
       if (!tab) return;

@@ -17,8 +17,9 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const emptyMap = $<HTMLElement>("emptyMap");
 const importer = $<HTMLElement>("importer");
 const mapView = $<HTMLElement>("mapView");
-const setupPane = $<HTMLElement>("setupPane");
-const setupBtn = $<HTMLButtonElement>("setupBtn");
+const mapActions = $<HTMLElement>("mapActions");
+const mapTitle = $<HTMLElement>("mapTitle");
+const zoomState = $<HTMLElement>("zoomState");
 const fileInput = $<HTMLInputElement>("mapFile");
 const library = $<HTMLUListElement>("library");
 const importCanvas = $<HTMLCanvasElement>("importCanvas");
@@ -73,12 +74,16 @@ export function initMaps(
   accent: string,
   fog: FogPainter,
   image: (id: string) => HTMLImageElement,
-  selection: { get: () => string | null; set: (key: string | null, open?: boolean) => void },
+  selection: {
+    get: () => string | null;
+    set: (key: string | null, open?: boolean) => void;
+    /** A tap on a disc: its HP pad opens beside it (D-032). `at` is in window coordinates. */
+    tap: (colour: DiscColour, letter: string, at: Point) => void;
+  },
 ): { undo: () => void; render: () => void; cancel: () => boolean; shortcut: (key: string) => boolean } {
   let state: TableState | null = null;
   let status: TableStatus | null = null;
   let importing: Importing | null = null;
-  let setupOpen = false;
   /** While dragging the map: how far it has moved so far, in inches. */
   let drag: { pointer: number; pen: boolean; start: Point; dx: number; dy: number } | null = null;
   let tool: Tool = "select";
@@ -126,9 +131,10 @@ export function initMaps(
     importer.hidden = !importing;
     mapView.hidden = !!importing || !map;
     emptyMap.hidden = !!importing || !!map;
-    setupBtn.hidden = !map || !!importing;
-    setupBtn.setAttribute("aria-pressed", String(setupOpen));
-    setupPane.hidden = !!importing || (!!map && !setupOpen);
+    // The map window's own buttons (its second row) and its tab name follow the map (D-032).
+    mapActions.hidden = !map || !!importing;
+    if (mapTitle.textContent !== (map?.name ?? "Map")) mapTitle.textContent = map?.name ?? "Map";
+    zoomState.textContent = map && !importing && zoom > 1 ? `Zoom ${Math.round(zoom * 100)}%` : "";
     renderTools(!!map && !importing);
     if (importing) drawImport(importing);
     else if (map) drawMap(map);
@@ -324,7 +330,6 @@ export function initMaps(
   };
 
   function drawMap(map: PlacedMap): void {
-    $<HTMLHeadingElement>("mapTitle").textContent = map.name;
     const locked = !!state?.mapLocked;
     lockBtn.setAttribute("aria-pressed", String(locked));
     lockBtn.innerHTML = `${icon(locked ? "lock" : "unlock")}${locked ? "Locked" : "Lock"}`;
@@ -595,8 +600,14 @@ export function initMaps(
     discDrag = null;
     const moved = d.at.x !== d.from.x || d.at.y !== d.from.y;
     if (keep && moved) void run({ type: "moveDisc", colour: d.colour, letter: d.letter, ...d.at });
-    // A tap opens the disc's monster window; a drag only moves it.
-    if (keep) selection.set(discKey(d), !moved);
+    if (keep) selection.set(discKey(d));
+    // A tap opens the disc's HP pad beside it; a drag only moves it.
+    if (keep && !moved && state?.map) {
+      const r = mapCanvas.getBoundingClientRect();
+      const { s, ox, oy } = viewport(state.map, r.width, r.height);
+      const t = mapToTable(state.map, d.from);
+      selection.tap(d.colour, d.letter, { x: r.left + ox + t.x * s, y: r.top + oy + t.y * s });
+    }
     render();
   }
   function endPlacing(keep: boolean): void {
@@ -750,10 +761,6 @@ export function initMaps(
     render();
   });
   $<HTMLButtonElement>("importOk").addEventListener("click", () => void finishImport());
-  setupBtn.addEventListener("click", () => {
-    setupOpen = !setupOpen;
-    render();
-  });
   undoBtn.addEventListener("click", undo);
   window.addEventListener("resize", render);
 

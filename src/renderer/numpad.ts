@@ -1,6 +1,8 @@
-// A number pad for HP (D-028): pick who, tap the amount, tap Damage or Heal. No typing, so a finger or the pen is enough.
+// A number pad (D-028): pick who, tap the amount, tap an action such as Damage or Heal. No typing, so a finger or the
+// pen is enough. Initiative uses it too, with a sign for negative rolls (D-032).
 
-export type PadAction = { label: string; kind: string; className: string };
+/** `zeroOk`: the action is allowed with an amount of 0 (temp HP to none, a roll of 0). */
+export type PadAction = { label: string; kind: string; className: string; zeroOk?: boolean };
 
 export type Numpad = {
   el: HTMLElement;
@@ -10,8 +12,9 @@ export type Numpad = {
 
 const MAX = 999;
 
-export function numpad(actions: PadAction[], onAct: (kind: string, amount: number) => void): Numpad {
+export function numpad(actions: PadAction[], onAct: (kind: string, amount: number) => void, opts: { signed?: boolean } = {}): Numpad {
   let amount = 0;
+  let negative = false;
   let target: string | null = null;
   const el = document.createElement("div");
   el.className = "pad";
@@ -40,29 +43,36 @@ export function numpad(actions: PadAction[], onAct: (kind: string, amount: numbe
     amount = Math.floor(amount / 10);
     render();
   });
+  if (opts.signed)
+    key("±", "", "Make it negative or positive", () => {
+      negative = !negative;
+      render();
+    });
   key("C", "", "Clear the amount", () => {
     amount = 0;
+    negative = false;
     render();
   });
   const acts = actions.map((a) =>
     key(a.label, `act ${a.className}`, a.label, () => {
-      if (!target || (amount === 0 && a.kind !== "temp")) return;
-      onAct(a.kind, amount);
+      if (!target || (amount === 0 && !a.zeroOk)) return;
+      onAct(a.kind, negative ? -amount : amount);
       amount = 0;
+      negative = false;
       render();
     }),
   );
   function render(): void {
     who.textContent = target ?? "Pick who";
-    num.textContent = String(amount);
-    acts.forEach((b, i) => (b.disabled = !target || (amount === 0 && actions[i]!.kind !== "temp")));
+    num.textContent = `${negative ? "−" : ""}${amount}`;
+    acts.forEach((b, i) => (b.disabled = !target || (amount === 0 && !actions[i]!.zeroOk)));
   }
   render();
   return {
     el,
     setTarget: (t) => {
       // An amount typed for one creature never lands on another.
-      if (t !== target) amount = 0;
+      if (t !== target) [amount, negative] = [0, false];
       target = t;
       render();
     },

@@ -1,5 +1,5 @@
-// Sheets for the Party and the monster groups (D-028, D-031): windows in the dock (dock.ts), opened from the Party
-// button, a group or a disc, and closed when done. They start as tabs together on the right, and move like any window.
+// Sheets for the Party and the monster groups (D-028, D-031): windows in the dock (dock.ts), opened from the Fight
+// menu, a group or a disc's HP pad, and closed when done. They open as tabs together on the right, and move like any window.
 import type { initDock } from "./dock.ts";
 
 export type FloatWin = {
@@ -25,6 +25,15 @@ export function floatWin(id: string): FloatWin {
   };
   const [title, actions, body] = [div("float-title"), div("float-actions"), div("float-body")];
   // Sheets open together as tabs, beside whichever sheet is already open, else in a new group on the right.
-  const panel = dock!.add({ id: `sheet:${id}`, title, actions, content: body, sheet: true, home: { area: "right", with: "sheet" } });
+  const home = { area: "right", with: "sheet" } as const;
+  const panel = dock!.add({
+    id: `sheet:${id}`,
+    title,
+    actions,
+    content: body,
+    sheet: true,
+    homes: { prep: home, explore: home, fight: home },
+    fallback: home,
+  });
   return { body, title, actions, ...panel };
 }

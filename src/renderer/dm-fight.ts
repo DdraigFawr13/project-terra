@@ -1,9 +1,11 @@
-// DM window, left panel (D-027, D-028): initiative and the colour groups. Characters and monster details live in
-// floating windows (dm-party.ts, dm-monsters.ts). The panel is rebuilt from each new state; focus survives the rebuild.
+// DM window, the Initiative and Groups windows (D-027, D-028): initiative and the colour groups. Characters and monster
+// details live in sheets (dm-party.ts, dm-monsters.ts). Both are rebuilt from each new state; focus survives the rebuild.
 import { conditionOf, DISC_COLOURS, isColour, takesTurns, type DiscColour, type Who } from "../core/fight.ts";
 import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { button, COLOUR_NAME, el, swatch, type Attrs } from "./dom.ts";
+import { numpad } from "./numpad.ts";
+import { popover } from "./popover.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const roundEl = $<HTMLSpanElement>("round");
@@ -15,14 +17,36 @@ const unrolledEl = $<HTMLUListElement>("unrolled");
 const groupsEl = $<HTMLUListElement>("groups");
 const groupsEmpty = $<HTMLParagraphElement>("groupsEmpty");
 const nextBtn = $<HTMLButtonElement>("nextTurn");
+const roundState = $<HTMLSpanElement>("roundState");
 
-/** A whole-number box for a roll, sent when the DM leaves it or presses Enter. */
-function rollBox(value: number | null, attrs: Attrs, onChange: (v: number | null) => void): HTMLInputElement {
-  const input = el("input", { type: "number", inputmode: "numeric", step: "1", min: "-20", max: "99", ...attrs });
+/**
+ * A box for a roll. Typed with a keyboard, it is sent when the DM leaves it or presses Enter; tapped with the pen or a
+ * finger, it opens a number pad beside it instead of the on-screen keyboard (D-032).
+ */
+function rollBox(value: number | null, attrs: Attrs, who: string, onChange: (v: number | null) => void): HTMLInputElement {
+  const input = el("input", { type: "number", inputmode: "none", step: "1", min: "-20", max: "99", ...attrs });
   input.value = value === null ? "" : String(value);
   input.addEventListener("change", () => {
     const v = input.value.trim();
     onChange(v === "" ? null : Number.isInteger(Number(v)) ? Number(v) : null);
+  });
+  input.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse") return;
+    e.preventDefault();
+    const r = input.getBoundingClientRect();
+    const acts = [{ label: "Set", kind: "set", className: "primary", zeroOk: true }];
+    if (value !== null) acts.push({ label: "Clear", kind: "clear", className: "", zeroOk: true });
+    const pad = numpad(
+      acts,
+      (kind, roll) => {
+        p.close();
+        onChange(kind === "clear" ? null : Math.max(-20, Math.min(99, roll)));
+      },
+      { signed: true },
+    );
+    pad.setTarget(`Initiative: ${who}`);
+    const p = popover({ x: r.right, y: r.top + r.height / 2 }, [pad.el]);
+    p.el.classList.add("roll-pad");
   });
   return input;
 }
@@ -30,6 +54,10 @@ function rollBox(value: number | null, attrs: Attrs, onChange: (v: number | null
 export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { render: () => void; next: () => void } {
   let state: TableState | null = null;
   const run = (c: Command) => void terra.apply(c);
+
+  /** Who a roll is for, in words: the character's name, or the colour group's name. */
+  const whoName = (s: TableState, who: Who): string =>
+    isColour(who) ? s.map?.groups[who]?.name || COLOUR_NAME[who] : (s.party.find((p) => p.id === who)?.name ?? "?");
 
   /** A label for an initiative row: the character's name, or the colour group's name and its letters. */
   function whoLabel(s: TableState, who: Who): HTMLElement {
@@ -51,7 +79,8 @@ export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { r
     const f = s.fight;
     startBtn.hidden = !!f;
     endBtn.hidden = !f;
-    roundEl.textContent = !f ? "" : f.round ? `Round ${f.round}` : "Type the rolls, then Next turn";
+    roundEl.textContent = !f ? "" : f.round ? `Round ${f.round}` : "Enter the rolls, then Next turn";
+    roundState.textContent = f?.round ? `Round ${f.round}` : "";
     nextBtn.disabled = !f || f.entries.length === 0;
     if (!f) {
       orderEl.replaceChildren();
@@ -72,7 +101,7 @@ export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { r
             "aria-current": current ? "step" : undefined,
           },
           whoLabel(s, e.who),
-          rollBox(e.init, { "data-key": `init-${e.who}`, "aria-label": "Initiative" }, (init) =>
+          rollBox(e.init, { "data-key": `init-${e.who}`, "aria-label": "Initiative" }, whoName(s, e.who), (init) =>
             run({ type: "initiative", who: e.who, init }),
           ),
           // Arrows only for ties: they settle who goes first between equal rolls (D-027).
@@ -107,7 +136,7 @@ export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { r
           "li",
           { class: "entry" },
           whoLabel(s, who),
-          rollBox(null, { "data-key": `init-${who}`, "aria-label": "Initiative roll", placeholder: "Roll" }, (init) =>
+          rollBox(null, { "data-key": `init-${who}`, "aria-label": "Initiative roll", placeholder: "Roll" }, whoName(s, who), (init) =>
             init === null ? undefined : run({ type: "initiative", who, init }),
           ),
         ),

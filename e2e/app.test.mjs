@@ -8,6 +8,12 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { _electron as electron } from "playwright";
 
+/** The Party sheet, from the Fight menu (D-032). */
+async function openParty(dm) {
+  await dm.click(".menu-btn[data-menu='fight']");
+  await dm.click("#partyBtn");
+}
+
 async function launch(userData) {
   const app = await electron.launch({ args: ["."], env: { ...process.env, TERRA_USER_DATA: userData } });
   // Wait until both windows exist, then tell them apart by title.
@@ -352,8 +358,10 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await dm.click("#importOk");
     await table.waitForFunction(() => document.body.dataset.view === "map");
 
-    // A character in the Party window; damage from the pad takes temp HP first.
-    await dm.click("#partyBtn");
+    // The Fight layout (D-032), then a character in the Party sheet, from the Fight menu; damage takes temp HP first.
+    await dm.click("[data-preset='fight']");
+    await dm.locator("#startFight").waitFor();
+    await openParty(dm);
     const party = dm.locator("[data-float='party']");
     await party.locator("[aria-label='Add a character']").click();
     await dm.fill('[data-key="pc-name"]', "Ash");
@@ -399,9 +407,11 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await dm.waitForFunction(async () => (await window.terra.getState()).map.discs.length === 1);
     assert.deepEqual((await table.evaluate(() => window.terra.getView())).discs, []);
 
-    // A tap on the disc with Select opens its monster window. Book: import a library file and link the stat block.
+    // A tap on the disc with Select opens its HP pad beside it (D-032); Sheet opens the monster sheet. Book: import a
+    // library file and link the stat block.
     await dm.click("button[data-tool='select']");
     await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await dm.click(".quick-hp button.sheet");
     const mon = dm.locator("[data-float='monster-yellow']");
     await mon.locator("button", { hasText: "Book" }).click();
     await mon.locator("input[type=file]").setInputFiles({
@@ -425,8 +435,22 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
 
     // Rolls; the hidden disc's colour is in the order but not on the strip until it is shown.
     await dm.click("#startFight");
-    await dm.fill('[data-key="init-pc-1"]', "15");
-    await dm.press('[data-key="init-pc-1"]', "Enter");
+    // With the pen, a roll box opens a number pad instead of the on-screen keyboard (D-032).
+    const roll = await dm.locator('[data-key="init-pc-1"]').boundingBox();
+    for (const type of ["mousePressed", "mouseReleased"])
+      await cdp.send("Input.dispatchMouseEvent", {
+        type,
+        x: roll.x + roll.width / 2,
+        y: roll.y + roll.height / 2,
+        pointerType: "pen",
+        button: "left",
+        buttons: type === "mousePressed" ? 1 : 0,
+        clickCount: 1,
+      });
+    const rollPad = dm.locator(".roll-pad");
+    for (const k of "15") await rollPad.locator(`.k.digit[aria-label='${k}']`).click();
+    await rollPad.locator(".k.act", { hasText: "Set" }).click();
+    await dm.waitForFunction(async () => (await window.terra.getState()).fight.entries[0]?.init === 15);
     await dm.fill('[data-key="init-yellow"]', "9");
     await dm.press('[data-key="init-yellow"]', "Enter");
     await dm.waitForFunction(async () => (await window.terra.getState()).fight.entries.length === 2);
@@ -463,7 +487,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
   // The party and the imported library are kept between sessions.
   ({ app, dm, table } = await launch(userData));
   try {
-    await dm.click("#partyBtn");
+    await openParty(dm);
     await dm.locator("[data-float='party'] .tabs [role=tab]", { hasText: "Ash" }).waitFor();
     assert.equal(await dm.evaluate(() => window.terra.countCreatures()), 2);
   } finally {
