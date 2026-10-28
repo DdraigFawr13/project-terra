@@ -132,3 +132,16 @@ export function layerFor(cal: Calibration, surface: Surface): Layer {
   const layerToTable: Matrix = [1 / pxPerInch, 0, box.x, 0, 1 / pxPerInch, box.y, 0, 0, 1];
   return { box, pxPerInch, transform: multiply(m, layerToTable) };
 }
+
+/**
+ * Roughly the largest upright rectangle of table inches inside the screen's outline: where the turn strip stays on the
+ * table however the projector is angled or turned. With no outline, the measured rectangle.
+ */
+export function visibleRect(cal: Calibration, surface: Surface): { x: number; y: number; width: number; height: number } {
+  const outline = screenOutline(cal, surface);
+  if (!outline) return { x: 0, y: 0, width: cal.widthIn, height: cal.heightIn };
+  // The inner two of the four corners' xs and ys: the inner edges, in any of the four ways the screen can face.
+  const xs = outline.map((p) => p.x).sort((a, b) => a - b);
+  const ys = outline.map((p) => p.y).sort((a, b) => a - b);
+  return { x: xs[1]!, y: ys[1]!, width: xs[2]! - xs[1]!, height: ys[2]! - ys[1]! };
+}

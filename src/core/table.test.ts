@@ -25,6 +25,8 @@ const map: PlacedMap = {
   y: 5,
   turns: 0,
   fog: [],
+  discs: [],
+  groups: {},
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
@@ -68,6 +70,9 @@ test("the table window gets only the player view: no map name, the calibration f
     view: "curtain",
     calibration: cal,
     map: { id: "map-1", bounds: map.bounds, x: 4, y: 5, turns: 0, fog: [] },
+    discs: [],
+    strip: null,
+    flipLetters: false,
     grid: true,
   });
   assert.equal(playerViewOf(s, "window").calibration, null);
@@ -107,6 +112,15 @@ test("commands with wrong parts are refused", () => {
     { type: "placeMap", map: { ...map, turns: 4 } },
     { type: "placeMap", map: { ...map, bounds: { ...map.bounds, width: 0 } } },
     { type: "explode" },
+    { type: "placeDisc", colour: "black", x: 1, y: 1, size: 1 },
+    { type: "placeDisc", colour: "red", x: 1, y: 1, size: 5 },
+    { type: "moveDisc", colour: "red", letter: "a", x: 1, y: 1 },
+    { type: "condition", colour: "red", letter: "A", condition: "dead" },
+    { type: "initiative", who: "red", init: 2.5 },
+    { type: "initiative", who: "pc-x", init: 2 },
+    { type: "swapTie", who: "red", by: 2 },
+    { type: "addCharacter", character: { name: "", ac: 15, hp: 10, hpMax: 10, passive: 12, speed: 30 } },
+    { type: "addCharacter", character: { name: "Ash", ac: 15, hp: 10, hpMax: 0, passive: 12, speed: 30 } },
     null,
   ];
   for (const c of bad) assert.equal(parseCommand(c), null, JSON.stringify(c));
@@ -144,6 +158,63 @@ test("the same commands give the same state, and any state saves and loads uncha
     }),
     fc.record({ type: fc.constant("moveMap"), dx: anyValue, dy: anyValue }),
     fc.record({ type: fc.constantFrom("turnMap", "removeMap") }),
+    fc.record({ type: fc.constant("placeDisc"), colour: fc.constantFrom("red", "yellow"), x: anyValue, y: anyValue, size: anyValue }),
+    fc.record({ type: fc.constant("moveDisc"), colour: fc.constant("red"), letter: fc.constantFrom("A", "B"), x: anyValue, y: anyValue }),
+    fc.record({
+      type: fc.constantFrom("removeDisc", "condition", "showDiscs"),
+      colour: fc.constant("red"),
+      letter: fc.constantFrom("A", null),
+      condition: fc.constantFrom("down", "bloodied", "x"),
+      on: anyValue,
+    }),
+    fc.record({
+      type: fc.constant("group"),
+      colour: fc.constant("red"),
+      info: fc.oneof(
+        anyValue,
+        fc.record({ name: fc.string(), hpMax: fc.oneof(anyValue, fc.constant(10)), ac: anyValue, notes: fc.string() }),
+      ),
+    }),
+    fc.record({
+      type: fc.constantFrom("discHp", "discMax"),
+      colour: fc.constant("red"),
+      letter: fc.constant("A"),
+      change: anyValue,
+      hpMax: anyValue,
+    }),
+    fc.record({ type: fc.constantFrom("characterHp", "tempHp"), id: fc.constant("pc-1"), change: anyValue, tempHp: anyValue }),
+    fc.record({ type: fc.constant("flipLetters"), on: anyValue }),
+    fc.record({
+      type: fc.constant("addCharacter"),
+      character: fc.record({
+        name: fc.constantFrom("Ash", " "),
+        ac: anyValue,
+        hp: anyValue,
+        hpMax: anyValue,
+        passive: anyValue,
+        speed: anyValue,
+      }),
+    }),
+    fc.record({
+      type: fc.constant("updateCharacter"),
+      character: fc.record({
+        id: fc.constantFrom("pc-1", "pc-2"),
+        name: fc.constant("Bo"),
+        ac: fc.constant(12),
+        hp: anyValue,
+        hpMax: fc.constant(9),
+        passive: fc.constant(10),
+        speed: fc.constant(30),
+      }),
+    }),
+    fc.record({ type: fc.constant("removeCharacter"), id: fc.constantFrom("pc-1", "red") }),
+    fc.record({ type: fc.constantFrom("startFight", "endFight", "nextTurn") }),
+    fc.record({
+      type: fc.constant("initiative"),
+      who: fc.constantFrom("pc-1", "pc-2", "red", "yellow"),
+      init: fc.oneof(anyValue, fc.integer({ min: -2, max: 3 })),
+    }),
+    fc.record({ type: fc.constant("swapTie"), who: fc.constantFrom("pc-1", "red"), by: fc.constantFrom(-1, 1, -0) }),
     fc.record({
       type: fc.constant("fog"),
       op: fc.oneof(
@@ -159,7 +230,7 @@ test("the same commands give the same state, and any state saves and loads uncha
     }),
   );
   fc.assert(
-    fc.property(fc.array(command, { maxLength: 30 }), (commands: unknown[]) => {
+    fc.property(fc.array(command, { maxLength: 40 }), (commands: unknown[]) => {
       const s = run(commands);
       assert.deepEqual(run(commands), s);
       assert.deepEqual(parseSave(serialize(s)), { ok: true, state: s });
@@ -180,6 +251,6 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
   // A version 3 map has no fog: it loads all black.
   const v3 = { ...v2, version: 3, map: { id: "map-1", name: map.name, bounds: map.bounds, x: 4, y: 5, turns: 0 } };
   assert.deepEqual(parseSave(JSON.stringify(v3)), { ok: true, state: { ...defaultState(), calibrations: { window: cal }, map } });
-  assert.equal(parseSave(JSON.stringify({ version: 5, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 7, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });
