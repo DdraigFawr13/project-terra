@@ -3,6 +3,7 @@ import { defaultCalibration, moveCorner, nudgeCorner, type Calibration } from ".
 import { describeDisplay } from "../core/displays.ts";
 import { viewOf, type TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
+import { initMaps } from "./dm-map.ts";
 import { icon, type IconName } from "./icons.ts";
 
 const terra = (window as unknown as { terra: DmApi }).terra;
@@ -31,6 +32,7 @@ const FOCUS = css.getPropertyValue("--focus").trim();
 const PREVIEW_TEXT = {
   curtain: "Curtain: the table is blank",
   calibrate: "Calibration pattern",
+  map: "Map",
   testGrid: "Test grid",
   idle: "Title only",
 } as const;
@@ -55,7 +57,7 @@ function saveCalibration(cal: Calibration): void {
   state = { ...state, calibrations: { ...state.calibrations, [status.surfaceKey]: cal } };
   renderCalibration();
   pending++;
-  terra.patch({ calibrations: state.calibrations }).then((s) => {
+  terra.apply({ type: "calibrations", value: state.calibrations }).then((s) => {
     if (--pending === 0) renderState(s);
   });
 }
@@ -208,9 +210,11 @@ calWidth.addEventListener("change", sizeChanged);
 calHeight.addEventListener("change", sizeChanged);
 
 $<HTMLButtonElement>("calReset").addEventListener("click", () => status && saveCalibration(defaultCalibration(status.surface)));
-$<HTMLButtonElement>("calDone").addEventListener("click", () => terra.patch({ calibrating: false }));
-calibrateBtn.addEventListener("click", () => terra.patch({ calibrating: calibrateBtn.getAttribute("aria-pressed") !== "true" }));
-const toggleCurtain = () => terra.patch({ curtain: curtainBtn.getAttribute("aria-pressed") !== "true" });
+$<HTMLButtonElement>("calDone").addEventListener("click", () => terra.apply({ type: "calibrating", on: false }));
+calibrateBtn.addEventListener("click", () =>
+  terra.apply({ type: "calibrating", on: calibrateBtn.getAttribute("aria-pressed") !== "true" }),
+);
+const toggleCurtain = () => terra.apply({ type: "curtain", on: curtainBtn.getAttribute("aria-pressed") !== "true" });
 function togglePanels(): void {
   const open = panelsBtn.getAttribute("aria-pressed") !== "true";
   panelsBtn.setAttribute("aria-pressed", String(open));
@@ -220,21 +224,28 @@ function togglePanels(): void {
   renderCalibration();
 }
 
-testGridBtn.addEventListener("click", () => terra.patch({ testGrid: testGridBtn.getAttribute("aria-pressed") !== "true" }));
+testGridBtn.addEventListener("click", () => terra.apply({ type: "testGrid", on: testGridBtn.getAttribute("aria-pressed") !== "true" }));
 curtainBtn.addEventListener("click", toggleCurtain);
 panelsBtn.addEventListener("click", togglePanels);
 
 // Shortcuts (D-023). They never fire while typing, and Tab folds the panels only when no control has focus, so
 // Tab still moves between controls.
+const maps = initMaps(terra, ACCENT);
 window.addEventListener("keydown", (e) => {
   const t = e.target as HTMLElement;
+  if (t.closest("input, textarea, select, [contenteditable]")) return;
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    maps.undo();
+    return;
+  }
   if (e.ctrlKey || e.altKey || e.metaKey || t.closest("input, textarea, select, [contenteditable]")) return;
   if (e.key === "Tab" && !e.shiftKey && (t === document.body || t === document.documentElement)) {
     e.preventDefault();
     togglePanels();
   } else if (e.key === "b" || e.key === "B") toggleCurtain();
 });
-displaySelect.addEventListener("change", () => terra.patch({ playerDisplayId: Number(displaySelect.value) }));
+displaySelect.addEventListener("change", () => terra.apply({ type: "playerDisplay", id: Number(displaySelect.value) }));
 window.addEventListener("resize", renderCalibration);
 
 terra.onState(renderState);

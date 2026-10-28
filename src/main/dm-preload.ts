@@ -1,6 +1,8 @@
 // The DM window's only bridge to the main process. The page gets these calls and nothing else.
 import { contextBridge, ipcRenderer } from "electron";
-import type { TablePatch, TableState } from "../core/table.ts";
+import type { Command, TableState } from "../core/table.ts";
+import type { LibraryMap } from "./library.ts";
+import type { Bounds } from "../core/map.ts";
 import type { DisplayInfo } from "../core/displays.ts";
 import type { Surface } from "../core/calibration.ts";
 
@@ -17,7 +19,12 @@ export type TableStatus = {
 
 const api = {
   getState: (): Promise<TableState> => ipcRenderer.invoke("state:get"),
-  patch: (patch: TablePatch): Promise<TableState> => ipcRenderer.invoke("state:patch", patch),
+  apply: (command: Command): Promise<TableState> => ipcRenderer.invoke("state:apply", command),
+  undo: (): Promise<TableState> => ipcRenderer.invoke("state:undo"),
+  canUndo: (): Promise<boolean> => ipcRenderer.invoke("history:get"),
+  onHistory: (fn: (canUndo: boolean) => void) => ipcRenderer.on("history:changed", (_e, can: boolean) => fn(can)),
+  listMaps: (): Promise<LibraryMap[]> => ipcRenderer.invoke("library:list"),
+  saveMap: (name: string, png: Uint8Array, bounds: Bounds): Promise<LibraryMap> => ipcRenderer.invoke("library:save", name, png, bounds),
   getStatus: (): Promise<TableStatus> => ipcRenderer.invoke("table:status"),
   onState: (fn: (s: TableState) => void) => ipcRenderer.on("state:changed", (_e, s: TableState) => fn(s)),
   onStatus: (fn: (s: TableStatus) => void) => ipcRenderer.on("table:status", (_e, s: TableStatus) => fn(s)),

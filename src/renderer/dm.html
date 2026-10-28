@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: terra-map:"
+    />
     <title>Project Terra (DM)</title>
     <link rel="stylesheet" href="dm.css" />
   </head>
@@ -11,6 +14,7 @@
       <h1>Project Terra</h1>
       <span class="scene">No scene yet</span>
       <p id="status" role="status">Starting…</p>
+      <button id="setupBtn" type="button" aria-pressed="false" data-icon="setup" hidden>Table setup</button>
       <button id="panels" type="button" aria-pressed="true" data-icon="panelsClose" title="Show or fold the side panels (Tab)">
         Panels<kbd>Tab</kbd>
       </button>
@@ -30,54 +34,99 @@
       </aside>
 
       <main class="stage">
-        <section class="card lead" aria-labelledby="map-heading">
+        <section id="emptyMap" class="card lead" aria-labelledby="map-heading">
           <span class="lead-icon" data-icon="map"></span>
-          <div>
+          <div class="lead-body">
             <h2 id="map-heading">No map yet</h2>
-            <p class="hint">Map import arrives in step 4. Until then, set up the table screen here.</p>
+            <p class="hint">Import a picture or photo of a map. Maps stay in your library on this laptop.</p>
+            <button id="importMap" type="button" class="primary">Import map…</button>
+            <input id="mapFile" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+            <ul id="library" class="library" aria-label="Your maps"></ul>
           </div>
         </section>
 
-        <section class="card" aria-labelledby="table-heading">
-          <h2 id="table-heading">Table screen</h2>
-          <label for="display">Show the table on</label>
-          <select id="display"></select>
-          <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
-          <p class="hint">The test grid shows 1-inch squares. The curtain (top right, or B) blanks the table while you set up.</p>
-        </section>
-
-        <section class="card" aria-labelledby="cal-heading">
-          <h2 id="cal-heading">Calibration</h2>
-          <p id="calState" class="hint"></p>
-          <button id="calibrate" type="button" aria-pressed="false">Calibrate</button>
-          <div id="calTools" class="cal-tools" hidden>
-            <ol class="steps">
-              <li>With a ruler, mark a rectangle on the mat: a coin or tape at each corner.</li>
-              <li>Enter its size, then drag corners 1–4 below until each lands on its mark on the table.</li>
-              <li>Check one square with the ruler. It should be 1 inch.</li>
-            </ol>
-            <div class="size">
-              <label>Width <input id="calWidth" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
-              <label>Height <input id="calHeight" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
-            </div>
-            <canvas
-              id="calPreview"
-              tabindex="0"
-              aria-label="Table screen. Drag the numbered corners, or select one and use the arrow keys."
-            ></canvas>
-            <div class="row" role="group" aria-label="Selected corner">
-              <button type="button" class="corner" data-corner="0" aria-pressed="true">1</button>
-              <button type="button" class="corner" data-corner="1" aria-pressed="false">2</button>
-              <button type="button" class="corner" data-corner="2" aria-pressed="false">3</button>
-              <button type="button" class="corner" data-corner="3" aria-pressed="false">4</button>
-            </div>
-            <p class="hint">Arrow keys move the selected corner 1 pixel on the table screen; hold Shift for 10.</p>
-            <div class="row">
-              <button id="calReset" type="button">Start over</button>
-              <button id="calDone" type="button" class="primary">Done</button>
-            </div>
+        <section id="importer" class="card wide" aria-labelledby="import-heading" hidden>
+          <h2 id="import-heading">Mark a rectangle on the map</h2>
+          <ol class="steps">
+            <li>Drag corners 1–4 onto the corners of a block of grid squares, or any rectangle you know the size of.</li>
+            <li>Enter its size in squares. One square becomes 1 inch on the table.</li>
+            <li>Press “Straighten and place”. A slanted photo comes out square.</li>
+          </ol>
+          <div class="size">
+            <label>Name <input id="mapName" type="text" maxlength="120" /></label>
+            <label>Width <input id="markW" type="number" min="1" max="120" step="1" value="4" /> squares</label>
+            <label>Height <input id="markH" type="number" min="1" max="120" step="1" value="4" /> squares</label>
+          </div>
+          <canvas id="importCanvas" aria-label="The map picture. Drag the numbered corners onto a rectangle of grid squares."></canvas>
+          <p id="importStatus" class="hint" role="status"></p>
+          <div class="row">
+            <button id="importCancel" type="button">Cancel</button>
+            <button id="importOk" type="button" class="primary">Straighten and place</button>
           </div>
         </section>
+
+        <section id="mapView" class="card wide" aria-labelledby="mapTitle" hidden>
+          <div class="maptools">
+            <h2 id="mapTitle">Map</h2>
+            <button type="button" class="move" data-dx="-1" data-dy="0" aria-label="Move map left 1 inch">←</button>
+            <button type="button" class="move" data-dx="0" data-dy="-1" aria-label="Move map up 1 inch">↑</button>
+            <button type="button" class="move" data-dx="0" data-dy="1" aria-label="Move map down 1 inch">↓</button>
+            <button type="button" class="move" data-dx="1" data-dy="0" aria-label="Move map right 1 inch">→</button>
+            <button id="turnMap" type="button">Turn</button>
+            <button id="removeMap" type="button">Take off table</button>
+          </div>
+          <canvas
+            id="mapCanvas"
+            tabindex="0"
+            aria-label="The map on the table. Drag it, or use the arrow keys, to move it by whole inches."
+          ></canvas>
+          <p class="hint">
+            Drag the map or use the arrow keys to move it by whole inches. The dashed line is the edge of the table screen.
+          </p>
+        </section>
+
+        <div id="setupPane" class="setup">
+          <section class="card" aria-labelledby="table-heading">
+            <h2 id="table-heading">Table screen</h2>
+            <label for="display">Show the table on</label>
+            <select id="display"></select>
+            <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
+            <p class="hint">The test grid shows 1-inch squares. The curtain (top right, or B) blanks the table while you set up.</p>
+          </section>
+
+          <section class="card" aria-labelledby="cal-heading">
+            <h2 id="cal-heading">Calibration</h2>
+            <p id="calState" class="hint"></p>
+            <button id="calibrate" type="button" aria-pressed="false">Calibrate</button>
+            <div id="calTools" class="cal-tools" hidden>
+              <ol class="steps">
+                <li>With a ruler, mark a rectangle on the mat: a coin or tape at each corner.</li>
+                <li>Enter its size, then drag corners 1–4 below until each lands on its mark on the table.</li>
+                <li>Check one square with the ruler. It should be 1 inch.</li>
+              </ol>
+              <div class="size">
+                <label>Width <input id="calWidth" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
+                <label>Height <input id="calHeight" type="number" min="1" max="120" step="1" inputmode="numeric" /> in</label>
+              </div>
+              <canvas
+                id="calPreview"
+                tabindex="0"
+                aria-label="Table screen. Drag the numbered corners, or select one and use the arrow keys."
+              ></canvas>
+              <div class="row" role="group" aria-label="Selected corner">
+                <button type="button" class="corner" data-corner="0" aria-pressed="true">1</button>
+                <button type="button" class="corner" data-corner="1" aria-pressed="false">2</button>
+                <button type="button" class="corner" data-corner="2" aria-pressed="false">3</button>
+                <button type="button" class="corner" data-corner="3" aria-pressed="false">4</button>
+              </div>
+              <p class="hint">Arrow keys move the selected corner 1 pixel on the table screen; hold Shift for 10.</p>
+              <div class="row">
+                <button id="calReset" type="button">Start over</button>
+                <button id="calDone" type="button" class="primary">Done</button>
+              </div>
+            </div>
+          </section>
+        </div>
       </main>
 
       <aside class="side right" aria-label="Table preview and notes">
@@ -96,8 +145,10 @@
       <button type="button" data-icon="hide" disabled title="Arrives with fog in step 5">Hide<kbd>H</kbd></button>
       <button type="button" data-icon="marker" disabled title="Arrives with markers in step 6">Marker<kbd>M</kbd></button>
       <button type="button" data-icon="ping" disabled title="Arrives in step 7">Ping<kbd>P</kbd></button>
-      <button type="button" data-icon="undo" disabled title="Arrives with maps in step 4">Undo<kbd>Ctrl+Z</kbd></button>
-      <span class="tools-note">Map tools switch on as their steps arrive.</span>
+      <button id="undo" type="button" data-icon="undo" disabled title="Take back the last map change (Ctrl+Z)">
+        Undo<kbd>Ctrl+Z</kbd>
+      </button>
+      <span class="tools-note">Other tools switch on as their steps arrive.</span>
     </footer>
     <script src="dm.js"></script>
   </body>

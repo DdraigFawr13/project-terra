@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import zlib from "node:zlib";
 import { _electron as electron } from "playwright";
 
 async function launch(userData) {
@@ -108,6 +109,91 @@ test("an unreadable save is kept aside and the app starts fresh", async () => {
     // The packaged app has no console, so the DM window says what happened.
     await dm.waitForSelector("#notice:not([hidden])");
     assert.ok((await dm.textContent("#notice")).includes(kept));
+  } finally {
+    await app.close();
+  }
+});
+
+/** A PNG checkerboard of 50-pixel squares, 8 × 8, made here so the test needs no image files. */
+function checkerboardPng() {
+  const size = 400;
+  const raw = Buffer.alloc((size * 4 + 1) * size);
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) {
+      const v = (Math.floor(x / 50) + Math.floor(y / 50)) % 2 ? 40 : 230;
+      raw.set([v, v, v, 255], y * (size * 4 + 1) + 1 + x * 4);
+    }
+  const chunk = (type, data) => {
+    const head = Buffer.alloc(8);
+    head.writeUInt32BE(data.length);
+    head.write(type, 4, "ascii");
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(zlib.crc32(Buffer.concat([head.subarray(4), data])));
+    return Buffer.concat([head, data, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0);
+  ihdr.writeUInt32BE(size, 4);
+  ihdr.set([8, 6, 0, 0, 0], 8);
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", zlib.deflateSync(raw)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+test("a map picture is straightened, placed, moved and undone, and is still there after a restart", async () => {
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), "terra-e2e-"));
+  let { app, dm, table } = await launch(userData);
+  let id;
+  try {
+    await dm.setInputFiles("#mapFile", { name: "board.png", mimeType: "image/png", buffer: checkerboardPng() });
+    await dm.waitForSelector("#importer:not([hidden])");
+    // The starting rectangle is the picture's middle quarter: exactly 2 × 2 squares of this board.
+    await dm.fill("#markW", "2");
+    await dm.fill("#markH", "2");
+    await dm.click("#importOk");
+    await table.waitForFunction(() => document.body.dataset.view === "map");
+
+    // The table gets the map's place and extent but not its name (D-002). The marked block starts 3 squares in.
+    const view = await table.evaluate(() => window.terra.getView());
+    id = view.map.id;
+    assert.deepEqual(
+      { ...view.map, id: undefined },
+      { id: undefined, bounds: { x: -3, y: -3, width: 8, height: 8 }, x: 0, y: 0, turns: 0 },
+    );
+    assert.ok(!JSON.stringify(view).includes("board"));
+    // The picture is in the personal library, and terra-map:// serves only library maps.
+    assert.deepEqual(fs.readdirSync(path.join(userData, "library", "maps")).sort(), [`${id}.json`, `${id}.png`]);
+    const served = await table.evaluate(async (mapId) => {
+      const width = (src) =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img.naturalWidth);
+          img.onerror = () => resolve(0);
+          img.src = src;
+        });
+      return [await width(`terra-map://${mapId}/`), await width("terra-map://map-nope/")];
+    }, id);
+    // 400 × 400 picture at 50 pixels a square, straightened at the same 50 pixels per inch.
+    assert.deepEqual(served, [400, 0]);
+
+    // Move right by one inch, then take it back with Ctrl+Z.
+    await dm.click("button.move[data-dx='1']");
+    await table.waitForFunction(async () => (await window.terra.getView()).map?.x === 1);
+    await dm.evaluate(() => document.activeElement.blur());
+    await dm.keyboard.press("Control+z");
+    await table.waitForFunction(async () => (await window.terra.getView()).map?.x === 0);
+  } finally {
+    await app.close();
+  }
+
+  ({ app, dm, table } = await launch(userData));
+  try {
+    await table.waitForFunction(() => document.body.dataset.view === "map");
+    assert.equal((await table.evaluate(() => window.terra.getView())).map.id, id);
+    assert.match(await dm.textContent("#mapTitle"), /board/);
   } finally {
     await app.close();
   }

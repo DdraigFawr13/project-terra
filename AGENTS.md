@@ -41,6 +41,7 @@ Sessions on this project may not have the AI-Master-Instructions repo. Everythin
 - Player-facing text appears twice, once facing each long side of the table (D-008).
 - Anything projected counts as working only with Morgan's photo of the table (VER-07, D-016).
 - Saves carry a version, and an unreadable save is kept aside, never overwritten (GAME-05).
+- Numbers read from saves or IPC are normalised with `+ 0` before storing: `-0` passes integer checks but JSON saves it as `0` (LESSONS ×2). Keep `-0` in the property tests' inputs.
 - At the end of each plan step, review the tests: cut or merge what is redundant, and keep the time budgets (D-020).
 
 ## Overrides

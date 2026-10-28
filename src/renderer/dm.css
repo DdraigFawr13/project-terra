@@ -44,6 +44,10 @@
 * {
   box-sizing: border-box;
 }
+/* Elements with display set (cards, grids) would otherwise ignore the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
 html,
 body {
   height: 100%;
@@ -290,4 +294,64 @@ input[type="number"] {
   border-radius: 6px;
   touch-action: none;
   cursor: crosshair;
+}
+.card.wide {
+  grid-column: 1 / -1;
+}
+.setup {
+  display: contents;
+}
+.setup[hidden] {
+  display: none;
+}
+.lead-body {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.library {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.maptools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.maptools h2 {
+  flex: 1;
+  color: var(--ink);
+}
+.maptools .move {
+  min-width: var(--target);
+  font-size: 1.1rem;
+}
+#importCanvas,
+#mapCanvas {
+  width: 100%;
+  background: #000;
+  border-radius: 6px;
+  touch-action: none;
+}
+#importCanvas {
+  cursor: crosshair;
+}
+#mapCanvas {
+  height: calc(100vh - 290px);
+  min-height: 240px;
+  cursor: grab;
+}
+input[type="text"] {
+  font: inherit;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: var(--target);
+  padding: 0 8px;
+  width: 16em;
 }
