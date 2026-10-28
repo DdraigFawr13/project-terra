@@ -18,19 +18,33 @@
       <button id="panels" type="button" aria-pressed="true" data-icon="panelsClose" title="Show or fold the side panels (Tab)">
         Panels<kbd>Tab</kbd>
       </button>
+      <button id="partyBtn" type="button" data-icon="party" title="Characters: HP, AC and the rest">Party</button>
       <button id="curtain" type="button" aria-pressed="false" data-icon="curtain" title="Blank the table (B)">Curtain<kbd>B</kbd></button>
-      <button id="nextTurn" type="button" class="primary" data-icon="nextTurn" disabled title="Initiative arrives in step 6">
-        Next turn<kbd>N</kbd>
-      </button>
+      <button id="nextTurn" type="button" class="primary" data-icon="nextTurn" disabled title="Next turn (N)">Next turn<kbd>N</kbd></button>
     </header>
     <p id="notice" role="alert" hidden></p>
 
     <div class="work">
-      <aside class="side left" aria-label="Initiative and markers">
-        <h2>Initiative</h2>
-        <p class="empty">Turn order, whose turn it is and enemy condition arrive in step 6.</p>
-        <h2>Markers</h2>
-        <p class="empty">Enemy discs and hidden groups arrive in step 6.</p>
+      <aside class="side left" aria-label="Initiative, markers and characters">
+        <section class="panel" aria-labelledby="init-heading">
+          <div class="panel-head">
+            <h2 id="init-heading">Initiative</h2>
+            <span id="round" class="round"></span>
+          </div>
+          <button id="startFight" type="button" class="primary">Start fight</button>
+          <ol id="order" class="entries" aria-label="Turn order"></ol>
+          <div id="unrolledBox" hidden>
+            <h3>Not rolled yet</h3>
+            <ul id="unrolled" class="entries" aria-label="Not rolled yet"></ul>
+          </div>
+          <button id="endFight" type="button" hidden>End fight</button>
+        </section>
+        <section class="panel" aria-labelledby="groups-heading">
+          <h2 id="groups-heading">Groups</h2>
+          <p id="groupsEmpty" class="empty">Pick Marker (M) below, a colour and a size, then tap the map. New discs start hidden.</p>
+          <ul id="groups" class="entries" aria-label="Enemy groups by colour"></ul>
+          <p class="hint">Open a group for its HP, notes and stat block. Tapping a disc on the map opens it too.</p>
+        </section>
       </aside>
 
       <main class="stage">
@@ -81,8 +95,8 @@
             aria-label="The map on the table. With Select, drag it or use the arrow keys to move it by whole inches. With Reveal or Hide, paint the fog."
           ></canvas>
           <p class="hint">
-            Select (V) moves the map by whole inches. Reveal (R) and Hide (H) paint the fog; two fingers cancel a stroke, and so does Esc.
-            The dashed line is the edge of the table screen.
+            Select (V) moves the map by whole inches, or a disc by its squares. Reveal (R) and Hide (H) paint the fog; Marker (M) places
+            discs. Two fingers cancel a stroke, and so does Esc. The dashed line is the edge of the table screen.
           </p>
         </section>
 
@@ -92,7 +106,11 @@
             <label for="display">Show the table on</label>
             <select id="display"></select>
             <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
-            <p class="hint">The test grid shows 1-inch squares. The curtain (top right, or B) blanks the table while you set up.</p>
+            <button id="flipLetters" type="button" aria-pressed="false">Flip disc letters</button>
+            <p class="hint">
+              The test grid shows 1-inch squares. The curtain (top right, or B) blanks the table while you set up. Disc letters read upright
+              from the bottom edge of the picture; Flip turns them to face the far side.
+            </p>
           </section>
 
           <section class="card" aria-labelledby="cal-heading">
@@ -168,7 +186,7 @@
         Hide<kbd>H</kbd>
       </button>
       <span class="tool-sep" aria-hidden="true"></span>
-      <div class="tool-group" role="group" aria-label="Draw with (S switches)">
+      <div id="drawWith" class="tool-group" role="group" aria-label="Draw with (S switches)">
         <button type="button" data-draw="brush" data-icon="brush" aria-pressed="true" disabled>Brush<kbd>S</kbd></button>
         <button type="button" data-draw="outline" data-icon="outline" aria-pressed="false" disabled>Outline<kbd>S</kbd></button>
         <button type="button" data-draw="box" data-icon="box" aria-pressed="false" disabled>Box<kbd>S</kbd></button>
@@ -179,12 +197,50 @@
         <button type="button" data-size="4" aria-pressed="false" aria-label="4-inch brush" disabled><span class="dot s4"></span>4″</button>
       </div>
       <span class="tool-sep" aria-hidden="true"></span>
-      <button type="button" data-icon="marker" disabled title="Arrives with markers in step 6">Marker<kbd>M</kbd></button>
+      <button type="button" data-tool="marker" data-icon="marker" aria-pressed="false" disabled title="Place enemy discs (M)">
+        Marker<kbd>M</kbd>
+      </button>
+      <div id="markerOpts" class="tool-group" role="group" aria-label="Disc colour and size" hidden>
+        <button type="button" data-colour="yellow" aria-pressed="true" aria-label="Yellow" disabled>
+          <span class="swatch yellow"></span>Yellow
+        </button>
+        <button type="button" data-colour="red" aria-pressed="false" aria-label="Red" disabled><span class="swatch red"></span>Red</button>
+        <button type="button" data-colour="blue" aria-pressed="false" aria-label="Blue" disabled>
+          <span class="swatch blue"></span>Blue
+        </button>
+        <button type="button" data-colour="green" aria-pressed="false" aria-label="Green" disabled>
+          <span class="swatch green"></span>Green
+        </button>
+        <button type="button" data-colour="purple" aria-pressed="false" aria-label="Purple" disabled>
+          <span class="swatch purple"></span>Purple
+        </button>
+        <button type="button" data-colour="orange" aria-pressed="false" aria-label="Orange" disabled>
+          <span class="swatch orange"></span>Orange
+        </button>
+        <span class="tool-sep" aria-hidden="true"></span>
+        <button type="button" data-disc-size="1" aria-pressed="true" aria-label="1-inch disc: Medium or smaller" disabled>
+          1″<small>M</small>
+        </button>
+        <button type="button" data-disc-size="2" aria-pressed="false" aria-label="2-inch disc: Large" disabled>2″<small>L</small></button>
+        <button type="button" data-disc-size="3" aria-pressed="false" aria-label="3-inch disc: Huge" disabled>3″<small>H</small></button>
+        <button type="button" data-disc-size="4" aria-pressed="false" aria-label="4-inch disc: Gargantuan" disabled>
+          4″<small>G</small>
+        </button>
+      </div>
       <button type="button" data-icon="ping" disabled title="Arrives in step 7">Ping<kbd>P</kbd></button>
-      <button id="undo" type="button" class="undo" data-icon="undo" disabled title="Take back the last map or fog change (Ctrl+Z)">
+      <button
+        id="undo"
+        type="button"
+        class="undo"
+        data-icon="undo"
+        disabled
+        title="Take back the last map, fog, disc or turn change (Ctrl+Z)"
+      >
         Undo<kbd>Ctrl+Z</kbd>
       </button>
     </footer>
+    <!-- Floating windows (D-028) sit above everything else in this window. -->
+    <div id="floats"></div>
     <script src="dm.js"></script>
   </body>
 </html>

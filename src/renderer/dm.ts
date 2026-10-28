@@ -1,10 +1,14 @@
 // DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004). The right panel
 // shows a live picture of the table, drawn by the table's own drawing code (D-025).
-import { defaultCalibration, layerFor, moveCorner, nudgeCorner, type Calibration } from "../core/calibration.ts";
+import { defaultCalibration, layerFor, moveCorner, nudgeCorner, visibleRect, type Calibration } from "../core/calibration.ts";
 import { describeDisplay } from "../core/displays.ts";
 import { playerViewOf, viewOf, type TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
+import { initFight } from "./dm-fight.ts";
 import { initMaps } from "./dm-map.ts";
+import { initMonsters } from "./dm-monsters.ts";
+import { initParty } from "./dm-party.ts";
+import type { DiscColour } from "../core/fight.ts";
 import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
 import { drawTable, mapImages } from "./table-draw.ts";
@@ -72,6 +76,7 @@ function renderState(s: TableState): void {
   testGridBtn.setAttribute("aria-pressed", String(s.testGrid));
   curtainBtn.setAttribute("aria-pressed", String(s.curtain));
   calibrateBtn.setAttribute("aria-pressed", String(s.calibrating));
+  $<HTMLButtonElement>("flipLetters").setAttribute("aria-pressed", String(s.flipLetters));
   renderCalibration();
   drawTablePreview();
 }
@@ -93,7 +98,11 @@ function drawTablePreview(): void {
   tablePreview.style.height = `${h}px`;
   tablePreview.width = Math.round(w * dpr);
   tablePreview.height = Math.round(h * dpr);
-  drawTable(tablePreview.getContext("2d")!, { cal, layer, mode, calibrated: !!view.calibration, view, image, fog }, dpr * k);
+  drawTable(
+    tablePreview.getContext("2d")!,
+    { cal, layer, mode, calibrated: !!view.calibration, view, image, fog, area: visibleRect(cal, status.surface) },
+    dpr * k,
+  );
 }
 
 function renderStatus(st: TableStatus): void {
@@ -263,7 +272,24 @@ const image = mapImages(() => {
   maps.render();
   drawTablePreview();
 });
-const maps = initMaps(terra, ACCENT, fog, image);
+// The disc picked on the map or in its monster window, highlighted in both. A tap on a disc also opens its window.
+let picked: string | null = null;
+const selection = {
+  get: () => picked,
+  set: (key: string | null, open = false) => {
+    picked = key;
+    maps.render();
+    if (key && open) monsters.show(key.split("-")[0] as DiscColour);
+    else monsters.render();
+  },
+};
+const maps = initMaps(terra, ACCENT, fog, image, selection);
+const monsters = initMonsters(terra, selection);
+const fight = initFight(terra, monsters.show);
+const party = initParty(terra);
+$<HTMLButtonElement>("partyBtn").addEventListener("click", party.show);
+const flipBtn = $<HTMLButtonElement>("flipLetters");
+flipBtn.addEventListener("click", () => terra.apply({ type: "flipLetters", on: flipBtn.getAttribute("aria-pressed") !== "true" }));
 window.addEventListener("keydown", (e) => {
   const t = e.target as HTMLElement;
   if (t.closest("input, textarea, select, [contenteditable]")) return;
@@ -277,6 +303,8 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     togglePanels();
   } else if (e.key === "b" || e.key === "B") toggleCurtain();
+  // A held N would skip turns.
+  else if ((e.key === "n" || e.key === "N") && !e.repeat) fight.next();
   else if (e.key === "Escape") maps.cancel();
   else maps.shortcut(e.key);
 });

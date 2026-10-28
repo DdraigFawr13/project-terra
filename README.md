@@ -43,6 +43,18 @@ A map starts all black on the table. In the bottom toolbar:
 
 The picture at the top right is drawn by the same code as the table. Check it matches the table.
 
+### Initiative, markers and character cards (step 6)
+
+1. **Party** (top bar) opens a window with a tab per character. Tap **+** to add one: name, AC, HP max, speed, passive Perception, and if you like passive Insight and Investigation, spell save DC and notes. To change HP, tap the amount on the number pad, then **Damage**, **Heal** or **Temp HP**. Damage takes temp HP first.
+2. **Marker** (M) in the bottom toolbar: pick a colour and a size (1″ Medium, 2″ Large, 3″ Huge, 4″ Gargantuan), then tap the map. Each colour gives letters A, B, C… New discs start hidden: **Hidden** by the colour in the left panel shows them all, and each disc has its own eye in its monster window.
+3. Tap a disc with **Select** (V) to open its colour's window. Drag a disc to move it by whole squares. In the window, tap a disc, tap the amount, tap **Damage** or **Heal**. The word on the table follows HP: Bloodied at half or below, Near death at a quarter or below; a disc at 0 leaves the table.
+4. **Edit** sets the group's name (only you see it), AC, speed, HP max and notes, and a different HP max for any disc. **Book** shows the stat block: the first time, tap **Import library file…** and pick `data/monsters/mm2024.json` from the private library repo. Only entries checked against the page can be used; picking one fills AC, HP and speed.
+5. Drag any window by its title bar; — folds it to a bar and × closes it. Windows reopen where you left them.
+6. **Start fight**, then type each roll; one roll per colour. Ties keep the order you typed; ↑ ↓ swap them. **Next turn** (N) moves on and counts rounds. The turn strip runs along both long edges of the table; a hidden colour joins it only when shown.
+7. Disc letters read upright from the bottom edge of the picture. If that's the far side of your table, **Flip disc letters** in **Table setup** turns them. Ctrl+Z undoes discs, HP on discs and turns, never a character's HP.
+
+Try a mock round with dice: enter the party, place two colours, link one to its stat block, roll, and press N round the table twice while dealing damage.
+
 ## Develop
 
 Node 22.22.0 and npm 10.9.4. On Windows, a version manager such as [fnm](https://github.com/Schniz/fnm) picks up `.nvmrc`; newer Node works but warns.

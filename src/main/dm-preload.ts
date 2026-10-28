@@ -2,6 +2,8 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { Command, TableState } from "../core/table.ts";
 import type { LibraryMap } from "./library.ts";
+import type { ImportResult } from "./creatures.ts";
+import type { CreatureHit, StatBlock } from "../core/creatures.ts";
 import type { Bounds } from "../core/map.ts";
 import type { DisplayInfo } from "../core/displays.ts";
 import type { Surface } from "../core/calibration.ts";
@@ -26,6 +28,10 @@ const api = {
   listMaps: (): Promise<LibraryMap[]> => ipcRenderer.invoke("library:list"),
   saveMap: (name: string, png: Uint8Array, bounds: Bounds): Promise<LibraryMap> => ipcRenderer.invoke("library:save", name, png, bounds),
   getStatus: (): Promise<TableStatus> => ipcRenderer.invoke("table:status"),
+  importCreatures: (text: string): Promise<ImportResult> => ipcRenderer.invoke("creatures:import", text),
+  searchCreatures: (query: string): Promise<CreatureHit[]> => ipcRenderer.invoke("creatures:search", query),
+  getCreature: (key: string): Promise<StatBlock | null> => ipcRenderer.invoke("creatures:get", key),
+  countCreatures: (): Promise<number> => ipcRenderer.invoke("creatures:count"),
   onState: (fn: (s: TableState) => void) => ipcRenderer.on("state:changed", (_e, s: TableState) => fn(s)),
   onStatus: (fn: (s: TableStatus) => void) => ipcRenderer.on("table:status", (_e, s: TableStatus) => fn(s)),
 };
