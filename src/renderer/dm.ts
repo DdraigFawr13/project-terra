@@ -126,6 +126,7 @@ function renderState(s: TableState): void {
   $<HTMLButtonElement>("flipLetters").setAttribute("aria-pressed", String(s.flipLetters));
   renderCalibration();
   drawTablePreview();
+  renderReady();
 }
 
 /** The table in miniature: the same drawing as the table window, without the projector's warp. */
@@ -174,6 +175,29 @@ function renderStatus(st: TableStatus): void {
   noticeEl.textContent = st.notice ?? "";
   renderCalibration();
   drawTablePreview();
+  renderReady();
+}
+
+/** The first screen's checklist (D-038): each step ticks itself off from the table as it is now. */
+function renderReady(): void {
+  if (!state || !status) return;
+  const step = (id: string, done: boolean, note: string) => {
+    const li = $(id);
+    li.classList.toggle("done", done);
+    li.querySelector("small")!.textContent = note;
+  };
+  const shown = status.displays.find((d) => d.id === status!.playerDisplayId);
+  step(
+    "readyScreen",
+    status.fullscreen,
+    status.fullscreen && shown
+      ? `The table is fullscreen on ${describeDisplay(shown, status.displays)}.`
+      : "Plug in the projector, then pick it in Setup. Until then the table opens in a window here.",
+  );
+  const calibrated = !!state.calibrations[status.surfaceKey];
+  step("readyCal", calibrated, calibrated ? "Done for this screen." : "Line the table up with a rectangle marked on the mat.");
+  const n = state.party.length;
+  step("readyParty", n > 0, n ? `${n} character${n === 1 ? "" : "s"}.` : "Names, AC, HP and passives, typed in once and kept.");
 }
 
 function renderCalibration(): void {
@@ -197,8 +221,12 @@ function renderCalibration(): void {
 function drawPreview(cal: Calibration): void {
   if (!status) return;
   const dpr = window.devicePixelRatio || 1;
-  const w = preview.clientWidth;
-  const h = Math.round((w * status.surface.height) / status.surface.width);
+  // As big as the calibrate step's room allows, keeping the table screen's shape (D-038).
+  const frame = preview.parentElement!;
+  const aspect = status.surface.width / status.surface.height;
+  const w = Math.floor(Math.min(frame.clientWidth, frame.clientHeight ? frame.clientHeight * aspect : Infinity));
+  const h = Math.round(w / aspect);
+  preview.style.width = `${w}px`;
   preview.style.height = `${h}px`;
   preview.width = Math.round(w * dpr);
   preview.height = Math.round(h * dpr);
@@ -359,7 +387,8 @@ afterLayout = () => {
 // The map and the panel change size when the panel's edge moves or it folds: draw them again at their new size.
 new ResizeObserver(() => afterLayout()).observe($("mapCanvas"));
 new ResizeObserver(() => drawTablePreview()).observe($("preview"));
-new ResizeObserver(() => renderCalibration()).observe($("setupPanel"));
+new ResizeObserver(() => renderCalibration()).observe($("calTools"));
+new ResizeObserver(() => afterLayout()).observe($("importFrame"));
 
 // Start fight switches the panel to Fight, End fight back to Explore (D-038).
 let fighting: boolean | null = null;
@@ -368,6 +397,15 @@ terra.onState((s) => {
   if (fighting !== null && !!s.fight !== fighting) panel.show(s.fight ? "fight" : "explore");
   fighting = !!s.fight;
 });
+
+$("readyScreenBtn").addEventListener("click", () => {
+  panel.show("setup");
+  displaySelect.focus();
+});
+$("readyCalBtn").addEventListener("click", () => {
+  if (!pressed("calibrate")) calibrateBtn.click();
+});
+$("readyPartyBtn").addEventListener("click", () => party.show());
 
 const monsters = initMonsters(terra, selection);
 const quick = initQuickHp(terra, monsters.show, () => party.show());

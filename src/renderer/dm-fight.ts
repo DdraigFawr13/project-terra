@@ -113,9 +113,15 @@ export function initFight(
     );
     return [
       open,
+      // On table / Off table (D-038): a switch with the word on it, for every disc of the colour.
       button(
-        hidden ? "Hidden" : "Shown",
-        { class: "eye", "aria-pressed": String(!hidden), "aria-label": `Show or hide every ${COLOUR_NAME[c].toLowerCase()} disc` },
+        hidden ? "Off table" : "On table",
+        {
+          class: "eye",
+          role: "switch",
+          "aria-checked": String(!hidden),
+          "aria-label": `${COLOUR_NAME[c]} discs on the table`,
+        },
         () => run({ type: "showDiscs", colour: c, letter: null, on: !!hidden }),
         hidden ? "hide" : "reveal",
       ),
