@@ -13,6 +13,7 @@ import {
   drawTable,
   FONT,
   mapImages,
+  onPortraitLoad,
   PING_MS,
   SKETCH_MS,
   sketchAlpha,
@@ -42,6 +43,7 @@ let player: PlayerView | null = null;
 
 const fog = new FogPainter();
 const image = mapImages(draw);
+onPortraitLoad(draw);
 terra.onMapPatched(image.reload);
 
 function surfaceNow(): Surface {

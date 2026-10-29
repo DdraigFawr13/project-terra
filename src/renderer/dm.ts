@@ -15,7 +15,7 @@ import { initDock, type Home, type Preset } from "./dock.ts";
 import { useDock } from "./float-win.ts";
 import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
-import { drawTable, mapImages } from "./table-draw.ts";
+import { drawTable, mapImages, onPortraitLoad } from "./table-draw.ts";
 
 // ---- Appearance (D-033): this laptop's own, like the layouts; set first so the window never flashes another look ----
 const APPEARANCE_KEY = "terra.appearance.v1";
@@ -315,6 +315,10 @@ const image = mapImages(() => {
 // The preview shows what the table gets: a patched map's clean copy (D-036).
 const tableImage = mapImages(drawTablePreview, "table");
 terra.onMapPatched(tableImage.reload);
+onPortraitLoad(() => {
+  maps.render();
+  drawTablePreview();
+});
 // The disc picked on the map or in its monster sheet, highlighted in both. A tap on a disc opens its HP pad (D-032).
 let picked: string | null = null;
 const selection = {

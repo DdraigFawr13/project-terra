@@ -30,6 +30,8 @@ export type StatBlock = {
   legendary: { intro: string; actions: Feature[] } | null;
   /** Compared word by word against the page (D-026). Only these can be linked to a disc. */
   checked: boolean;
+  /** The creature's picture cropped from the book, as a data URL, or null (D-036). Shown to the table only after Reveal. */
+  portrait: string | null;
 };
 
 /** One row of a search result. */
@@ -45,6 +47,9 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 const str = (v: unknown, max = 4000): string | null => (typeof v === "string" && v.length <= max ? v : null);
 const num = (v: unknown): number | null => (Number.isInteger(v) && Math.abs(v as number) <= 100000 ? (v as number) + 0 : null);
 const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.length <= 400) : []);
+/** A portrait in a library file: a JPEG, PNG or WebP data URL of at most about 400 KB. */
+const PORTRAIT = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/;
+const portraitOf = (v: unknown): string | null => (typeof v === "string" && v.length <= 550_000 && PORTRAIT.test(v) ? v : null);
 const signed = (n: number) => (n >= 0 ? `+${n}` : String(n));
 
 function features(v: unknown): Feature[] {
@@ -139,6 +144,7 @@ export function parseCreature(raw: unknown): StatBlock | null {
     reactions: features(raw.reactions),
     legendary,
     checked: isObject(raw.checks) && raw.checks.pageChecked === true,
+    portrait: portraitOf(raw.portrait),
   };
 }
 

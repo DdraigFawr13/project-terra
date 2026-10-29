@@ -288,7 +288,7 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
     ok: true,
     state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
   });
-  assert.equal(parseSave(JSON.stringify({ version: 12, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 13, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });
 
@@ -416,6 +416,22 @@ test("revealed tokens (D-036): the table gets a group's symbol only after Reveal
   );
   assert.deepEqual([disc(s2).symbol, disc(s2).mini], ["undead", true]);
   assert.ok(!JSON.stringify(playerViewOf(s2, "window")).includes("Secret"));
+  // Portraits: on 2-inch tokens once the linked creature has one; on 1-inch tokens only when the DM asks.
+  const linked = { ...zombies, revealed: true, creature: "MM2024:zombie", hasPortrait: true };
+  const s3 = run(
+    [
+      { type: "group", colour: "yellow", info: linked },
+      { type: "placeDisc", colour: "yellow", x: 5, y: 5, size: 2 },
+      { type: "showDiscs", colour: "yellow", letter: null, on: true },
+    ],
+    s2,
+  );
+  const [small, big] = playerViewOf(s3, "window").discs;
+  assert.equal(small!.portrait, null);
+  assert.match(big!.portrait!, /^yellow\/[a-z0-9]+$/);
+  assert.ok(!big!.portrait!.includes("zombie"));
+  const s4 = run([{ type: "group", colour: "yellow", info: { ...linked, smallPortrait: true } }], s3);
+  assert.equal(playerViewOf(s4, "window").discs[0]!.portrait, big!.portrait);
   assert.equal(parseCommand({ type: "group", colour: "yellow", info: { ...zombies, symbol: "zombie" } }), null);
   assert.deepEqual(parseSave(serialize(s2)), { ok: true, state: s2 });
 });

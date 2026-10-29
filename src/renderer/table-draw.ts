@@ -105,7 +105,7 @@ export function drawPin(ctx: CanvasRenderingContext2D, x: number, y: number, inc
  */
 export function drawDisc(
   ctx: CanvasRenderingContext2D,
-  disc: Pick<PlayerDisc, "colour" | "letter"> & Partial<Pick<PlayerDisc, "symbol" | "mini">>,
+  disc: Pick<PlayerDisc, "colour" | "letter"> & Partial<Pick<PlayerDisc, "symbol" | "portrait" | "mini">>,
   x: number,
   y: number,
   d: number,
@@ -113,19 +113,31 @@ export function drawDisc(
 ): void {
   const { fill, ink } = DISC_HEX[disc.colour];
   const r = d / 2;
+  const revealed = !!(disc.symbol || disc.portrait);
+  // A portrait shows once its picture has arrived; until then, the symbol.
+  const picture = disc.portrait ? portraitImage(disc.portrait) : null;
   ctx.beginPath();
   ctx.arc(x, y, r * 0.92, 0, Math.PI * 2);
-  ctx.fillStyle = disc.symbol ? TOKEN_GROUND : fill;
+  ctx.fillStyle = revealed ? TOKEN_GROUND : fill;
   ctx.fill();
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(turn);
-  if (disc.symbol) {
-    // Revealed (D-036): the symbol on a dark ground inside a ring of the group's colour.
+  if (revealed) {
+    // Revealed (D-036): the portrait, or the symbol on a dark ground, inside a ring of the group's colour.
+    if (picture) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(picture, -r * 0.92, -r * 0.92, r * 1.84, r * 1.84);
+      ctx.restore();
+    } else if (disc.symbol) drawSymbol(ctx, disc.symbol, 0, 0, r * 0.58, TOKEN_INK, TOKEN_GROUND);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
     ctx.lineWidth = r * 0.2;
     ctx.strokeStyle = fill;
     ctx.stroke();
-    drawSymbol(ctx, disc.symbol, 0, 0, r * 0.58, TOKEN_INK, TOKEN_GROUND);
   } else {
     ctx.lineWidth = r * 0.14;
     ctx.strokeStyle = "#ffffff";
@@ -139,7 +151,7 @@ export function drawDisc(
     const w = Math.max(r * 1.1, t * 1.2);
     tag(ctx, -w / 2, r * 1.02, w, t * 1.15, fill);
     letterAt(ctx, disc.letter, 0, r * 1.02 + t * 0.58, t, ink);
-  } else if (disc.symbol) {
+  } else if (revealed) {
     const bx = r * 0.58;
     ctx.beginPath();
     ctx.arc(bx, bx, r * 0.47, 0, Math.PI * 2);
@@ -151,6 +163,22 @@ export function drawDisc(
     letterAt(ctx, disc.letter, bx, bx, r * 0.64, ink);
   }
   ctx.restore();
+}
+
+/** Revealed groups' portraits (D-036), loaded once each by the key the table was given; listeners redraw on arrival. */
+const portraits = new Map<string, HTMLImageElement>();
+const portraitListeners: (() => void)[] = [];
+export const onPortraitLoad = (fn: () => void) => void portraitListeners.push(fn);
+
+function portraitImage(key: string): HTMLImageElement | null {
+  let img = portraits.get(key);
+  if (!img) {
+    img = new Image();
+    img.src = `terra-portrait://${key}`;
+    img.onload = () => portraitListeners.forEach((fn) => fn());
+    portraits.set(key, img);
+  }
+  return img.complete && img.naturalWidth > 0 ? img : null;
 }
 
 /** A revealed token's ground and symbol colours: dark and light, readable under any disc colour's ring. */

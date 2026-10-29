@@ -37,13 +37,14 @@ import {
   type Groups,
   type Strip,
   type Who,
+  tokenLook,
   type CreatureType,
 } from "./fight.ts";
 import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
-const SAVE_VERSION = 11;
+const SAVE_VERSION = 12;
 /** Pins on one map at most: plenty for marks, and a stuck pen can't fill the save. */
 export const MAX_PINS = 40;
 
@@ -224,9 +225,9 @@ export function viewOf(state: TableState): TableView {
 
 /** A disc as the table draws it: centre in table inches, nothing about its group or condition. */
 /**
- * A disc as the players see it. `symbol` is its group's creature-type symbol once the DM taps Reveal, else null: the
- * one thing from the DM's group info that reaches the table, never its name or stats (D-036). `mini`: its letter goes
- * on a tab below, clear of the mini standing on it.
+ * A disc as the players see it. Once the DM taps Reveal, `symbol` is its group's creature-type symbol and `portrait`
+ * a key to its picture: the only things from the DM's group info that reach the table, never its name or stats
+ * (D-036). `mini`: its letter goes on a tab below, clear of the mini standing on it.
  */
 export type PlayerDisc = {
   colour: DiscColour;
@@ -235,6 +236,8 @@ export type PlayerDisc = {
   y: number;
   size: number;
   symbol: CreatureType | null;
+  /** The key the table loads the group's portrait by, or null (`tokenLook`). */
+  portrait: string | null;
   mini: boolean;
 };
 
@@ -265,9 +268,8 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
     discs: (m?.discs ?? [])
       .filter((d) => d.shown && conditionOf(d, m!.groups) !== "down")
       .map((d) => {
-        const g = m!.groups[d.colour];
-        const symbol = g?.revealed ? g.symbol : null;
-        return { colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size, symbol, mini: d.mini };
+        const look = tokenLook(d, m!.groups);
+        return { colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size, ...look, mini: d.mini };
       }),
     strip: stripOf(state.fight, m?.discs ?? [], m?.groups ?? {}, state.party),
     flipLetters: state.flipLetters,
@@ -645,7 +647,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.

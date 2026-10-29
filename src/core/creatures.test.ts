@@ -51,6 +51,12 @@ test("library stat blocks are read into what the monster window shows; broken on
     ["CR", "1/4 (XP 50)"],
   ]);
   assert.deepEqual(z!.actions, [{ name: "Slam", text: "Test attack." }]);
+  // A portrait (D-036) is an image data URL; anything else is left out, so a file can't point the app elsewhere.
+  const png = "data:image/png;base64,iVBORw0KGgo=";
+  const withArt = ["https://example.com/z.png", "data:text/html;base64,PGI+", png].map(
+    (portrait) => parseCreatureFile([{ ...zombie, portrait }])!.creatures[0]!.portrait,
+  );
+  assert.deepEqual([z!.portrait, ...withArt], [null, null, null, png]);
   assert.equal(parseCreatureFile({ creatures: [] }), null);
   assert.equal(parseCreatureFile([{ name: "no id" }]), null);
   // Search: every word must match; page-checked entries come first.

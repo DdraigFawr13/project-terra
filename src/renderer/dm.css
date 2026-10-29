@@ -1182,6 +1182,14 @@ button.condition.down {
 .card-form input {
   width: 100%;
 }
+.card-form label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-form label.check input {
+  width: auto;
+}
 .row-buttons {
   display: flex;
   gap: 6px;
@@ -1512,6 +1520,13 @@ input[type="search"] {
   display: grid;
   gap: 4px;
   font-size: 0.92rem;
+}
+.statblock .portrait {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--line);
 }
 .statblock h3 {
   margin: 0;
