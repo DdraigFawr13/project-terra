@@ -45,3 +45,5 @@ Finished entries moved out of HANDOFF.md (CTX-02). Newest last.
   - Main: `src/main/creatures.ts` stores imported library files in `<userData>/library/creatures/`; DM bridge only.
   - DM: floating windows (`float-win.ts`), number pad (`numpad.ts`), `dm-party.ts`, `dm-monsters.ts` (HP, Edit, Book), left panel `dm-fight.ts`. Undo keeps cards and drops rolls of removed characters.
   - Tests: 30 unit, 4 e2e (about 13 s). Real `mm2024.json` imports: 503 read, 6 checked.
+
+- 2026-10-28 Zoom (D-030) and movable windows with smaller controls (D-031), branch `windows-and-zoom`: `src/renderer/dock.ts` (areas, groups, tabs, floating, drop targets, layout in localStorage `terra.layout.v1`), sheets via `float-win.ts`, zoom and pan in `dm-map.ts`. Morgan picked both in popups; e2e runs the DM window at 1920 × 1080 at Morgan's request.

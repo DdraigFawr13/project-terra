@@ -6,7 +6,20 @@ import { cssMatrix3d } from "../core/homography.ts";
 import type { PlayerView } from "../core/table.ts";
 import type { PlayerApi } from "../main/player-preload.ts";
 import { FogPainter } from "./fog-draw.ts";
-import { ACCENT, drawPing, drawTable, FONT, mapImages, PING_MS, textBothSides, type TableMode } from "./table-draw.ts";
+import {
+  ACCENT,
+  drawLine,
+  drawPing,
+  drawTable,
+  FONT,
+  mapImages,
+  PING_MS,
+  SKETCH_MS,
+  sketchAlpha,
+  textBothSides,
+  type TableMode,
+} from "./table-draw.ts";
+import type { Ink } from "../core/table.ts";
 import type { Layer } from "../core/calibration.ts";
 import type { Point } from "../core/homography.ts";
 
@@ -22,6 +35,9 @@ const pingCanvas = document.getElementById("pings") as HTMLCanvasElement;
 const pctx = pingCanvas.getContext("2d")!;
 let pingLayer: Layer | null = null;
 let pings: { at: Point; start: number }[] = [];
+/** Fading lines (D-035), drawn on the same canvas as pings. */
+let sketches: { ink: Ink; points: Point[]; start: number }[] = [];
+let animating = false;
 let player: PlayerView | null = null;
 
 const fog = new FogPainter();
@@ -109,18 +125,33 @@ function draw(): void {
 
 function drawPings(now: number): void {
   pings = pings.filter((p) => now - p.start < PING_MS);
+  sketches = sketches.filter((s) => now - s.start < SKETCH_MS);
   const l = pingLayer;
   pctx.setTransform(1, 0, 0, 1, 0, 0);
   pctx.clearRect(0, 0, pingCanvas.width, pingCanvas.height);
-  if (!l) pings = [];
-  for (const p of pings)
-    drawPing(pctx, (p.at.x - l!.box.x) * l!.pxPerInch, (p.at.y - l!.box.y) * l!.pxPerInch, l!.pxPerInch, now - p.start);
-  if (pings.length) requestAnimationFrame(drawPings);
+  // The curtain or calibration ends them: they were moments on the map.
+  if (!l) pings = sketches = [];
+  const px = (p: Point) => ({ x: (p.x - l!.box.x) * l!.pxPerInch, y: (p.y - l!.box.y) * l!.pxPerInch });
+  for (const s of sketches) drawLine(pctx, s.points.map(px), s.ink, l!.pxPerInch, sketchAlpha(now - s.start));
+  for (const p of pings) {
+    const at = px(p.at);
+    drawPing(pctx, at.x, at.y, l!.pxPerInch, now - p.start);
+  }
+  animating = pings.length + sketches.length > 0;
+  if (animating) requestAnimationFrame(drawPings);
+}
+function animate(): void {
+  if (animating) return;
+  animating = true;
+  requestAnimationFrame(drawPings);
 }
 terra.onPing((at) => {
-  const start = pings.length === 0;
   pings.push({ at, start: performance.now() });
-  if (start) requestAnimationFrame(drawPings);
+  animate();
+});
+terra.onSketch((s) => {
+  sketches.push({ ...s, start: performance.now() });
+  animate();
 });
 
 window.addEventListener("resize", draw);

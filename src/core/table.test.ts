@@ -5,6 +5,8 @@ import { defaultCalibration } from "./calibration.ts";
 import {
   apply,
   defaultState,
+  MAX_DRAWINGS,
+  MAX_LINE_POINTS,
   MAX_PINS,
   parseCommand,
   parseSave,
@@ -29,6 +31,7 @@ const map: PlacedMap = {
   discs: [],
   groups: {},
   pins: [],
+  drawings: [],
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
@@ -83,6 +86,7 @@ test("the table window gets only the player view: no map name, the calibration f
     // Placing a map switches the test grid off (D-034).
     grid: false,
     pins: [],
+    drawings: [],
   });
   assert.equal(playerViewOf(s, "window").calibration, null);
   assert.ok(!JSON.stringify(playerViewOf(s, "display:7")).includes("Secret"));
@@ -281,7 +285,7 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
     ok: true,
     state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
   });
-  assert.equal(parseSave(JSON.stringify({ version: 9, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 10, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });
 
@@ -328,4 +332,53 @@ test("pins (D-034): placed in map inches, moved with the map, only table pins re
     { id: 1, x: 1, y: 1, table: true },
   ];
   assert.equal(parseSave(JSON.stringify(v7)).ok, false);
+});
+
+test("lasting drawings (D-035): kept in map inches, only the players' lines reach the table, removed, cleared and saved", () => {
+  const line = [
+    { x: 0, y: 0 },
+    { x: 1.234, y: 1 },
+  ];
+  const s = run([
+    { type: "placeMap", map },
+    { type: "draw", ink: "cyan", table: true, points: line },
+    { type: "draw", ink: "white", table: false, points: line },
+  ]);
+  assert.deepEqual(
+    s.map!.drawings.map((d) => [d.id, d.ink, d.table, d.points[1]]),
+    [
+      [1, "cyan", true, { x: 1.23, y: 1 }],
+      [2, "white", false, { x: 1.23, y: 1 }],
+    ],
+  );
+  assert.deepEqual(playerViewOf(s, "window").drawings, [
+    {
+      ink: "cyan",
+      points: [
+        { x: map.x, y: map.y },
+        { x: map.x + 1.23, y: map.y + 1 },
+      ],
+    },
+  ]);
+  assert.ok(["draw", "removeDrawing", "clearDrawings"].every((t) => UNDOABLE.has(t as Command["type"])));
+  assert.deepEqual(
+    run([{ type: "removeDrawing", id: 1 }], s).map!.drawings.map((d) => d.id),
+    [2],
+  );
+  assert.deepEqual(run([{ type: "clearDrawings" }], s).map!.drawings, []);
+  // Bad lines are refused: one point, too many points, a disc colour as ink.
+  assert.equal(parseCommand({ type: "draw", ink: "white", table: true, points: [line[0]] }), null);
+  assert.equal(parseCommand({ type: "draw", ink: "white", table: true, points: Array(MAX_LINE_POINTS + 1).fill(line[0]) }), null);
+  assert.equal(parseCommand({ type: "draw", ink: "red", table: true, points: line }), null);
+  const full = run(
+    Array.from({ length: MAX_DRAWINGS + 2 }, () => ({ type: "draw", ink: "white", table: true, points: line })),
+    s,
+  );
+  assert.equal(full.map!.drawings.length, MAX_DRAWINGS);
+  // Saves: drawings round-trip; a version 8 save loads with none.
+  assert.deepEqual(parseSave(serialize(s)), { ok: true, state: s });
+  const v8 = JSON.parse(serialize(s));
+  v8.version = 8;
+  delete v8.map.drawings;
+  assert.deepEqual((parseSave(JSON.stringify(v8)) as { state: TableState }).state.map!.drawings, []);
 });

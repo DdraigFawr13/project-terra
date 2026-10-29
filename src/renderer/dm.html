@@ -200,6 +200,16 @@
           >
             Ping<kbd>P</kbd>
           </button>
+          <button
+            type="button"
+            data-tool="draw"
+            data-icon="edit"
+            aria-pressed="false"
+            disabled
+            title="Draw (D): freehand lines; tap a line or use the pen's eraser to rub it out"
+          >
+            Draw<kbd>D</kbd>
+          </button>
         </div>
 
         <p id="selectHint" class="tool-sub tool-hint">Drag the map or a disc. Tap a disc for its HP.</p>
@@ -242,6 +252,67 @@
             </button>
             <button type="button" data-pin-table="false" data-icon="hide" aria-pressed="false" disabled title="New pins: only you see them">
               Only me
+            </button>
+          </div>
+        </div>
+
+        <div id="drawOpts" class="tool-sub" hidden>
+          <h4>Who sees</h4>
+          <div class="tool-group" role="group" aria-label="Who sees new lines" title="Who sees new lines">
+            <button
+              type="button"
+              data-ink-table="true"
+              data-icon="party"
+              aria-pressed="true"
+              disabled
+              title="New lines: the players see them"
+            >
+              Players see
+            </button>
+            <button
+              type="button"
+              data-ink-table="false"
+              data-icon="hide"
+              aria-pressed="false"
+              disabled
+              title="New lines: only you see them"
+            >
+              Only me
+            </button>
+          </div>
+          <h4>How long</h4>
+          <div class="tool-group" role="group" aria-label="How long new lines stay" title="How long new lines stay">
+            <button
+              type="button"
+              data-ink-fade="false"
+              data-icon="pin"
+              aria-pressed="true"
+              disabled
+              title="Lasting: stays until you rub it out"
+            >
+              Lasting
+            </button>
+            <button
+              type="button"
+              data-ink-fade="true"
+              data-icon="timer"
+              aria-pressed="false"
+              disabled
+              title="Fading: gone after about 10 seconds"
+            >
+              Fading
+            </button>
+          </div>
+          <h4>Colour</h4>
+          <div class="tool-group" role="group" aria-label="Line colour" title="Line colour">
+            <button type="button" data-ink="white" aria-pressed="true" aria-label="White" title="White" disabled>
+              <span class="swatch ink-white"></span>White
+            </button>
+            <button type="button" data-ink="cyan" aria-pressed="false" aria-label="Cyan" title="Cyan" disabled>
+              <span class="swatch ink-cyan"></span>Cyan
+            </button>
+            <button type="button" data-ink="pink" aria-pressed="false" aria-label="Pink" title="Pink" disabled>
+              <span class="swatch ink-pink"></span>Pink
             </button>
           </div>
         </div>

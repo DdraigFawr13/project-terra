@@ -42,12 +42,21 @@ import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
-const SAVE_VERSION = 8;
+const SAVE_VERSION = 9;
 /** Pins on one map at most: plenty for marks, and a stuck pen can't fill the save. */
 export const MAX_PINS = 40;
 
 /** A lasting mark on the map (D-034), in the map's own inches so it moves and turns with it. `table`: players see it; else only the DM. */
 type Pin = { id: number; x: number; y: number; table: boolean };
+
+/** Pen colours (D-035): white and two that no disc uses, so a line never reads as an enemy group. */
+export const INKS = ["white", "cyan", "pink"] as const;
+export type Ink = (typeof INKS)[number];
+/** Lasting drawings on one map, and points in one line, at most: plenty for paths and areas, and saves stay small. */
+export const MAX_DRAWINGS = 100;
+export const MAX_LINE_POINTS = 400;
+/** A lasting freehand line (D-035), in the map's own inches. `table`: players see it; else only the DM. */
+type Drawing = { id: number; ink: Ink; table: boolean; points: Point[] };
 
 /** A straightened map from the personal library (D-010), placed on the table. Positions are in inches (D-005). */
 export type PlacedMap = {
@@ -70,6 +79,8 @@ export type PlacedMap = {
   groups: Groups;
   /** Pins (D-034). A newly placed map has none. */
   pins: Pin[];
+  /** Lasting freehand lines (D-035). A newly placed map has none. */
+  drawings: Drawing[];
 };
 
 export type TableState = {
@@ -134,7 +145,11 @@ export type Command =
   /** A pin where the DM long-pressed with Ping, in map inches (D-034). */
   | { type: "placePin"; x: number; y: number; table: boolean }
   | { type: "removePin"; id: number }
-  | { type: "clearPins" };
+  | { type: "clearPins" }
+  /** A lasting line drawn with Draw, in map inches (D-035). Fading lines are moments, like pings, and never come here. */
+  | { type: "draw"; ink: Ink; table: boolean; points: Point[] }
+  | { type: "removeDrawing"; id: number }
+  | { type: "clearDrawings" };
 
 /**
  * Commands the DM can take back with Undo. Switches such as the curtain, calibration drags and character cards are not
@@ -162,6 +177,9 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
   "placePin",
   "removePin",
   "clearPins",
+  "draw",
+  "removeDrawing",
+  "clearDrawings",
 ]);
 
 export type TableView = "curtain" | "calibrate" | "map" | "testGrid" | "idle";
@@ -206,6 +224,8 @@ export type PlayerView = {
   grid: boolean;
   /** Pins the players may see, in table inches (D-034); the DM's own pins never come here. */
   pins: Point[];
+  /** Lasting lines the players may see, in table inches (D-035). */
+  drawings: { ink: Ink; points: Point[] }[];
 };
 
 /** The player view for the surface the table window is on now. */
@@ -222,6 +242,7 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
     flipLetters: state.flipLetters,
     grid: state.testGrid,
     pins: (m?.pins ?? []).filter((p) => p.table).map((p) => mapToTable(m!, p)),
+    drawings: (m?.drawings ?? []).filter((d) => d.table).map((d) => ({ ink: d.ink, points: d.points.map((p) => mapToTable(m!, p)) })),
   };
 }
 
@@ -257,14 +278,43 @@ export function parsePlacedMap(raw: unknown): PlacedMap | null {
   const groups = raw.groups === undefined ? {} : parseGroups(raw.groups);
   // And with no pins before step 7.
   const pins = raw.pins === undefined ? [] : parsePins(raw.pins);
+  // And with no drawings before freehand drawing.
+  const drawings = raw.drawings === undefined ? [] : parseDrawings(raw.drawings);
   const b = raw.bounds;
   const bounds = { x: inches(b.x), y: inches(b.y), width: inches(b.width, 1), height: inches(b.height, 1) };
   if (typeof id !== "string" || !MAP_ID.test(id) || typeof name !== "string" || name.length > 120) return null;
   if (bounds.x === null || bounds.y === null || bounds.width === null || bounds.height === null) return null;
   if (inches(x) === null || inches(y) === null || !(turns === 0 || turns === 1 || turns === 2 || turns === 3) || !fog) return null;
-  if (!discs || !groups || !pins) return null;
+  if (!discs || !groups || !pins || !drawings) return null;
   const at = { x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"] };
-  return { id, name, bounds: bounds as Bounds, ...at, fog, discs, groups, pins };
+  return { id, name, bounds: bounds as Bounds, ...at, fog, discs, groups, pins, drawings };
+}
+
+/** A line's points: 2 to MAX_LINE_POINTS, each in reach, rounded to hundredths of an inch. */
+export function parseLine(raw: unknown): Point[] | null {
+  if (!Array.isArray(raw) || raw.length < 2 || raw.length > MAX_LINE_POINTS) return null;
+  const points: Point[] = [];
+  for (const p of raw) {
+    const at = isObject(p) ? point(p) : null;
+    if (!at) return null;
+    points.push({ x: hundredths(at.x), y: hundredths(at.y) });
+  }
+  return points;
+}
+const isInk = (v: unknown): v is Ink => INKS.includes(v as Ink);
+
+/** Saved drawings: each id once, at most MAX_DRAWINGS, each line readable. */
+function parseDrawings(raw: unknown): Drawing[] | null {
+  if (!Array.isArray(raw) || raw.length > MAX_DRAWINGS) return null;
+  const out: Drawing[] = [];
+  for (const d of raw) {
+    const r = isObject(d) ? d : {};
+    const id = inches(r.id, 1, 99_999);
+    const points = parseLine(r.points);
+    if (id === null || !points || !isInk(r.ink) || typeof r.table !== "boolean" || out.some((q) => q.id === id)) return null;
+    out.push({ id, ink: r.ink, table: r.table, points });
+  }
+  return out;
 }
 
 /** Saved pins: each id once, at most MAX_PINS, each in reach. Anything else and the list isn't read. */
@@ -394,6 +444,16 @@ export function parseCommand(raw: unknown): Command | null {
     }
     case "clearPins":
       return { type: "clearPins" };
+    case "draw": {
+      const points = parseLine(raw.points);
+      return points && isInk(raw.ink) && typeof raw.table === "boolean" ? { type: "draw", ink: raw.ink, table: raw.table, points } : null;
+    }
+    case "removeDrawing": {
+      const id = inches(raw.id, 1, 99_999);
+      return id === null ? null : { type: "removeDrawing", id };
+    }
+    case "clearDrawings":
+      return { type: "clearDrawings" };
     default:
       return null;
   }
@@ -511,6 +571,18 @@ export function apply(state: TableState, c: Command): TableState {
         : state;
     case "clearPins":
       return state.map?.pins.length ? { ...state, map: { ...state.map, pins: [] } } : state;
+    case "draw": {
+      const m = state.map;
+      if (!m || m.drawings.length >= MAX_DRAWINGS) return state;
+      const line = { id: Math.max(0, ...m.drawings.map((d) => d.id)) + 1, ink: c.ink, table: c.table, points: c.points };
+      return { ...state, map: { ...m, drawings: [...m.drawings, line] } };
+    }
+    case "removeDrawing":
+      return state.map?.drawings.some((d) => d.id === c.id)
+        ? { ...state, map: { ...state.map, drawings: state.map.drawings.filter((d) => d.id !== c.id) } }
+        : state;
+    case "clearDrawings":
+      return state.map?.drawings.length ? { ...state, map: { ...state.map, drawings: [] } } : state;
   }
 }
 
@@ -535,7 +607,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, 6, 7, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.

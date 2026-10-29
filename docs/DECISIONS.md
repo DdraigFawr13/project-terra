@@ -19,7 +19,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 ## D-003 Session 1 scope
 
 - **Status:** Accepted (2026-10-28); character cards added 2026-10-28 in the book library interview.
-- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain. Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
+- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain, and since D-035 freehand drawing. Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
 - **Why:** 22 features were ranked "Now" against 1–3 months with games monthly or less. Both reviews flagged it, and Morgan cut the list in the review. In the book library interview Morgan first moved six library features into session 1, then kept only character cards after the review showed the cost.
 
 ## D-004 Projector rig and calibration
@@ -276,6 +276,17 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   2. Pins: holding still with Ping for half a second leaves a pin; a tap on a pin takes it away; Table → Clear pins removes them all; Ctrl+Z undoes all three. A pin is a white diamond with a ring. Under Ping, "Players see" or "Only me" sets who sees new pins; the DM's own pins are hollow copper on the DM's map and never reach the table window (D-002). Pins live on the map in its inches, like discs, at most 40. Save version 8; older saves load with no pins.
   3. Reopening: the Party and monster sheets open when the DM window closed open again where they were; a monster sheet whose colour has no discs left is dropped. Docked windows such as Initiative already kept their place.
   4. From the audit: Remove on a character card asks first ("Remove Ash? This can't be undone.", Keep or Remove). The turn strip covers about 0.75 inch of map instead of about 1 inch (chips just taller than their text, same text size). Placing a map switches the test grid off. The placeholders were already hidden by D-032.
-  5. Not in step 7: Morgan also asked for marks, symbols and freehand drawing on the map. That is new scope and gets its own planning round.
+  5. Not in step 7: Morgan also asked for marks, symbols and freehand drawing on the map. Settled in D-035.
 - **Why:** rings read from every side of the table without covering the minis or pointing one way (D-008); white stands apart from the six disc colours. A separate tool keeps a tap with Select for a disc's HP pad and a drag for panning (D-032). Pins in undo match discs and fog.
+
+## D-035 Freehand drawing before session 1; symbols, shapes and labels after
+
+- **Status:** Accepted (2026-10-28), from the [drawing form](https://claude.ai/artifact/3BtQEkjjm5cJ7pCes2r4Uw). Adds freehand drawing to session 1 (D-003).
+- **Decision:**
+  1. A Draw tool (D). Lines are drawn with the pen, a finger or the mouse, for paths, areas and where traps are.
+  2. Under Draw: who sees new lines (players, or only the DM: dashed on the DM's map and never sent to the table, D-002); how long (lasting, or fading after about 10 seconds, the last 3 fading out); colour: white, cyan or pink, none of them a disc colour.
+  3. Lasting lines live on the map in its inches, like pins: undoable, saved (save version 9), at most 100 lines of up to 400 points. A fading line is a moment, like a ping: drawn on the table, never saved, and gone under the curtain.
+  4. Rubbing out: a tap on a line, or the pen's eraser over it; Table → Clear drawings removes them all.
+  5. After session 1: symbols (X, skull, fire, star/treasure, danger/trap, door), shapes (a line with its length, a circle) and labels written twice (D-008). Shapes join the ruler and spell templates in Battle drama (PLAN.md).
+- **Why:** Morgan wants to mark traps, paths and areas at the table, and chose freehand now and the rest later, so session 1 isn't pushed back far. The same two switches as pins (who sees, how long) keep one rule for marks on the map.
 

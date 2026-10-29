@@ -2,7 +2,8 @@
 // draws it onto its warped layer (D-021); the DM window draws the same picture, unwarped, as its live preview (D-025).
 import type { Calibration, Layer } from "../core/calibration.ts";
 import type { Chip, DiscColour, Strip } from "../core/fight.ts";
-import type { PlayerDisc, PlayerView } from "../core/table.ts";
+import type { Ink, PlayerDisc, PlayerView } from "../core/table.ts";
+import type { Point } from "../core/homography.ts";
 import type { FogPainter } from "./fog-draw.ts";
 
 // Plain bold lettering on the table, from the bundled font, so it reads at an angle and upside down (D-023).
@@ -19,6 +20,35 @@ const DISC_HEX: Record<DiscColour, { fill: string; ink: string }> = {
   orange: { fill: "#ff7a00", ink: "#111111" },
 };
 const CONDITION_WORD = { bloodied: "Bloodied", nearDeath: "Near death" } as const;
+
+/** Pen colours on a projector (D-035). */
+const INK_HEX: Record<Ink, string> = { white: "#ffffff", cyan: "#4de1ff", pink: "#ff79d2" };
+/** A fading line stays this long, the last FADE_MS of it fading out, in milliseconds (D-035). */
+export const SKETCH_MS = 10_000;
+const FADE_MS = 3_000;
+export const sketchAlpha = (ms: number) => Math.max(0, Math.min(1, (SKETCH_MS - ms) / FADE_MS));
+
+/** A freehand line through `points` (already in the context's units), `inch` units to the inch, with a dark edge so it reads on a light map. */
+export function drawLine(ctx: CanvasRenderingContext2D, points: Point[], ink: Ink, inch: number, alpha = 1, dashed = false): void {
+  if (points.length < 2) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.lineCap = ctx.lineJoin = "round";
+  ctx.setLineDash(dashed ? [inch * 0.3, inch * 0.2] : []);
+  const path = () => {
+    ctx.beginPath();
+    points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+  };
+  path();
+  ctx.strokeStyle = "rgba(0,0,0,0.6)";
+  ctx.lineWidth = Math.max(4, inch * 0.2);
+  ctx.stroke();
+  path();
+  ctx.strokeStyle = INK_HEX[ink];
+  ctx.lineWidth = Math.max(2, inch * 0.12);
+  ctx.stroke();
+  ctx.restore();
+}
 
 /** How long a ping lasts on the table, in milliseconds (D-034). */
 export const PING_MS = 2000;
@@ -255,6 +285,14 @@ export type TableScene = {
 /** Discs over the map, then the turn strip along the edges (D-006: map, effects, markers, pings). */
 function drawFight(ctx: CanvasRenderingContext2D, scene: TableScene, X: (inches: number) => number): void {
   const { view, area } = scene;
+  // Lines under the discs, as effects are (D-006).
+  for (const l of view.drawings)
+    drawLine(
+      ctx,
+      l.points.map((p) => ({ x: X(p.x), y: X(p.y) })),
+      l.ink,
+      X(1),
+    );
   for (const d of view.discs) drawDisc(ctx, d, X(d.x), X(d.y), X(d.size), view.flipLetters ? Math.PI : 0);
   for (const p of view.pins) drawPin(ctx, X(p.x), X(p.y), X(1));
   if (view.strip) {

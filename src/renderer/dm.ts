@@ -426,6 +426,7 @@ function menuItems(name: string): Item[] {
       { text: "Flip disc letters", checked: pressed("flipLetters"), act: () => flipBtn.click() },
       { text: "Lock map", checked: pressed("lockMap"), disabled: !latest?.map, act: () => $("lockMap").click() },
       { text: "Clear pins", disabled: !latest?.map?.pins.length, act: () => void terra.apply({ type: "clearPins" }) },
+      { text: "Clear drawings", disabled: !latest?.map?.drawings.length, act: () => void terra.apply({ type: "clearDrawings" }) },
       "-",
       {
         text: "Import map…",
