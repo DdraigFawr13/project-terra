@@ -42,7 +42,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-007 Session 1 fog is revealed by hand
 
-- **Status:** Accepted (2026-10-28). Automatic line of sight cut by D-037; rooms come from map annotation.
+- **Status:** Accepted (2026-10-28). Automatic line of sight cut by D-037; rooms come from map annotation; sight from a tapped point (Look from here) added by D-039.
 - **Decision:** Fog is revealed with a brush and shapes, and by room where the map defines rooms. Explored areas stay dimmed. Automatic line of sight comes after session 1, and only for markers Morgan moves on the laptop.
 - **Why:** the app can't see physical minis, so automatic fog would mean mirroring every move on the laptop.
 
@@ -305,7 +305,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-037 Plan audit: scenes and map annotation first, merges and cuts
 
-- **Status:** Accepted (2026-10-29). Morgan asked for an adversarial audit of the plan, then said "do what you recommend". Supersedes D-017; changes D-003, D-007 and D-025 item 8.
+- **Status:** Accepted (2026-10-29). Morgan asked for an adversarial audit of the plan, then said "do what you recommend". Supersedes D-017; changes D-003, D-007 and D-025 item 8. Item 3's order and item 7's light-radius shape changed by D-039.
 - **Decision:**
   1. Before the rehearsal (step 7g): keep the last 3 saves so a bad state can be rolled back after a restart, and a Table → Problem report that copies the app version, displays and recent errors as text. Built: an earlier save is copied into `<app data>/earlier-saves/` when the app starts and at most every 10 minutes while things change, skipped when it matches the newest, so restarts can't push good saves out with copies of a bad one. Table → Earlier saves… lists them with time, map, discs, round and party size; going back first keeps the table as it is now as an earlier save, clears undo, and keeps the screens, calibration, curtain and letter flip as they are. The report holds screens, the table's surface, save size, notices and the last 50 problems (main-process problems and page console errors), never the game's contents; it is copied and shown in a pop-up.
   2. The rehearsal follows `docs/REHEARSAL.md`, with a pass line and evidence for each part. Anything that fails is hidden for session 1, not redesigned.
@@ -328,3 +328,15 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   6. Window headers grow to 13–14 px in sentence case. One end-to-end journey runs the DM window at 1280 × 680; the suite stays under 60 s (D-020).
   7. Built after step 7g and before the rehearsal, as three steps (PLAN.md 7h–7j). The rehearsal waits until they are done.
 - **Why:** At the laptop's 1280 × 680 the docked windows left the map about 30% of the screen and discs about 18 px across, the tool options were icons with names only in tooltips a pen never shows, and "Reveal" and "Hide" each meant three things. A sheet replacing the list would hide the turn order mid-fight, hence the pinned strip. The rehearsal should test the screen session 1 uses.
+
+## D-039 Sight: Look from here, discs hidden in fog, walls that block light, sight and sound
+
+- **Status:** Accepted (2026-10-29). Morgan asked for research into Arkenforge with an independent audit ([report](https://claude.ai/artifact/Bq9i76akbah11aL3TyoZ3K)), then said "integrate this into the plan". Changes D-037 items 3 and 7 and PLAN.md's phase order.
+- **Decision:**
+  1. A new phase, Sight, comes right after map annotation and before the library (PLAN.md). In order: enemy discs hidden in never-seen fog, doors that open and close (moved from Battle drama), then Look from here.
+  2. Look from here replaces the light-radius fog shape. A tap where a mini stands uncovers what can be seen from that point, cut off by walls and closed doors and, on a dark map, by the light range (a torch, a lantern, darkvision). It adds one ordinary Uncover op per tap, so saving, undo and baking work as they do now; the sight shape is worked out in `src/core/`. Bright and dim light show the same. On a dark map the table shows the furthest anyone sees (one projector), and Morgan rules on stealth and cover (D-014). Light ranges are checked against the SRD 5.2 text before building.
+  3. Map annotation traces walls, doors and windows (a window blocks nothing by default), and each blocks light, sight and sound separately (Arkenforge's model). Wall files for book maps live in the private library (D-010); Claude may trace them from the map picture at prep. Tests and screenshots use made-up or SRD maps.
+  4. Discs hidden in fog: the player view (`playerViewOf`) leaves out discs in never-seen fog, so their positions never reach the table window (D-002). The DM map marks them hidden by fog. It only hides: a disc set Off table never shows. Whether the centre or any part of the disc counts is settled when the phase is planned.
+  5. Scenes gain stairs or a door that opens the next scene.
+  6. Not planned: party markers with live sight. Revisit after a session or two with Look from here. They would need a live sight layer outside the fog op list, a separately saved "seen before", a fourth drawn state for dim light, and a speed check on the laptop, about 3 steps (estimate), plus a drag for every mini that moves. Light sources on the map and a time-of-day tint go to Later, each after a projector photo. Mini detection, map art packs, 3D dice and video export from Arkenforge are not for Terra.
+- **Why:** Morgan wants lighting that follows where they place the minis. In `src/core/fog.ts` an Uncover sets seen and explored together and Dim what's in view covers the whole map, so live sight from markers can't reuse the op list, while one tap per look can. The tap also avoids mirroring every move, the reason D-037 cut automatic line of sight. Today `playerViewOf` (`src/core/table.ts`) filters discs only by their On table switch, so a disc left On table shows in black fog. Arkenforge users report that walls on imported maps are the fragile part, so annotation gets the blocking flags from the start.

@@ -8,10 +8,9 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Just done
 
+- 2026-10-29 Arkenforge research ([report with independent audit](https://claude.ai/artifact/Bq9i76akbah11aL3TyoZ3K)), approved into the plan as D-039: a Sight phase after map annotation (discs hidden in never-seen fog, doors, Look from here); annotation gets light/sight/sound flags; party markers not planned. Docs only.
 - 2026-10-29 Step 7j (D-038), PR after #28: fog tools Uncover (U, sun icon) and Dim (G, cloud; internal ids stay `reveal`/`hide`); Dim what's in view, Uncover all; On table / Off table switches (`role=switch`); Show picture (picture icon). Calibrate (`#calTools`), import and patch are `.full-step` overlays over `.work` with their buttons at the foot; canvases fit the room left (`stage-frame`). The empty map shows a checklist (`renderReady` in dm.ts) that ticks itself. D-038 steps 7h–7j all built.
 - 2026-10-29 Step 7i (D-038), [PR #28](https://github.com/DdraigFawr13/project-terra/pull/28): `#encounterPanel` replaces Initiative and Groups (`dm-fight.ts`): party rows with a thin HP bar and numbers (tap the name: `quick.showCharacter`, a pad with Damage, Heal, Temp HP), group rows with per-disc conditions; in a fight the same rows in turn order; `#turnStrip` pinned above tabs and sheets (next from `nextTurn`).
-- 2026-10-29 Step 7g, rehearsal safety (D-037): `src/core/saves.ts` (earlier save names, pruning to 3, every 10 min, `describeSave`, `problemReport`); main keeps an earlier save at start (skipped when identical to the newest) and every 10 minutes in `<app data>/earlier-saves/`, `saves:list`/`saves:restore` (keeps the rig, clears undo, keeps the current state first), `report:copy` (clipboard); a problem log of main problems and page console errors. Table → Earlier saves… and Problem report. Tests: 50 unit, 4 e2e (about 14 s; the fight journey runs at 1280 × 680).
-- 2026-10-29 Layout interview approved (D-038; pages below). Usability audit ([page with screenshots](https://claude.ai/artifact/R1TJm1AfCyvqSuktZjiSyD)) and its small fixes, [PR #25](https://github.com/DdraigFawr13/project-terra/pull/25): tool buttons show a short name under the icon (colours two to a row; at 760 px tall or less disc sizes drop the size word); the projector's edge on the DM map is pale with a "Table" tag; the Marker preview hides over a placed disc; one hint in a monster sheet for missing HP or symbol (why Reveal is grey), condition word no longer shown twice; locked-map buttons say why; the screen picker names the laptop "This laptop, in a window".
 - Earlier: [archive](archive/handoff-2026-10.md).
 
 ## Next
@@ -19,7 +18,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 1. Step 8, rehearsal, when the laptop and projector arrive: follow [REHEARSAL.md](REHEARSAL.md). Confirm the built-in screen shows as "This laptop, in a window" and the display scale (14" 1080p usually defaults to 150%, a DM window of about 1280 × 680). On the laptop, re-import `data/monsters/mm2024.json` from the private library so the portraits arrive.
 2. Morgan's photos decide (VER-07): letters, symbols and portraits readable from the players' seats (whether 1-inch portraits are worth switching on); HP ring, patched Thundertree, ping, pins and lines on the projector; close the app mid-fight and reopen it.
 3. Still open: calibration keyed to the Windows display id; unplugging the projector drops the table window over the DM window; no Windows CI run of the app (REHEARSAL.md part 4). From step 7g: the fight journey's "fading line saves nothing" check failed 1 in 40 local runs (main 0 in 14), cause not found (VER-04).
-4. After session 1 (PLAN.md, D-037): scenes, then map annotation, then the library.
+4. After session 1 (PLAN.md, D-037, D-039): scenes, then map annotation, then sight, then the library.
 
 - **Book library** (private repo `project-terra-library`; attach with add_repo; D-010, D-026): 503 MM creatures (6 page-checked, 4 with portraits), 35 Phandelver creatures, 391 PHB spells, 39 DMG treasure tables, 17 magic items, MM habitat lists, Lost Mine maps. How to re-read the book PDFs (Drive files, PDF page = book page + 3 for the MM) is in that repo's README, never here: this repo is public. Never use 5e.tools; book content never goes in this repo, its CI or PR text.
 
@@ -51,6 +50,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Decisions since the last plan update
 
+- 2026-10-29 D-039 sight: Look from here replaces the light-radius shape; a Sight phase after map annotation.
 - 2026-10-29 D-038 DM window: the map first, one panel with tabs, Encounter list, Uncover/Dim and On/Off table; steps 7h–7j before the rehearsal.
 - 2026-10-29 D-037 plan audit: scenes and map annotation first, merges and cuts; supersedes D-017.
 - 2026-10-29 D-036 maps and monster tokens: feet per square, magnifier, HP ring, patch tool, revealed tokens before session 1; the rest after.
