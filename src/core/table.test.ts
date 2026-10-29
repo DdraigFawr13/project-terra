@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fc from "fast-check";
 import { defaultCalibration } from "./calibration.ts";
+import { blankGroup, creatureTypeOf } from "./fight.ts";
 import {
   parsePlacedMap,
   apply,
@@ -287,7 +288,7 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
     ok: true,
     state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
   });
-  assert.equal(parseSave(JSON.stringify({ version: 11, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 12, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });
 
@@ -394,4 +395,27 @@ test("feet per square (D-036): stored with the map, 5 ft for older saves, anythi
   delete v9.map.feetPerSquare;
   assert.equal((parseSave(JSON.stringify(v9)) as { state: TableState }).state.map!.feetPerSquare, 5);
   for (const bad of [7, "10", 0, null]) assert.equal(parsePlacedMap({ ...map, feetPerSquare: bad }), null);
+});
+
+test("revealed tokens (D-036): the table gets a group's symbol only after Reveal, never its name; Mini on it moves the letter", () => {
+  const zombies = { ...blankGroup(), name: "Secret zombies", symbol: creatureTypeOf("Medium Undead, Neutral Evil") };
+  const s = run([
+    { type: "placeMap", map },
+    { type: "group", colour: "yellow", info: zombies },
+    { type: "placeDisc", colour: "yellow", x: 1, y: 1, size: 1 },
+    { type: "showDiscs", colour: "yellow", letter: null, on: true },
+  ]);
+  const disc = (st: TableState) => playerViewOf(st, "window").discs[0]!;
+  assert.deepEqual([disc(s).symbol, disc(s).mini], [null, false]);
+  const s2 = run(
+    [
+      { type: "group", colour: "yellow", info: { ...zombies, revealed: true } },
+      { type: "discMini", colour: "yellow", letter: "A", on: true },
+    ],
+    s,
+  );
+  assert.deepEqual([disc(s2).symbol, disc(s2).mini], ["undead", true]);
+  assert.ok(!JSON.stringify(playerViewOf(s2, "window")).includes("Secret"));
+  assert.equal(parseCommand({ type: "group", colour: "yellow", info: { ...zombies, symbol: "zombie" } }), null);
+  assert.deepEqual(parseSave(serialize(s2)), { ok: true, state: s2 });
 });

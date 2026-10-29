@@ -37,12 +37,13 @@ import {
   type Groups,
   type Strip,
   type Who,
+  type CreatureType,
 } from "./fight.ts";
 import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
-const SAVE_VERSION = 10;
+const SAVE_VERSION = 11;
 /** Pins on one map at most: plenty for marks, and a stuck pen can't fill the save. */
 export const MAX_PINS = 40;
 
@@ -141,6 +142,8 @@ export type Command =
   | { type: "discHp"; colour: DiscColour; letter: string; change: number }
   /** A disc's own HP max; null goes back to its group's. */
   | { type: "discMax"; colour: DiscColour; letter: string; hpMax: number | null }
+  /** A physical mini stands on this disc, or no longer does (D-036). */
+  | { type: "discMini"; colour: DiscColour; letter: string; on: boolean }
   | { type: "characterHp"; id: string; change: number }
   | { type: "tempHp"; id: string; tempHp: number }
   | { type: "flipLetters"; on: boolean }
@@ -179,6 +182,7 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
   "group",
   "discHp",
   "discMax",
+  "discMini",
   "startFight",
   "endFight",
   "initiative",
@@ -219,7 +223,20 @@ export function viewOf(state: TableState): TableView {
 }
 
 /** A disc as the table draws it: centre in table inches, nothing about its group or condition. */
-export type PlayerDisc = { colour: DiscColour; letter: string; x: number; y: number; size: number };
+/**
+ * A disc as the players see it. `symbol` is its group's creature-type symbol once the DM taps Reveal, else null: the
+ * one thing from the DM's group info that reaches the table, never its name or stats (D-036). `mini`: its letter goes
+ * on a tab below, clear of the mini standing on it.
+ */
+export type PlayerDisc = {
+  colour: DiscColour;
+  letter: string;
+  x: number;
+  y: number;
+  size: number;
+  symbol: CreatureType | null;
+  mini: boolean;
+};
 
 /** Everything the table window receives. Built field by field, so DM-only data can't leak in by default (D-002). */
 export type PlayerView = {
@@ -247,7 +264,11 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
     map: m && { id: m.id, bounds: m.bounds, x: m.x, y: m.y, turns: m.turns, fog: m.fog },
     discs: (m?.discs ?? [])
       .filter((d) => d.shown && conditionOf(d, m!.groups) !== "down")
-      .map((d) => ({ colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size })),
+      .map((d) => {
+        const g = m!.groups[d.colour];
+        const symbol = g?.revealed ? g.symbol : null;
+        return { colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size, symbol, mini: d.mini };
+      }),
     strip: stripOf(state.fight, m?.discs ?? [], m?.groups ?? {}, state.party),
     flipLetters: state.flipLetters,
     grid: state.testGrid,
@@ -406,6 +427,10 @@ export function parseCommand(raw: unknown): Command | null {
         ? { type: "discHp", colour: raw.colour, letter: raw.letter, change }
         : null;
     }
+    case "discMini":
+      return isColour(raw.colour) && isLetter(raw.letter) && typeof raw.on === "boolean"
+        ? { type: "discMini", colour: raw.colour, letter: raw.letter, on: raw.on }
+        : null;
     case "discMax": {
       const hpMax = raw.hpMax === null ? null : inches(raw.hpMax, 1, MAX_HP);
       return isColour(raw.colour) && isLetter(raw.letter) && (raw.hpMax === null || hpMax !== null)
@@ -542,6 +567,8 @@ export function apply(state: TableState, c: Command): TableState {
       return state.map ? editDisc(state, c.colour, c.letter, (d) => changeDiscHp(d, state.map!.groups, c.change)) : state;
     case "discMax":
       return editDisc(state, c.colour, c.letter, (d) => ({ ...d, hpMax: c.hpMax }));
+    case "discMini":
+      return editDisc(state, c.colour, c.letter, (d) => ({ ...d, mini: c.on }));
     case "characterHp":
       return { ...state, party: state.party.map((p) => (p.id === c.id ? changeCharacterHp(p, c.change) : p)) };
     case "tempHp":
@@ -618,7 +645,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.

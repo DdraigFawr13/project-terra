@@ -490,11 +490,13 @@ export function initMaps(
       const t = mapToTable(map, p);
       return { x: ox + t.x * s, y: oy + t.y * s };
     };
-    const draw = (d: Pick<Disc, "colour" | "letter" | "size">, at: Point, alpha: number) => {
+    const draw = (d: Pick<Disc, "colour" | "letter" | "size"> & Partial<Pick<Disc, "mini">>, at: Point, alpha: number) => {
       const c = px(at);
       const w = Math.max(d.size * s, MIN_DISC_PX);
       ctx.globalAlpha = alpha;
-      drawDisc(ctx, d, c.x, c.y, w);
+      // As the players see it: a revealed group's symbol, the letter on a tab when a mini stands on it (D-036).
+      const g = map.groups[d.colour];
+      drawDisc(ctx, { ...d, symbol: g?.revealed ? g.symbol : null }, c.x, c.y, w);
       ctx.globalAlpha = 1;
       return { c, w };
     };
