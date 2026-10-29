@@ -21,6 +21,9 @@ import {
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
 import { fillFog, type FogPainter } from "./fog-draw.ts";
 import { initPatch } from "./dm-patch.ts";
+import { initWalls } from "./dm-walls.ts";
+import { drawWalls } from "./walls-draw.ts";
+import type { Annotation } from "../core/annotation.ts";
 import { icon } from "./icons.ts";
 import { drawDisc, drawLine, drawParty, drawPin, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
 
@@ -60,6 +63,7 @@ const colourBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data
 const discSizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-disc-size]")];
 const fogBtns = ["fogDim", "fogRevealAll", "fogCoverAll"].map((id) => $<HTMLButtonElement>(id));
 const lockBtn = $<HTMLButtonElement>("lockMap");
+const wallsBtn = $<HTMLButtonElement>("wallsMap");
 /** Buttons that change where the map is; a locked map keeps them off (D-029). */
 const [turnBtn, removeBtn] = [$<HTMLButtonElement>("turnMap"), $<HTMLButtonElement>("removeMap")];
 const placeBtns = [turnBtn, removeBtn];
@@ -170,6 +174,34 @@ export function initMaps(
   const MAX_ZOOM = 8;
 
   const patch = initPatch(terra, accent, () => render());
+  /** The walls switch on the map bar (D-044): off by default, this run only. The walls shown, once loaded. */
+  let showWalls = false;
+  let shownWalls: { id: string; walls: Annotation } | null = null;
+  let loadingWalls: string | null = null;
+  const walls = initWalls(terra, accent, (id) => {
+    // The editor saved or closed: load that map's walls again next time they show.
+    if (id && shownWalls?.id === id) shownWalls = null;
+    render();
+  });
+  function wallsFor(id: string): Annotation | null {
+    if (shownWalls?.id === id) return shownWalls.walls;
+    if (loadingWalls !== id) {
+      loadingWalls = id;
+      void terra.loadWalls(id).then((w) => {
+        if (loadingWalls !== id) return;
+        loadingWalls = null;
+        shownWalls = { id, walls: w };
+        render();
+      });
+    }
+    return null;
+  }
+  $<HTMLButtonElement>("editWalls").addEventListener("click", () => state?.map && walls.open(state.map));
+  wallsBtn.addEventListener("click", () => {
+    showWalls = !showWalls;
+    wallsBtn.setAttribute("aria-pressed", String(showWalls));
+    render();
+  });
   $<HTMLButtonElement>("patchMap").addEventListener("click", () => state?.map && patch.open(state.map));
   const run = (c: Command) => terra.apply(c);
   const undo = () => terra.undo();
@@ -188,7 +220,12 @@ export function initMaps(
             map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null },
           }),
         );
-        li.append(b);
+        const w = document.createElement("button");
+        w.type = "button";
+        w.textContent = "Walls";
+        w.title = `Trace walls, pillars and doors on “${m.name}” (never shown on the table)`;
+        w.addEventListener("click", () => walls.open(m));
+        li.append(b, w);
         return li;
       }),
     );
@@ -196,8 +233,8 @@ export function initMaps(
 
   function render(): void {
     const map = state?.map ?? null;
-    // The patch tool (D-036) takes the map window's place while it is open.
-    const patching = patch.isOpen();
+    // The patch tool (D-036) and the walls editor (D-044) take the map window's place while open.
+    const patching = patch.isOpen() || walls.isOpen();
     importer.hidden = !importing;
     mapView.hidden = !!importing || !map || patching;
     emptyMap.hidden = !!importing || !!map;
@@ -517,6 +554,8 @@ export function initMaps(
     ctx.rotate((shown.turns * Math.PI) / 2);
     const img = image(map.id);
     if (img.complete && img.naturalWidth) fog.draw(ctx, img, map.bounds, map.fog, "dm");
+    const traced = showWalls ? wallsFor(map.id) : null;
+    if (traced) drawWalls(ctx, traced, s, true);
     const ghost = stroke && strokeOp(stroke);
     if (ghost) {
       ctx.fillStyle = ctx.strokeStyle = GHOST[ghost.mode];

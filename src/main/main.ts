@@ -26,7 +26,7 @@ import {
 import { isColour, tokenLook } from "../core/fight.ts";
 import { describeSave, dueForEarlier, earlierName, earlierSaves, earlierTime, earlierToDrop, problemReport } from "../core/saves.ts";
 import { countCreatures, findCreatures, getCreature, importCreatures } from "./creatures.ts";
-import { listMaps, mapFile, saveMap, savePatch, tableMapFile } from "./library.ts";
+import { listMaps, loadAnnotation, mapFile, saveAnnotation, saveMap, savePatch, tableMapFile } from "./library.ts";
 import { pictureFile, savePicture } from "./curtains.ts";
 
 /** Going back to an earlier save keeps the rig as it is now: the screens, the calibration and the curtain (D-037). */
@@ -471,6 +471,9 @@ if (!app.requestSingleInstanceLock()) {
       // Both windows drop the old picture and load the new copy.
       for (const w of [dmWindow, playerWindow]) send(w, "map:patched", id);
     });
+    // Walls, pillars and openings (D-044): the DM window only. The table window's bridge has no channel to these (D-002).
+    ipcMain.handle("library:walls", (_e, id: unknown) => loadAnnotation(app.getPath("userData"), id));
+    ipcMain.handle("library:saveWalls", (_e, id: unknown, raw: unknown) => saveAnnotation(app.getPath("userData"), id, raw));
     // Stat blocks: the DM window only (D-028). The table window's bridge has no channel to these.
     ipcMain.handle("creatures:import", (_e, text: unknown) => importCreatures(app.getPath("userData"), text));
     ipcMain.handle("creatures:search", (_e, query: unknown) => findCreatures(app.getPath("userData"), query));

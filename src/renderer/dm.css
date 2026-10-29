@@ -737,10 +737,18 @@ input[type="number"] {
   background: #000;
   border-radius: 6px;
 }
-#patchCanvas {
+#patchCanvas,
+#wallsCanvas {
   display: block;
   touch-action: none;
   cursor: crosshair;
+}
+/* Walls editor (D-044): a finger pans the picture, so the box itself never scrolls under a touch. */
+.walls-scroll {
+  touch-action: none;
+}
+#wallsCanvas {
+  margin: 0 auto;
 }
 .setup {
   display: contents;

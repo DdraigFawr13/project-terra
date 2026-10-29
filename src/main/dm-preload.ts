@@ -6,6 +6,7 @@ import type { LibraryMap } from "./library.ts";
 import type { ImportResult } from "./creatures.ts";
 import type { CreatureHit, StatBlock } from "../core/creatures.ts";
 import type { Bounds } from "../core/map.ts";
+import type { Annotation } from "../core/annotation.ts";
 import type { DisplayInfo } from "../core/displays.ts";
 import type { Surface } from "../core/calibration.ts";
 
@@ -44,6 +45,9 @@ const api = {
     ipcRenderer.invoke("library:save", name, png, bounds, feetPerSquare),
   /** Store the table's patched copy of a map, or with null go back to the map itself (D-036). */
   savePatch: (id: string, png: Uint8Array | null): Promise<void> => ipcRenderer.invoke("library:patch", id, png),
+  /** A map's walls, pillars and openings (D-044); empty if none are traced yet. */
+  loadWalls: (id: string): Promise<Annotation> => ipcRenderer.invoke("library:walls", id),
+  saveWalls: (id: string, walls: Annotation): Promise<Annotation> => ipcRenderer.invoke("library:saveWalls", id, walls),
   /** Store a curtain picture (D-039); resolves to its id. */
   savePicture: (bytes: Uint8Array): Promise<string> => ipcRenderer.invoke("curtain:save", bytes),
   onMapPatched: (fn: (id: string) => void) => ipcRenderer.on("map:patched", (_e, id: string) => fn(id)),

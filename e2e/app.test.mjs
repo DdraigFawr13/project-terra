@@ -313,6 +313,64 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     assert.equal(await fingerprint(table, `terra-map://${id}/?b`), patched);
     assert.equal(await fingerprint(table, `terra-map://${id}/table?b`), patched);
 
+    // Walls editor (D-044): from the map bar (the library has it too, with no map placed), tap four corners and the first again for a closed room, drag a door
+    // across one wall, Done. The walls are saved beside the map; the DM map shows them with its switch, and the table
+    // window has no way to get them (D-002).
+    await dm.click("#editWalls");
+    await dm.waitForFunction(() => document.getElementById("wallsStatus").textContent.startsWith("Tap each corner"));
+    const wc = await dm.locator("#wallsCanvas").boundingBox();
+    const tap = (fx, fy) => dm.mouse.click(wc.x + wc.width * fx, wc.y + wc.height * fy);
+    // The map is 8 inches across from -3: 0.2 is -1.4 inches, snapped to -1.5; 0.8 is 3.4, snapped to 3.5.
+    for (const [fx, fy] of [
+      [0.2, 0.2],
+      [0.8, 0.2],
+      [0.8, 0.8],
+      [0.2, 0.8],
+      [0.2, 0.2],
+    ])
+      await tap(fx, fy);
+    await dm.click("button[data-walls-tool='door']");
+    await dm.mouse.move(wc.x + wc.width * 0.4, wc.y + wc.height * 0.2);
+    await dm.mouse.down();
+    await dm.mouse.move(wc.x + wc.width * 0.6, wc.y + wc.height * 0.2, { steps: 3 });
+    await dm.mouse.up();
+    assert.equal(await dm.textContent("#wallsCount"), "4 wall pieces, 0 pillars, 1 opening · not saved yet");
+    await dm.click("#wallsDone");
+    await dm.waitForSelector("#walls", { state: "hidden" });
+    const saved = JSON.parse(fs.readFileSync(path.join(userData, "library", "maps", `${id}.walls.json`), "utf8"));
+    assert.deepEqual(saved.walls, [
+      {
+        points: [
+          { x: -1.5, y: -1.5 },
+          { x: 3.5, y: -1.5 },
+          { x: 3.5, y: 3.5 },
+          { x: -1.5, y: 3.5 },
+        ],
+        closed: true,
+      },
+    ]);
+    assert.deepEqual(saved.openings, [{ kind: "door", a: { x: 0.25, y: -1.5 }, b: { x: 1.75, y: -1.5 }, open: false }]);
+    assert.equal(await table.evaluate(() => typeof window.terra.loadWalls), "undefined");
+    assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("door"));
+    const wallPixels = () =>
+      dm.evaluate(() => {
+        const c = document.getElementById("mapCanvas");
+        const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+        let n = 0;
+        for (let i = 0; i < d.length; i += 4) if (d[i] > 240 && Math.abs(d[i + 1] - 211) < 12 && Math.abs(d[i + 2] - 107) < 16) n++;
+        return n;
+      });
+    assert.equal(await wallPixels(), 0);
+    await dm.click("#wallsMap");
+    await until(dm, () => {
+      const c = document.getElementById("mapCanvas");
+      const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+      for (let i = 0; i < d.length; i += 4) if (d[i] > 240 && Math.abs(d[i + 1] - 211) < 12 && Math.abs(d[i + 2] - 107) < 16) return true;
+      return false;
+    });
+    assert.ok((await wallPixels()) > 100);
+    await dm.click("#wallsMap");
+
     // Fog (D-025): a new map is all black on the table. Paint a box with Uncover, and the table and the DM's preview
     // show the map there; Ctrl+Z covers it again.
     await dm.evaluate(() => window.terra.apply({ type: "testGrid", on: false }));
