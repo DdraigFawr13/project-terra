@@ -18,8 +18,8 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-003 Session 1 scope
 
-- **Status:** Accepted (2026-10-28); character cards added 2026-10-28 in the book library interview.
-- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain, since D-035 freehand drawing, and since D-036 map scale, a corner magnifier, the HP ring, the patch tool and revealed tokens. Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
+- **Status:** Accepted (2026-10-28); character cards added 2026-10-28 in the book library interview; save rollback and a problem report added by D-037.
+- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain, since D-035 freehand drawing, since D-036 map scale, a corner magnifier, the HP ring, the patch tool and revealed tokens, and since D-037 keeping the last 3 saves and a problem report. Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
 - **Why:** 22 features were ranked "Now" against 1–3 months with games monthly or less. Both reviews flagged it, and Morgan cut the list in the review. In the book library interview Morgan first moved six library features into session 1, then kept only character cards after the review showed the cost.
 
 ## D-004 Projector rig and calibration
@@ -42,7 +42,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-007 Session 1 fog is revealed by hand
 
-- **Status:** Accepted (2026-10-28)
+- **Status:** Accepted (2026-10-28). Automatic line of sight cut by D-037; rooms come from map annotation.
 - **Decision:** Fog is revealed with a brush and shapes, and by room where the map defines rooms. Explored areas stay dimmed. Automatic line of sight comes after session 1, and only for markers Morgan moves on the laptop.
 - **Why:** the app can't see physical minis, so automatic fog would mean mirroring every move on the laptop.
 
@@ -102,7 +102,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-017 Phase order after session 1
 
-- **Status:** Accepted (2026-10-28)
+- **Status:** SUPERSEDED by D-037 (2026-10-29). D-026 had already put the library first without marking this entry.
 - **Decision:** Battle drama, then monsters from Morgan's books, the generator, living effects, story tools, and the rest (PLAN.md).
 - **Why:** Morgan's dream is epic battle scenes, so the second session should already feel different.
 
@@ -162,7 +162,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-025 Fog
 
-- **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults. Item 5's op limit changed by D-029: long fog lists are baked, never refused.
+- **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults. Item 5's op limit changed by D-029: long fog lists are baked, never refused. Item 8 changed by D-037: rooms come from map annotation, not only the generator.
 - **Decision:**
   1. Three states on the table: never seen is black; seen before is the map in grey, darkened, with a line every half inch; in view now is the map itself (D-023). The DM sees the whole map, tinted where players can't see now and darker where they've never been.
   2. Touch first. The bottom tools are 56 px buttons: Select (V), Reveal (R), Hide (H); draw with Brush (1, 2 or 4 inches), Outline (a freehand loop that fills) or Box (snaps to whole squares), with S stepping through them; Undo. Under the preview: "Party moves on" (in view becomes seen before), Reveal all and Cover all. One finger, the pen or the mouse paints; a second finger or Esc cancels the stroke. Morgan uses a stylus: touches are ignored while the pen draws (a resting palm), a hovering pen shows the brush ring, and the pen's eraser hides.
@@ -302,3 +302,16 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   5. After session 1, at the start of the library phase: corner snapping to grid lines; PDF page import with pdf.js (Apache 2.0, approved under SAFE-03); library maps that arrive ready to place; map library tidy-up (rename, thumbnails, groups by adventure set at import, a Removed list Morgan empties); a down monster leaves a faded, crossed-out mark until cleared, and still leaves the turn strip (changes D-027 item 3); place a group by count; size from the stat block counted in feet on the map's scale (Large is 1 inch on a 10-ft map); monster search. Saved spots on big maps: later. Big maps are dragged, as now.
   6. If the laptop arrives first, the rehearsal (step 8) runs with what is ready; the rest lands before session 1.
 - **Why:** Thundertree is a 10-ft map and a keyed DM map, so it needs the scale setting and a way to hide room numbers without hiding the floor. Morgan wants monsters to look like monsters and chose to build it all. The review measured a 1-inch token at about 40 projector pixels (estimate), where a portrait blurs, so symbols are the default there and the table photo decides (VER-07).
+
+## D-037 Plan audit: scenes and map annotation first, merges and cuts
+
+- **Status:** Accepted (2026-10-29). Morgan asked for an adversarial audit of the plan, then said "do what you recommend". Supersedes D-017; changes D-003, D-007 and D-025 item 8.
+- **Decision:**
+  1. Before the rehearsal (step 7g): keep the last 3 saves so a bad state can be rolled back after a restart, and a Table → Problem report that copies the app version, displays and recent errors as text.
+  2. The rehearsal follows `docs/REHEARSAL.md`, with a pass line and evidence for each part. Anything that fails is hidden for session 1, not redesigned.
+  3. After session 1, in order: scenes, map annotation, library, battle drama, living effects, story tools, generator, later (PLAN.md).
+  4. Scenes: a scene keeps a map with its fog, discs, pins, drawings and fight. Scene switching, the per-scene curtain, saved spots and the world map join it.
+  5. Map annotation: rooms, walls, doors and materials traced on imported maps. One-tap room reveal, doors, room notes and living effects' materials use it; the generator produces the same annotation.
+  6. Merges: monster search and spell lookup become one book search; place by count and size from the stat block join it as "adding monsters"; the map follow-ups become map intake; ruler, shapes with lengths and spell templates become one measure tool; map symbols reuse the token symbols; down marks join conditions, which gain durations and concentration counted on Next turn; the encounter builder and encounter tester are one; item handouts appear once, in story tools; room notes, story tracker and Far Realm tracker move to story tools; weather becomes an optional layer of living effects.
+  7. Cuts: automatic line of sight (replaced by a light-radius fog shape; camera tracking stays in Later as the only route to it), the dice roller, the name and loot generators, and the NPC conversation player until it is defined.
+- **Why:** the state holds one map, and taking it off drops its fog, discs, pins and drawings (`src/core/table.ts`), so a session with two locations would lose prep. One-tap rooms, doors, room notes and material tags all needed map structure that only the generator would supply, while Morgan's maps come from the book. Automatic line of sight had nothing to see from: it was limited to markers the DM moves (D-007), and players have no discs (D-027). Players roll real dice (D-013). Several items were listed twice across phases. The rehearsal had no pass criteria, and the audit's save rotation and problem report were never built.
