@@ -1,6 +1,6 @@
 // The DM window's only bridge to the main process. The page gets these calls and nothing else.
 import { contextBridge, ipcRenderer } from "electron";
-import type { Command, Ink, TableState } from "../core/table.ts";
+import type { Command, FeetPerSquare, Ink, TableState } from "../core/table.ts";
 import type { Point } from "../core/homography.ts";
 import type { LibraryMap } from "./library.ts";
 import type { ImportResult } from "./creatures.ts";
@@ -32,7 +32,8 @@ const api = {
   canUndo: (): Promise<boolean> => ipcRenderer.invoke("history:get"),
   onHistory: (fn: (canUndo: boolean) => void) => ipcRenderer.on("history:changed", (_e, can: boolean) => fn(can)),
   listMaps: (): Promise<LibraryMap[]> => ipcRenderer.invoke("library:list"),
-  saveMap: (name: string, png: Uint8Array, bounds: Bounds): Promise<LibraryMap> => ipcRenderer.invoke("library:save", name, png, bounds),
+  saveMap: (name: string, png: Uint8Array, bounds: Bounds, feetPerSquare: FeetPerSquare): Promise<LibraryMap> =>
+    ipcRenderer.invoke("library:save", name, png, bounds, feetPerSquare),
   getStatus: (): Promise<TableStatus> => ipcRenderer.invoke("table:status"),
   importCreatures: (text: string): Promise<ImportResult> => ipcRenderer.invoke("creatures:import", text),
   searchCreatures: (query: string): Promise<CreatureHit[]> => ipcRenderer.invoke("creatures:search", query),

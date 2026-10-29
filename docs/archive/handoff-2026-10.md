@@ -47,3 +47,4 @@ Finished entries moved out of HANDOFF.md (CTX-02). Newest last.
   - Tests: 30 unit, 4 e2e (about 13 s). Real `mm2024.json` imports: 503 read, 6 checked.
 
 - 2026-10-28 Zoom (D-030) and movable windows with smaller controls (D-031), branch `windows-and-zoom`: `src/renderer/dock.ts` (areas, groups, tabs, floating, drop targets, layout in localStorage `terra.layout.v1`), sheets via `float-win.ts`, zoom and pan in `dm-map.ts`. Morgan picked both in popups; e2e runs the DM window at 1920 × 1080 at Morgan's request.
+- 2026-10-28 Adversarial audit and hardening (D-029), branch `hardening`: fog bakes every 500 ops (`bake` in `src/core/fog.ts`, save version 7), one state copy per window (`dm.ts`), display kept awake, Lock map, save retry with a DM notice, crashed windows reload. Measured on Morgan's PC: HP change 399 → 9 ms, save 5.9 MB → 39 KB. Tests: 32 unit (0.5 s), 4 e2e (about 8 s); the locked-save path was tried by hand on Windows.

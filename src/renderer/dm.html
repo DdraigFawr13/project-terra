@@ -83,14 +83,24 @@
         <section id="importer" class="card wide" aria-labelledby="import-heading" hidden>
           <h2 id="import-heading">Mark a rectangle on the map</h2>
           <ol class="steps">
-            <li>Drag corners 1–4 onto the corners of a block of grid squares, or any rectangle you know the size of.</li>
-            <li>Enter its size in squares. One square becomes 1 inch on the table.</li>
+            <li>
+              Drag corners 1–4 onto the corners of a block of grid squares, or any rectangle you know the size of. A magnifier shows the
+              corner while you drag.
+            </li>
+            <li>Enter its size in squares, and the feet a square stands for. One square becomes 1 inch on the table.</li>
             <li>Press “Straighten and place”. A slanted photo comes out square.</li>
           </ol>
           <div class="size">
             <label>Name <input id="mapName" type="text" maxlength="120" /></label>
             <label>Width <input id="markW" type="number" min="1" max="120" step="1" value="4" /> squares</label>
             <label>Height <input id="markH" type="number" min="1" max="120" step="1" value="4" /> squares</label>
+            <label
+              >Each square is
+              <select id="markFeet">
+                <option value="5" selected>5 ft</option>
+                <option value="10">10 ft</option>
+              </select></label
+            >
           </div>
           <canvas id="importCanvas" aria-label="The map picture. Drag the numbered corners onto a rectangle of grid squares."></canvas>
           <p id="importStatus" class="hint" role="status"></p>

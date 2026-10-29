@@ -286,8 +286,8 @@ if (!app.requestSingleInstanceLock()) {
         send(playerWindow, "player:sketch", { ink, points });
     });
     ipcMain.handle("library:list", () => listMaps(app.getPath("userData")));
-    ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown) =>
-      saveMap(app.getPath("userData"), name, png, bounds),
+    ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown, feet: unknown) =>
+      saveMap(app.getPath("userData"), name, png, bounds, feet),
     );
     // Stat blocks: the DM window only (D-028). The table window's bridge has no channel to these.
     ipcMain.handle("creatures:import", (_e, text: unknown) => importCreatures(app.getPath("userData"), text));

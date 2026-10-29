@@ -19,7 +19,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 ## D-003 Session 1 scope
 
 - **Status:** Accepted (2026-10-28); character cards added 2026-10-28 in the book library interview.
-- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain, and since D-035 freehand drawing. Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
+- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain, since D-035 freehand drawing, and since D-036 map scale, a corner magnifier, the HP ring, the patch tool and revealed tokens. Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
 - **Why:** 22 features were ranked "Now" against 1–3 months with games monthly or less. Both reviews flagged it, and Morgan cut the list in the review. In the book library interview Morgan first moved six library features into session 1, then kept only character cards after the review showed the cost.
 
 ## D-004 Projector rig and calibration
@@ -290,3 +290,15 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   5. After session 1: symbols (X, skull, fire, star/treasure, danger/trap, door), shapes (a line with its length, a circle) and labels written twice (D-008). Shapes join the ruler and spell templates in Battle drama (PLAN.md).
 - **Why:** Morgan wants to mark traps, paths and areas at the table, and chose freehand now and the rest later, so session 1 isn't pushed back far. The same two switches as pins (who sees, how long) keep one rule for marks on the map.
 
+
+## D-036 Maps and monster tokens
+
+- **Status:** Accepted (2026-10-29), approved by Morgan in the maps and tokens interview ([round 1](https://claude.ai/artifact/XmKuvAKNAt1LjGoYDCV4MR), [round 2](https://claude.ai/artifact/Csn63Q1Sx2BtGEDHESXJLe), [final](https://claude.ai/artifact/FeT13w8okCXeqrcCSjvy4s)). Adds four pieces to session 1 (D-003); changes D-024, D-026, D-027 and D-028 as listed.
+- **Decision:**
+  1. Before session 1, in order: (a) feet per square (5 or 10) asked at import and stored on each map, while 1 square stays 1 inch on the table, plus a magnifier under a corner while it is dragged; (b) an HP ring round each disc on the DM map only, green to amber to red; (c) a patch tool: swipe to fill a room number from its edges, or clone clean floor over it; (d) revealed tokens.
+  2. Patched maps: the table gets its own patched copy, and the main process checks which window asks before serving a map, so the table can never load the numbered original. A test proves it.
+  3. Revealed tokens: one tap on Reveal shows a group's picture in its coloured ring. 1-inch tokens show a creature-type symbol by default, and a group can be switched to its portrait; 2 inches and up show the portrait. Symbols are drawn in code by Claude (SAFE-05) and follow the stat block's creature type, or are picked for an unlinked group. The letter sits on a badge inside the ring, or on a tab below the token when the disc is marked "Mini on it". Portrait art comes from the private library file (cropped by Claude; Morgan may touch it up), or from a picture Morgan picks.
+  4. Exception to D-026 and D-028: the table window may receive the picture or symbol of a revealed group, never its name, stats or notes, and nothing before Reveal. The player-view test checks exactly that.
+  5. After session 1, at the start of the library phase: corner snapping to grid lines; PDF page import with pdf.js (Apache 2.0, approved under SAFE-03); library maps that arrive ready to place; map library tidy-up (rename, thumbnails, groups by adventure set at import, a Removed list Morgan empties); a down monster leaves a faded, crossed-out mark until cleared, and still leaves the turn strip (changes D-027 item 3); place a group by count; size from the stat block counted in feet on the map's scale (Large is 1 inch on a 10-ft map); monster search. Saved spots on big maps: later. Big maps are dragged, as now.
+  6. If the laptop arrives first, the rehearsal (step 8) runs with what is ready; the rest lands before session 1.
+- **Why:** Thundertree is a 10-ft map and a keyed DM map, so it needs the scale setting and a way to hide room numbers without hiding the floor. Morgan wants monsters to look like monsters and chose to build it all. The review measured a 1-inch token at about 40 projector pixels (estimate), where a portrait blurs, so symbols are the default there and the table photo decides (VER-07).

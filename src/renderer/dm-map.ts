@@ -8,7 +8,7 @@ import { isConvex, type Point, type Quad } from "../core/homography.ts";
 import { conditionOf, nextLetter, snapDisc, type Disc, type DiscColour } from "../core/fight.ts";
 import { MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
 import { mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
-import { MAX_LINE_POINTS, type Command, type Ink, type PlacedMap, type TableState } from "../core/table.ts";
+import { MAX_LINE_POINTS, parseFeetPerSquare, type Command, type Ink, type PlacedMap, type TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
 import { fillFog, type FogPainter } from "./fog-draw.ts";
 import { icon } from "./icons.ts";
@@ -28,6 +28,7 @@ const importStatus = $<HTMLParagraphElement>("importStatus");
 const nameInput = $<HTMLInputElement>("mapName");
 const markW = $<HTMLInputElement>("markW");
 const markH = $<HTMLInputElement>("markH");
+const markFeet = $<HTMLSelectElement>("markFeet");
 const mapCanvas = $<HTMLCanvasElement>("mapCanvas");
 const undoBtn = $<HTMLButtonElement>("undo");
 const toolBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-tool]")];
@@ -81,6 +82,9 @@ const LINE_HIT_PX = 12;
 const GRAB_PX = 22;
 /** Discs are drawn at least this wide on the DM's map so their letters stay readable. */
 const MIN_DISC_PX = 18;
+
+/** How a map's square size reads after its name: 5 ft is the usual, so only 10 ft is named (D-036). */
+const feetNote = (feet: number) => (feet === 5 ? "" : ` · ${feet} ft squares`);
 
 /** A disc's key, shared with the side panel's rows. */
 export const discKey = (d: { colour: DiscColour; letter: string }) => `${d.colour}-${d.letter}`;
@@ -144,7 +148,7 @@ export function initMaps(
         const li = document.createElement("li");
         const b = document.createElement("button");
         b.type = "button";
-        b.textContent = `Place “${m.name}”`;
+        b.textContent = `Place “${m.name}”${feetNote(m.feetPerSquare)}`;
         b.addEventListener("click", () =>
           run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [] } }),
         );
@@ -161,7 +165,8 @@ export function initMaps(
     emptyMap.hidden = !!importing || !!map;
     // The map window's own buttons (its second row) and its tab name follow the map (D-032).
     mapActions.hidden = !map || !!importing;
-    if (mapTitle.textContent !== (map?.name ?? "Map")) mapTitle.textContent = map?.name ?? "Map";
+    const title = map ? map.name + feetNote(map.feetPerSquare) : "Map";
+    if (mapTitle.textContent !== title) mapTitle.textContent = title;
     zoomState.textContent = map && !importing && zoom > 1 ? `Zoom ${Math.round(zoom * 100)}%` : "";
     zoomLevel.textContent = `${Math.round(zoom * 100)}%`;
     renderTools(!!map && !importing);
@@ -207,6 +212,46 @@ export function initMaps(
       ctx.fillStyle = "#1a0e09";
       ctx.fillText(String(i + 1), p.x, p.y + 0.5);
     });
+    if (draggingCorner) drawLoupe(ctx, im, pts[im.selected]!, k, importCanvas.clientWidth, h);
+  }
+
+  /** A magnifier beside the corner being dragged (D-036), so a finger or the pen doesn't hide where it lands. */
+  function drawLoupe(ctx: CanvasRenderingContext2D, im: Importing, at: Point, k: number, w: number, h: number): void {
+    const R = 64;
+    const ZOOM = 3;
+    const GAP = 84;
+    // Up and to the left of the corner by default; the first side that fits inside the picture wins.
+    const spots = [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ].map(([dx, dy]) => ({ x: at.x + dx! * GAP, y: at.y + dy! * GAP }));
+    const c = spots.find((q) => q.x >= R && q.x <= w - R && q.y >= R && q.y <= h - R) ?? spots[0]!;
+    const corner = im.corners[im.selected]!;
+    const half = R / (k * ZOOM);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, R, 0, Math.PI * 2);
+    ctx.fillStyle = "#000";
+    ctx.fill();
+    ctx.clip();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(im.bitmap, corner.x - half, corner.y - half, half * 2, half * 2, c.x - R, c.y - R, R * 2, R * 2);
+    ctx.strokeStyle = isConvex(im.corners) ? accent : FOLDED;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(c.x - R, c.y);
+    ctx.lineTo(c.x + R, c.y);
+    ctx.moveTo(c.x, c.y - R);
+    ctx.lineTo(c.x, c.y + R);
+    ctx.stroke();
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, R, 0, Math.PI * 2);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#f0d3a8";
+    ctx.stroke();
   }
 
   async function startImport(file: File): Promise<void> {
@@ -249,7 +294,7 @@ export function initMaps(
       const canvas = new OffscreenCanvas(plan.width, plan.height);
       canvas.getContext("2d")!.putImageData(new ImageData(new Uint8ClampedArray(out.data), plan.width, plan.height), 0, 0);
       const png = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
-      const entry = await terra.saveMap(nameInput.value, png, plan.bounds);
+      const entry = await terra.saveMap(nameInput.value, png, plan.bounds, parseFeetPerSquare(Number(markFeet.value)) ?? 5);
       importing = null;
       await run({ type: "placeMap", map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [] } });
       refreshLibrary();
@@ -288,7 +333,11 @@ export function initMaps(
     importing.corners = corners;
     render();
   });
-  const endCorner = () => (draggingCorner = false);
+  const endCorner = () => {
+    if (!draggingCorner) return;
+    draggingCorner = false;
+    render();
+  };
   importCanvas.addEventListener("pointerup", endCorner);
   importCanvas.addEventListener("pointercancel", endCorner);
 

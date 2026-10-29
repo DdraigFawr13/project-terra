@@ -18,11 +18,15 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 6. **Initiative, markers and character cards.** Coloured discs with letters, and a turn strip on both long edges showing order, current turn and enemy condition in words. Character cards hold each player's name, AC, HP, passive Perception and speed, typed in by Morgan (D-026). Morgan tests: enter the party, then a mock round with dice.
 7. **Ping, autosave, curtain.** Tap to pulse, long press to pin. The app reopens exactly where it was after a crash. Morgan tests: close the app mid-fight and reopen it. (The curtain was built in step 3; saving after every change, save-failure recovery and crash reload in D-029.)
 7b. **Freehand drawing (D-035).** Lasting or fading lines that the players or only the DM see. Morgan tests: mark a trap and a path on the projected map, then rub one out.
+7c. **Map scale and magnifier (D-036).** Feet per square stored with each map; a magnifier under the dragged corner. Morgan tests: import the Thundertree photo; it comes out 28 × 19 inches at 10 ft a square.
+7d. **HP ring (D-036).** DM map only. Morgan tests: damage a monster; the ring drops, the table shows nothing new.
+7e. **Patch tool (D-036).** Fill or clone over room numbers on the table's own copy. Morgan tests: paint out Thundertree's numbers; the DM still sees them, the table doesn't.
+7f. **Revealed tokens (D-036).** Symbol or portrait in the coloured ring after Reveal; letter badge, or a tab when a mini stands on it. Morgan tests: a photo of the projected table with a mini on one token.
 8. **Rehearsal.** A full dry run of Thundertree at home, then fixes.
 
 ## After session 1, in order
 
-1. **Library.** Import the library file from the private repo, monster search, stat block and HP on a disc, portrait reveal, spell lookup, treasure roller (D-026). Room notes, story tracker, Far Realm tracker, encounter builder and item handouts follow it.
+1. **Library.** Import the library file from the private repo, monster search, stat block and HP on a disc, spell lookup, treasure roller (D-026). Map follow-ups from D-036: corner snapping, PDF page import, library maps ready to place, map library tidy-up, down marks, place a group by count, size from the stat block. Room notes, story tracker, Far Realm tracker, encounter builder and item handouts follow it.
 2. **Battle drama.** Symbols, shapes (a line with its length, a circle) and labels (D-035), conditions, light sources, doors, automatic line of sight where Morgan moves markers, spell templates, ruler, weather, the dice roller, scene switching.
 3. **Generator.** Ruined town and interiors first in the pencil style, then dungeon and cave. Edit after generating.
 4. **Living effects.** Fire first, then ice, water, lightning and collapse, spreading each round.

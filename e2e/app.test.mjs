@@ -195,6 +195,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     // The starting rectangle is the picture's middle quarter: exactly 2 × 2 squares of this board.
     await dm.fill("#markW", "2");
     await dm.fill("#markH", "2");
+    await dm.selectOption("#markFeet", "10");
     await dm.click("#importOk");
     await table.waitForFunction(() => document.body.dataset.view === "map");
 
@@ -208,6 +209,9 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     assert.ok(!JSON.stringify(view).includes("board"));
     // The picture is in the personal library, and terra-map:// serves only library maps.
     assert.deepEqual(fs.readdirSync(path.join(userData, "library", "maps")).sort(), [`${id}.json`, `${id}.png`]);
+    // A 10-ft map (D-036) is still 1 inch a square; the library and the DM's map title remember the feet.
+    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, "library", "maps", `${id}.json`), "utf8")).feetPerSquare, 10);
+    assert.equal(await dm.textContent("#mapTitle"), "board · 10 ft squares");
     const served = await table.evaluate(async (mapId) => {
       const width = (src) =>
         new Promise((resolve) => {

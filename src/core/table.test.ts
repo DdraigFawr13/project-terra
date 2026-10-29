@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fc from "fast-check";
 import { defaultCalibration } from "./calibration.ts";
 import {
+  parsePlacedMap,
   apply,
   defaultState,
   MAX_DRAWINGS,
@@ -26,6 +27,7 @@ const map: PlacedMap = {
   bounds: { x: -2, y: -3, width: 30, height: 20 },
   x: 4,
   y: 5,
+  feetPerSquare: 5,
   turns: 0,
   fog: [],
   discs: [],
@@ -285,7 +287,7 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
     ok: true,
     state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
   });
-  assert.equal(parseSave(JSON.stringify({ version: 10, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 11, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });
 
@@ -381,4 +383,15 @@ test("lasting drawings (D-035): kept in map inches, only the players' lines reac
   v8.version = 8;
   delete v8.map.drawings;
   assert.deepEqual((parseSave(JSON.stringify(v8)) as { state: TableState }).state.map!.drawings, []);
+});
+
+test("feet per square (D-036): stored with the map, 5 ft for older saves, anything else refused", () => {
+  const s = run([{ type: "placeMap", map: { ...map, feetPerSquare: 10 } }]);
+  assert.equal(s.map!.feetPerSquare, 10);
+  assert.deepEqual(parseSave(serialize(s)), { ok: true, state: s });
+  const v9 = JSON.parse(serialize(s));
+  v9.version = 9;
+  delete v9.map.feetPerSquare;
+  assert.equal((parseSave(JSON.stringify(v9)) as { state: TableState }).state.map!.feetPerSquare, 5);
+  for (const bad of [7, "10", 0, null]) assert.equal(parsePlacedMap({ ...map, feetPerSquare: bad }), null);
 });
