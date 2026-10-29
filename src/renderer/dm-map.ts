@@ -311,7 +311,7 @@ export function initMaps(
 
   /**
    * `fill`: a picture with no squares, such as a region map. The whole picture is used, sized and turned to fill what
-   * the projector reaches without stretching, and placed in the middle of it (D-039).
+   * the projector reaches without stretching, and placed in the middle of it (D-042).
    */
   async function finishImport(fill = false): Promise<void> {
     const im = importing;

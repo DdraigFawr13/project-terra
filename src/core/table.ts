@@ -800,7 +800,7 @@ export function apply(state: TableState, c: Command): TableState {
       return x === null || y === null ? state : { ...state, map: { ...state.map, x, y } };
     }
     case "turnMap": {
-      // A quarter turn clockwise about the map's middle, so it stays where it was on the table (D-041). The corner
+      // A quarter turn clockwise about the map's middle, so it stays where it was on the table (D-042). The corner
       // moves by whole inches, keeping the squares on the table grid; halves round away from zero, so four turns come
       // back to the start.
       const m = state.map;

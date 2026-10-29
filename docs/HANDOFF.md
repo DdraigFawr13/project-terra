@@ -8,7 +8,8 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Just done
 
-- 2026-10-29 Step 7m (D-039), [walkthrough](https://claude.ai/artifact/VjjZsMpVUkiZcojpUkqRx8), approved by Morgan: another scene as a curtain (the world map, `curtainScene` in table.ts), link pins (`linkPin`, a Select tap opens `pinMenu` in dm-scenes.ts), the party marker (`party` on a map; `#partyMap`, Select drags it). Save version 15. Fill the table in import (D-041; `fillTable`), and a fix so a whole-picture mark no longer adds an inch (`planRectify`). The e2e suite's 34 async waits never waited (LESSONS); they now use `until`.
+- 2026-10-29 Step 7m (D-039), [walkthrough](https://claude.ai/artifact/VjjZsMpVUkiZcojpUkqRx8), approved by Morgan: another scene as a curtain (the world map, `curtainScene` in table.ts), link pins (`linkPin`, a Select tap opens `pinMenu` in dm-scenes.ts), the party marker (`party` on a map; `#partyMap`, Select drags it). Save version 15. Fill the table in import (D-042; `fillTable`), and a fix so a whole-picture mark no longer adds an inch (`planRectify`). The e2e suite's 34 async waits never waited (LESSONS); they now use `until`.
+- 2026-10-29 Map generator concept (D-041, testing only until its design phase; tests in `mapgen.test.ts`), outside the app: `src/core/mapgen.ts` (seeded dungeon, cave, ruins, town; walls, doors, objects, lights, areas, in inches), `mapdraw.ts` (pencil), `detect.ts` (walls and objects from a picture), `light.ts` (bright and dim light with shadows), `scripts/maps.mjs <dir> [ppi] [seed]` (PNG plus data). [Test run page](https://claude.ai/artifact/Gs8EnBJbwqFJghRbyVyu64). Detector: 100% of walls, objects and closed doors on generated maps from 20 ppi (closed doors block light; walls and objects from 12 ppi); on 5 painted Lost Mine battle maps scored against their VTT walls, 23–99% found but 4–35% of finds real, so not for real maps. Unit suite 1.8–2.0 s, at its budget. PR opened with Morgan's OK. Fits D-040: `light.ts`'s wall-cut shape is what Look from here needs; map light sources stay in Later there, so this is a test concept only. Not planned yet: the generator phase still needs its interview.
 - 2026-10-29 Step 7l (D-039), [walkthrough](https://claude.ai/artifact/XC9dLhFeP9VHHiU3xqKDXg), merged as [PR #32](https://github.com/DdraigFawr13/project-terra/pull/32): a curtain per scene (black, title twice, or a picture via `terra-curtain://`, table-limited to the one shown; `cover` in the state and player view, cleared by B), saved spots on the map bar (`#spotsMap`, slide a locked map), Mark ready / Reset in a scene's menu; saves reuse unchanged scenes' JSON (measurements in D-039). Save version 14.
 - Earlier: [archive](archive/handoff-2026-10.md).
 
@@ -50,11 +51,10 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Decisions since the last plan update
 
-- 2026-10-29 D-041 pictures with no squares fill the table, turned if bigger, never stretched.
+- 2026-10-29 D-042 pictures with no squares fill the table, turned if bigger, never stretched; Turn turns about the middle.
 - 2026-10-29 D-040 sight: Look from here replaces the light-radius shape, after map annotation ([Arkenforge report](https://claude.ai/artifact/Bq9i76akbah11aL3TyoZ3K)); D-039 scenes before session 1 (steps 7k–7m, B stays black).
 - 2026-10-29 D-038 DM window: the map first, one panel with tabs, Encounter list, Uncover/Dim and On/Off table; steps 7h–7j before the rehearsal.
 - 2026-10-29 D-037 plan audit: scenes and map annotation first, merges and cuts; supersedes D-017.
 - 2026-10-29 D-036 maps and monster tokens: feet per square, magnifier, HP ring, patch tool, revealed tokens before session 1; the rest after.
-- 2026-10-28 D-035 freehand drawing before session 1; symbols, shapes, labels after.
-- 2026-10-28 D-034 ping, pins, reopening sheets, audit leftovers.
+- 2026-10-28 D-035 freehand drawing before session 1; D-034 ping, pins, reopening sheets, audit leftovers.
 - 2026-10-28 D-032 DM window redesign; D-033 looks; D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep; D-010: book data only in `project-terra-library`.

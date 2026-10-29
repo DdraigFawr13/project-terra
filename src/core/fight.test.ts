@@ -61,7 +61,7 @@ test("discs snap to squares, take the next letter, start hidden, and reach the t
     [
       { type: "showDiscs", colour: "yellow", letter: null, on: true },
       { type: "condition", colour: "yellow", letter: "B", condition: "down" },
-      // Turned about the map's middle (D-041).
+      // Turned about the map's middle (D-042).
       { type: "turnMap" },
     ],
     s,

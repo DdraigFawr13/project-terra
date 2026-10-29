@@ -114,7 +114,7 @@ test("maps move by whole inches and turn in quarter turns", () => {
     { type: "turnMap" },
     { type: "turnMap" },
   ]);
-  // Turning keeps the map's middle in place (D-041), on whole inches, and four turns come back to the start.
+  // Turning keeps the map's middle in place (D-042), on whole inches, and four turns come back to the start.
   const once = run([{ type: "placeMap", map }, { type: "lockMap", on: false }, { type: "moveMap", dx: -1, dy: 2 }, { type: "turnMap" }]);
   assert.deepEqual(s.map, once.map);
   const mid = (m: PlacedMap) => {

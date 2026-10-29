@@ -59,7 +59,7 @@ export function planRectify(m: Marking, image: { width: number; height: number }
     }
   pts.push({ x: 0, y: 0 }, { x: m.widthIn, y: m.heightIn });
   // A corner on the picture's very edge comes back a hair past a whole inch; without this it would round up a whole
-  // inch and add a black strip (seen with Fill the table, D-039).
+  // inch and add a black strip (seen with Fill the table, D-042).
   const snap = (v: number) => (Math.abs(v - Math.round(v)) < 1e-6 ? Math.round(v) : v);
   const x0 = Math.floor(snap(Math.min(...pts.map((p) => p.x))));
   const y0 = Math.floor(snap(Math.min(...pts.map((p) => p.y))));
@@ -147,7 +147,7 @@ export function placedExtent(p: Placement): Bounds {
 
 /**
  * A picture with no squares, such as a region map, sized and turned to fill `area` (the part of the table the projector
- * reaches, in inches) as far as it can without stretching (D-039). Sizes are whole inches, so the shape can change by a
+ * reaches, in inches) as far as it can without stretching (D-042). Sizes are whole inches, so the shape can change by a
  * hair; the size that changes it least among the largest few is kept. `widthIn` and `heightIn` are the picture's own
  * width and height, and (x, y) and `turns` place its top-left corner so it sits centred in the area. Null when the area
  * is smaller than an inch.

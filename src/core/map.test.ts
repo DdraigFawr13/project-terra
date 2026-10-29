@@ -130,7 +130,7 @@ test("the far, squashed edge of a steep photo is left out instead of stretched",
   assert.ok(plan.bounds.y > -34, JSON.stringify(plan.bounds));
 });
 
-test("a picture with no squares fills the table as far as it can, turned if that is bigger, never stretched (D-039)", () => {
+test("a picture with no squares fills the table as far as it can, turned if that is bigger, never stretched (D-042)", () => {
   const board = { x: 0, y: 0, width: 42, height: 24 };
   // A tall region map, 2648 x 3625 pixels: turned it lies 30 x 22 inches, centred on the board.
   const tall = fillTable({ width: 2648, height: 3625 }, board)!;
