@@ -59,6 +59,7 @@
         </button>
         <button id="turnMap" type="button">Turn</button>
         <button id="removeMap" type="button">Take off table</button>
+        <button id="patchMap" type="button" title="Paint room numbers out of the table's copy of this map">Patch numbers</button>
         <span class="spacer"></span>
         <!-- Zoom: also pinch, the mouse wheel, and drag to pan once zoomed (D-030). -->
         <div class="zoom" role="group" aria-label="Zoom the map">
@@ -107,6 +108,40 @@
           <div class="row">
             <button id="importCancel" type="button">Cancel</button>
             <button id="importOk" type="button" class="primary">Straighten and place</button>
+          </div>
+        </section>
+
+        <section id="patcher" class="card wide" aria-labelledby="patch-heading" hidden>
+          <h2 id="patch-heading">Paint out room numbers</h2>
+          <p class="hint">
+            You keep the numbers on your map; the table gets this copy. Fill: swipe over a number. Clone: tap clean floor, then paint over
+            the number with it.
+          </p>
+          <div class="patchtools">
+            <div class="presets" role="group" aria-label="How to paint">
+              <button type="button" data-patch-mode="fill" aria-pressed="true">Fill</button>
+              <button type="button" data-patch-mode="clone" aria-pressed="false">Clone</button>
+            </div>
+            <div class="presets" role="group" aria-label="Brush size">
+              <button type="button" data-patch-brush="0.25" aria-pressed="false">Small</button>
+              <button type="button" data-patch-brush="0.5" aria-pressed="true">Medium</button>
+              <button type="button" data-patch-brush="1" aria-pressed="false">Large</button>
+            </div>
+            <div class="presets" role="group" aria-label="Zoom">
+              <button type="button" data-patch-zoom="1" aria-pressed="true">Whole map</button>
+              <button type="button" data-patch-zoom="2" aria-pressed="false">2×</button>
+              <button type="button" data-patch-zoom="4" aria-pressed="false">4×</button>
+            </div>
+            <button id="patchUndo" type="button" disabled>Undo</button>
+          </div>
+          <div id="patchScroll" class="patch-scroll">
+            <canvas id="patchCanvas" aria-label="The table's copy of the map. Swipe over a room number to paint it out."></canvas>
+          </div>
+          <p id="patchStatus" class="hint" role="status"></p>
+          <div class="row">
+            <button id="patchCancel" type="button">Cancel</button>
+            <button id="patchRemove" type="button">Give the table the original</button>
+            <button id="patchSave" type="button" class="primary">Save for the table</button>
           </div>
         </section>
 

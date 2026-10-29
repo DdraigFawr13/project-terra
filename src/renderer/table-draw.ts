@@ -252,20 +252,30 @@ export function textBothSides(
   ctx.restore();
 }
 
-/** Library map images, loaded once each; `onload` draws again when one arrives. */
-export function mapImages(onload: () => void): (id: string) => HTMLImageElement {
+/** Library map images, loaded once each; `onload` draws again when one arrives. `reload` fetches a patched map anew (D-036). */
+export type MapImages = ((id: string) => HTMLImageElement) & { reload: (id: string) => void };
+
+/** `copy`: "table" for what the table gets (a patched map's clean copy), "" for the map as imported. */
+export function mapImages(onload: () => void, copy: "" | "table" = ""): MapImages {
   const images = new Map<string, HTMLImageElement>();
-  return (id) => {
+  let loads = 0;
+  const get = (id: string) => {
     let img = images.get(id);
     if (!img) {
       img = new Image();
       img.crossOrigin = "anonymous";
-      img.src = `terra-map://${id}/`;
+      // A new query each load, so a reload never gets the browser's copy of the old picture.
+      img.src = `terra-map://${id}/${copy}?n=${loads++}`;
       img.onload = onload;
       images.set(id, img);
     }
     return img;
   };
+  return Object.assign(get, {
+    reload: (id: string) => {
+      if (images.delete(id)) onload();
+    },
+  });
 }
 
 export type TableMode = "calibrate" | "testGrid" | "map";

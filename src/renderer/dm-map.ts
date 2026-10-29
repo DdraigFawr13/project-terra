@@ -11,6 +11,7 @@ import { mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMa
 import { MAX_LINE_POINTS, parseFeetPerSquare, type Command, type Ink, type PlacedMap, type TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
 import { fillFog, type FogPainter } from "./fog-draw.ts";
+import { initPatch } from "./dm-patch.ts";
 import { icon } from "./icons.ts";
 import { drawDisc, drawLine, drawPin, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
 
@@ -141,6 +142,8 @@ export function initMaps(
   let viewOf: string | null = null;
   const MAX_ZOOM = 8;
 
+  const patch = initPatch(terra, accent, () => render());
+  $<HTMLButtonElement>("patchMap").addEventListener("click", () => state?.map && patch.open(state.map));
   const run = (c: Command) => terra.apply(c);
   const undo = () => terra.undo();
 
@@ -163,18 +166,20 @@ export function initMaps(
 
   function render(): void {
     const map = state?.map ?? null;
+    // The patch tool (D-036) takes the map window's place while it is open.
+    const patching = patch.isOpen();
     importer.hidden = !importing;
-    mapView.hidden = !!importing || !map;
+    mapView.hidden = !!importing || !map || patching;
     emptyMap.hidden = !!importing || !!map;
     // The map window's own buttons (its second row) and its tab name follow the map (D-032).
-    mapActions.hidden = !map || !!importing;
+    mapActions.hidden = !map || !!importing || patching;
     const title = map ? map.name + feetNote(map.feetPerSquare) : "Map";
     if (mapTitle.textContent !== title) mapTitle.textContent = title;
     zoomState.textContent = map && !importing && zoom > 1 ? `Zoom ${Math.round(zoom * 100)}%` : "";
     zoomLevel.textContent = `${Math.round(zoom * 100)}%`;
-    renderTools(!!map && !importing);
+    renderTools(!!map && !importing && !patching);
     if (importing) drawImport(importing);
-    else if (map) drawMap(map);
+    else if (map && !patching) drawMap(map);
   }
 
   // ---- Import: mark a rectangle on the picture ----

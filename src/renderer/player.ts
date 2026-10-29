@@ -42,6 +42,7 @@ let player: PlayerView | null = null;
 
 const fog = new FogPainter();
 const image = mapImages(draw);
+terra.onMapPatched(image.reload);
 
 function surfaceNow(): Surface {
   return { width: window.innerWidth, height: window.innerHeight, scale: window.devicePixelRatio || 1 };
