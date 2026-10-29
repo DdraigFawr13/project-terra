@@ -51,7 +51,7 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
    - Conditions: on discs and characters, with durations and concentration that count down on Next turn; down marks (D-036) are one of them.
 6. **Living effects.** Fire first, then ice, water, lightning and collapse, spreading each round on annotated materials (D-014). Weather is an optional ambient layer here.
 7. **Story tools.** Room notes, story tracker, Far Realm tracker, handouts and item cards, ambient sound.
-8. **Generator.** Ruined town and interiors first in the pencil style, then dungeon and cave, with annotation. Edit after generating. Moved below story tools: Morgan runs a published adventure whose maps come from the book (D-037).
+8. **Generator.** Ruined town and interiors first in the pencil style, then dungeon and cave, with annotation. Edit after generating. Moved below story tools: Morgan runs a published adventure whose maps come from the book (D-037). A test-only concept (seeded maps, detection, lighting) exists; its findings feed this design (D-041).
 9. **Later.** Remote players, hex and gridless, camera tracking (the only route to sight that follows the minis by itself), fantasy icons (D-023). From the Arkenforge research (D-040): light sources on the map and a time-of-day tint, each after a projector photo; a marker per character with live sight, only if Look from here feels too manual after a session or two.
 
 Cut in the plan audit (D-037): the dice roller (players roll real dice, D-013), automatic line of sight (partly back as Look from here, D-040), the name and loot generators (Claude does them at prep; loot is the treasure roller), and the NPC conversation player (never defined; it can come back with a definition).
