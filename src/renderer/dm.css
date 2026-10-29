@@ -1535,6 +1535,64 @@ button.pop-close {
   font-size: 12px;
   user-select: text;
 }
+/* ---- Scenes (D-039) ---- */
+/* The scene on the table, above the tabs: its name reads first, and a tap switches. */
+.scene-btn {
+  flex: none;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.scene-btn small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.scene-btn span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.scene-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#sceneList button.who {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+}
+#sceneList button.who small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.scene-actions,
+.scene-pick {
+  display: grid;
+  gap: 6px;
+}
+.scene-actions button,
+.scene-pick button {
+  justify-content: flex-start;
+}
+.removed-scenes {
+  display: grid;
+  gap: 6px;
+}
+.removed-scenes summary {
+  min-height: var(--row);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--muted);
+}
+.removed-scenes[open] > * + * {
+  margin-top: 6px;
+}
 /* ---- The Encounter list (D-038) ---- */
 /* A character's name is a button for its HP pad, but reads as a name. */
 button.who {

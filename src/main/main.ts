@@ -9,6 +9,7 @@ import { laptopDisplay, playerPlacement, type DisplayInfo } from "../core/displa
 import {
   apply,
   defaultState,
+  dmStateOf,
   dropMissingCharacters,
   parseCommand,
   parseSave,
@@ -50,6 +51,10 @@ function keepOnUndo(s: TableState): Partial<TableState> {
     flipLetters: s.flipLetters,
     lastCharacter: s.lastCharacter,
     mapLocked: s.mapLocked,
+    // Each scene has its own undo steps (D-039): an undo here leaves the other scenes, and the list, as they are.
+    scenes: s.scenes,
+    scene: s.scene,
+    lastScene: s.lastScene,
   };
 }
 
@@ -60,8 +65,13 @@ let state: TableState = defaultState();
 let dmWindow: BrowserWindow | null = null;
 let playerWindow: BrowserWindow | null = null;
 let quitting = false;
-/** States before each undoable command, newest last (D-024). Kept for this session only. */
-const history: TableState[] = [];
+/** States before each undoable command, newest last (D-024), one list per scene (D-039). Kept for this session only. */
+const histories = new Map<string, TableState[]>();
+function history(): TableState[] {
+  let h = histories.get(state.scene);
+  if (!h) histories.set(state.scene, (h = []));
+  return h;
+}
 const MAX_HISTORY = 100;
 /** A problem the DM should see, such as a save that couldn't be read. The packaged app has no console. */
 let notice: string | null = null;
@@ -337,8 +347,8 @@ function portraitResponse(portrait: string | null | undefined): Response {
 function commit(next: TableState): void {
   const before = state.playerDisplayId;
   state = next;
-  send(dmWindow, "state:changed", state);
-  send(dmWindow, "history:changed", history.length > 0);
+  send(dmWindow, "state:changed", dmStateOf(state));
+  send(dmWindow, "history:changed", history().length > 0);
   sendPlayerView();
   saveSoon();
   if (state.playerDisplayId !== before) placePlayerWindow();
@@ -363,7 +373,7 @@ if (!app.requestSingleInstanceLock()) {
     state = loadState();
     // The table as it opened is an earlier save, so a bad change made now can be rolled back after another restart.
     keepEarlier();
-    ipcMain.handle("state:get", () => state);
+    ipcMain.handle("state:get", () => dmStateOf(state));
     ipcMain.handle("player:get", () => playerViewOf(state, placement().surfaceKey));
     ipcMain.handle("table:status", () => tableStatus());
     // Neither returns the state: `commit` has already sent it, and with a long fog list each copy costs (D-029).
@@ -374,16 +384,17 @@ if (!app.requestSingleInstanceLock()) {
       // A command that changes nothing, such as moving a locked map, leaves no undo step behind.
       if (next === state) return;
       if (UNDOABLE.has(command.type)) {
-        history.push(state);
-        if (history.length > MAX_HISTORY) history.shift();
+        const h = history();
+        h.push(state);
+        if (h.length > MAX_HISTORY) h.shift();
       }
       commit(next);
     });
     ipcMain.handle("state:undo", () => {
-      const previous = history.pop();
+      const previous = history().pop();
       if (previous) commit(dropMissingCharacters({ ...previous, ...keepOnUndo(state) }));
     });
-    ipcMain.handle("history:get", () => history.length > 0);
+    ipcMain.handle("history:get", () => history().length > 0);
     // Earlier saves (D-037): going back keeps the state now as an earlier save first, so it can be taken back too.
     ipcMain.handle("saves:list", () => listEarlier());
     ipcMain.handle("saves:restore", (_e, name: unknown) => {
@@ -395,7 +406,7 @@ if (!app.requestSingleInstanceLock()) {
       saveNow();
       keepEarlier();
       // Undo steps belong to the state being left.
-      history.length = 0;
+      histories.clear();
       // A character id given out since stays used, so it never names someone else (a sheet left open, say).
       const lastCharacter = Math.max(state.lastCharacter, parsed.state.lastCharacter);
       commit({ ...parsed.state, ...keepOnRestore(state), lastCharacter });
@@ -459,10 +470,12 @@ if (!app.requestSingleInstanceLock()) {
       if (u.hostname !== "book") return servePortrait(req.url);
       return portraitResponse(getCreature(app.getPath("userData"), decodeURIComponent(u.pathname.slice(1)))?.portrait);
     });
-    // The table's window: only the table's copy, whatever it asks for, so a patched map's numbers never reach it.
-    session
-      .fromPartition(TABLE_PARTITION)
-      .protocol.handle("terra-map", (req) => serveMap(tableMapFile(app.getPath("userData"), new URL(req.url).hostname)));
+    // The table's window: only the table's copy, so a patched map's numbers never reach it, and only of the map on the
+    // table now, so it can't load a scene the players haven't reached (D-039).
+    session.fromPartition(TABLE_PARTITION).protocol.handle("terra-map", (req) => {
+      const id = new URL(req.url).hostname;
+      return serveMap(id === state.map?.id ? tableMapFile(app.getPath("userData"), id) : null);
+    });
     session.fromPartition(TABLE_PARTITION).protocol.handle("terra-portrait", (req) => servePortrait(req.url));
     // A quiet stretch of role-play mustn't let Windows switch off the projector or put the laptop to sleep (D-029).
     powerSaveBlocker.start("prevent-display-sleep");

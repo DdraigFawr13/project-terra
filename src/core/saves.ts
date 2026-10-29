@@ -36,6 +36,9 @@ export function describeSave(s: TableState, mapName: string | null): string {
   if (s.map) parts.push(count(s.map.discs.length, "disc"));
   if (s.fight) parts.push(`round ${s.fight.round}`);
   parts.push(count(s.party.length, "character"));
+  // The map, discs and round are the scene that was on the table; the others are counted (D-039).
+  const scenes = s.scenes.filter((sc) => !sc.removed).length;
+  if (scenes > 1) parts.push(count(scenes, "scene"));
   return parts.join(", ");
 }
 const count = (n: number, what: string) => `${n} ${what}${n === 1 ? "" : "s"}`;
