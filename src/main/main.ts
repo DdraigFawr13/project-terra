@@ -8,6 +8,7 @@ import type { Surface } from "../core/calibration.ts";
 import { laptopDisplay, playerPlacement, type DisplayInfo } from "../core/displays.ts";
 import {
   apply,
+  coverOf,
   defaultState,
   dmStateOf,
   dropMissingCharacters,
@@ -25,11 +26,13 @@ import { isColour, tokenLook } from "../core/fight.ts";
 import { describeSave, dueForEarlier, earlierName, earlierSaves, earlierTime, earlierToDrop, problemReport } from "../core/saves.ts";
 import { countCreatures, findCreatures, getCreature, importCreatures } from "./creatures.ts";
 import { listMaps, mapFile, saveMap, savePatch, tableMapFile } from "./library.ts";
+import { pictureFile, savePicture } from "./curtains.ts";
 
 /** Going back to an earlier save keeps the rig as it is now: the screens, the calibration and the curtain (D-037). */
 function keepOnRestore(s: TableState): Partial<TableState> {
   return {
     curtain: s.curtain,
+    cover: s.cover,
     calibrating: s.calibrating,
     testGrid: s.testGrid,
     playerDisplayId: s.playerDisplayId,
@@ -42,6 +45,7 @@ function keepOnRestore(s: TableState): Partial<TableState> {
 function keepOnUndo(s: TableState): Partial<TableState> {
   return {
     curtain: s.curtain,
+    cover: s.cover,
     calibrating: s.calibrating,
     testGrid: s.testGrid,
     playerDisplayId: s.playerDisplayId,
@@ -303,6 +307,16 @@ function reloadIfGone(w: BrowserWindow): void {
 const TABLE_PARTITION = "table";
 
 /** A library PNG for terra-map://, never cached, so a new patch shows at once. */
+/** A curtain picture for terra-curtain://<id>, with its own type (D-039). */
+async function servePicture(id: string): Promise<Response> {
+  const pic = pictureFile(app.getPath("userData"), id);
+  if (!pic) return new Response("Not found", { status: 404 });
+  const body = await net.fetch(pathToFileURL(pic.file).toString());
+  return new Response(body.body, {
+    headers: { "content-type": pic.mime, "access-control-allow-origin": "*", "cache-control": "no-store" },
+  });
+}
+
 async function serveMap(file: string | null): Promise<Response> {
   if (!file || !fs.existsSync(file)) return new Response("Not found", { status: 404 });
   // Readable by the app's own pages, so a canvas with a map on it can still be read back (the e2e tests and patching do).
@@ -315,6 +329,7 @@ async function serveMap(file: string | null): Promise<Response> {
 protocol.registerSchemesAsPrivileged([
   { scheme: "terra-map", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
   { scheme: "terra-portrait", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+  { scheme: "terra-curtain", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
 ]);
 
 /**
@@ -448,6 +463,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown, feet: unknown) =>
       saveMap(app.getPath("userData"), name, png, bounds, feet),
     );
+    ipcMain.handle("curtain:save", (_e, bytes: unknown) => savePicture(app.getPath("userData"), bytes));
     ipcMain.handle("library:patch", (_e, id: unknown, png: unknown) => {
       savePatch(app.getPath("userData"), id, png);
       // Both windows drop the old picture and load the new copy.
@@ -477,6 +493,13 @@ if (!app.requestSingleInstanceLock()) {
       return serveMap(id === state.map?.id ? tableMapFile(app.getPath("userData"), id) : null);
     });
     session.fromPartition(TABLE_PARTITION).protocol.handle("terra-portrait", (req) => servePortrait(req.url));
+    // Curtain pictures (D-039): the DM's window may load any of them; the table only the one its curtain shows now.
+    protocol.handle("terra-curtain", (req) => servePicture(new URL(req.url).hostname));
+    session.fromPartition(TABLE_PARTITION).protocol.handle("terra-curtain", (req) => {
+      const id = new URL(req.url).hostname;
+      const cover = coverOf(state);
+      return cover && "picture" in cover && cover.picture === id ? servePicture(id) : new Response("Not found", { status: 404 });
+    });
     // A quiet stretch of role-play mustn't let Windows switch off the projector or put the laptop to sleep (D-029).
     powerSaveBlocker.start("prevent-display-sleep");
     screen.on("display-added", placePlayerWindow);

@@ -6,6 +6,8 @@ import {
   sceneContent,
   sceneTitle,
   MAX_SCENE_NAME,
+  MAX_SPOT_NAME,
+  MAX_TITLE,
   type Command,
   type Scene,
   type TableState,
@@ -14,7 +16,7 @@ import type { DmApi } from "../main/dm-preload.ts";
 import { button, el } from "./dom.ts";
 import { popover } from "./popover.ts";
 
-export function initScenes(terra: DmApi, sceneBtn: HTMLButtonElement): { section: HTMLElement } {
+export function initScenes(terra: DmApi, sceneBtn: HTMLButtonElement, spotsBtn: HTMLButtonElement): { section: HTMLElement } {
   let state: TableState | null = null;
   const run = (c: Command) => void terra.apply(c);
   const list = el("ol", { id: "sceneList", class: "entries", "aria-label": "Scenes" });
@@ -44,7 +46,7 @@ export function initScenes(terra: DmApi, sceneBtn: HTMLButtonElement): { section
 
   /** Name a new scene (scene null), or rename one. Enter saves (LESSONS: a form needs a submit button). */
   function nameForm(scene: Scene | null, from: HTMLElement): void {
-    const input = el("input", { id: "sceneName", type: "text", maxlength: String(MAX_SCENE_NAME), placeholder: "Such as Cragmaw hideout" });
+    const input = el("input", { id: "sceneName", type: "text", maxlength: String(MAX_SCENE_NAME), placeholder: "Such as Forest road" });
     input.value = scene?.name ?? "";
     const form = el(
       "form",
@@ -78,14 +80,135 @@ export function initScenes(terra: DmApi, sceneBtn: HTMLButtonElement): { section
         button("Copy", {}, pick({ type: "copyScene", id: scene.id }), "copy"),
         button("Move up", { disabled: first }, pick({ type: "moveScene", id: scene.id, by: -1 }), "up"),
         button("Move down", { disabled: last }, pick({ type: "moveScene", id: scene.id, by: 1 }), "down"),
+        button(`Curtain: ${scene.curtain.kind}…`, {}, () => curtainForm(scene, from), "curtain"),
+        button(
+          "Mark ready",
+          { title: "Keep a copy of this scene as it is now, to reset to later" },
+          pick({ type: "markReady", id: scene.id }),
+          "ready",
+        ),
+        button("Reset to ready…", { disabled: !isCurrent || !scene.ready }, () => confirmReset(from), "reset"),
         button("Remove", { disabled: isCurrent }, pick({ type: "removeScene", id: scene.id, on: true }), "trash"),
-        isCurrent ? el("p", { class: "hint" }, "The scene on the table can't be removed: switch to another first.") : el("span"),
+        el(
+          "p",
+          { class: "hint" },
+          [
+            scene.ready ? "A ready copy is kept." : "No ready copy yet.",
+            isCurrent ? "The scene on the table can't be removed: switch to another first." : "Reset works on the scene on the table.",
+          ].join(" "),
+        ),
       ),
     ]);
   }
 
+  /** What the table shows when the DM switches to this scene (D-039): black, a title, or a picture. B is always black. */
+  function curtainForm(scene: Scene, from: HTMLElement): void {
+    const text = el("input", { id: "curtainTitle", type: "text", maxlength: String(MAX_TITLE), placeholder: "Such as The forest road" });
+    text.value = scene.curtain.kind === "title" ? scene.curtain.text : "";
+    const file = el("input", { id: "curtainFile", type: "file", accept: "image/png,image/jpeg,image/webp", hidden: true });
+    const status = el("p", { class: "hint", role: "status" }, "Players see this until you lift the curtain. Scene names never show.");
+    const set = (curtain: Scene["curtain"]) => {
+      run({ type: "sceneCurtain", id: scene.id, curtain });
+      pop.close();
+    };
+    const form = el(
+      "form",
+      { class: "pop-body scene-actions" },
+      el("label", { class: "wide" }, "A title, shown facing both long sides", text),
+      el("button", { type: "submit", class: "primary" }, "Use this title"),
+      button("Choose a picture…", {}, () => file.click(), "picture"),
+      button("Black", { "aria-pressed": String(scene.curtain.kind === "black") }, () => set({ kind: "black" })),
+      file,
+      status,
+    );
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const t = text.value.trim();
+      set(t ? { kind: "title", text: t } : { kind: "black" });
+    });
+    file.addEventListener("change", async () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      status.textContent = "Saving the picture…";
+      try {
+        set({ kind: "picture", id: await terra.savePicture(new Uint8Array(await f.arrayBuffer())) });
+      } catch {
+        status.textContent = "That picture couldn't be used: pick a PNG, JPEG or WebP under 32 MB.";
+      }
+    });
+    const pop = popover(at(from), [
+      el("header", { class: "pop-head" }, el("b", {}, `Curtain for ${state ? sceneTitle(state, scene) : ""}`)),
+      form,
+    ]);
+  }
+
+  function confirmReset(from: HTMLElement): void {
+    const pop = popover(at(from), [
+      el("header", { class: "pop-head" }, el("b", {}, "Reset to ready")),
+      el("p", { class: "hint" }, "Put the fog, discs, pins, drawings and fight back as they were at Mark ready? Undo takes it back."),
+      el(
+        "div",
+        { class: "row" },
+        button("Keep", {}, () => pop.close()),
+        button("Reset", { class: "danger" }, () => {
+          run({ type: "resetScene" });
+          pop.close();
+        }),
+      ),
+    ]);
+  }
+
+  // Saved spots on the map bar (D-039): slide a big map to a place under the projector, even when it is locked.
+  spotsBtn.addEventListener("click", () => {
+    const map = state?.map;
+    if (!map) return;
+    const name = el("input", { id: "spotName", type: "text", maxlength: String(MAX_SPOT_NAME), placeholder: "Such as Bridge" });
+    const form = el(
+      "form",
+      { class: "pop-body" },
+      el("label", { class: "wide" }, "Save where the map is now", name),
+      el("button", { type: "submit", class: "primary" }, "Save spot"),
+    );
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      run({ type: "saveSpot", name: name.value.trim() || `Spot ${map.spots.length + 1}` });
+      pop.close();
+    });
+    const r = spotsBtn.getBoundingClientRect();
+    const pop = popover({ x: r.left, y: r.bottom + 140 }, [
+      el("header", { class: "pop-head" }, el("b", {}, "Spots on this map")),
+      el(
+        "ul",
+        { class: "entries", "aria-label": "Spots" },
+        ...map.spots.map((spot) =>
+          el(
+            "li",
+            { class: "entry" },
+            button(spot.name, { class: "who", title: "Slide the map here" }, () => {
+              run({ type: "goToSpot", id: spot.id });
+              pop.close();
+            }),
+            button(
+              "",
+              { class: "icon", "aria-label": `Remove ${spot.name}` },
+              () => {
+                run({ type: "removeSpot", id: spot.id });
+                pop.close();
+              },
+              "trash",
+            ),
+          ),
+        ),
+      ),
+      map.spots.length ? el("span") : el("p", { class: "hint" }, "Drag the map where you want it (unlock it first), then save the spot."),
+      form,
+    ]);
+    name.focus();
+  });
+
   function confirmEmpty(from: HTMLElement, n: number): void {
     const pop = popover(at(from), [
+      el("header", { class: "pop-head" }, el("b", {}, "Delete removed scenes")),
       el("p", { class: "hint" }, `Delete ${n} removed scene${n === 1 ? "" : "s"} for good? This can't be undone.`),
       el(
         "div",
@@ -101,6 +224,7 @@ export function initScenes(terra: DmApi, sceneBtn: HTMLButtonElement): { section
 
   function render(s: TableState): void {
     state = s;
+    spotsBtn.textContent = s.map?.spots.length ? `Spots (${s.map.spots.length})` : "Spots";
     const listed = listedScenes(s);
     const here = s.scenes.find((sc) => sc.id === s.scene)!;
     sceneBtn.querySelector("span")!.textContent = sceneTitle(s, here);

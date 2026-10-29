@@ -14,6 +14,8 @@ import {
   parseSave,
   playerViewOf,
   sceneTitle,
+  coverOf,
+  dmStateOf,
   serialize,
   UNDOABLE,
   viewOf,
@@ -36,6 +38,7 @@ const map: PlacedMap = {
   groups: {},
   pins: [],
   drawings: [],
+  spots: [],
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
@@ -91,6 +94,7 @@ test("the table window gets only the player view: no map name, the calibration f
     grid: false,
     pins: [],
     drawings: [],
+    cover: null,
   });
   assert.equal(playerViewOf(s, "window").calibration, null);
   assert.ok(!JSON.stringify(playerViewOf(s, "display:7")).includes("Secret"));
@@ -261,6 +265,19 @@ test("the same commands give the same state, and any state saves and loads uncha
       on: anyValue,
     }),
     fc.record({
+      type: fc.constantFrom("sceneCurtain", "markReady"),
+      id: fc.constantFrom("scene-1", "scene-2"),
+      curtain: fc.oneof(
+        anyValue,
+        fc.record({ kind: fc.constantFrom("black", "title", "picture", "x"), text: fc.string(), id: fc.constantFrom("pic-0123abcd", "x") }),
+      ),
+    }),
+    fc.record({
+      type: fc.constantFrom("resetScene", "saveSpot", "goToSpot", "removeSpot"),
+      name: fc.oneof(fc.string(), anyValue),
+      id: anyValue,
+    }),
+    fc.record({
       type: fc.constant("fog"),
       op: fc.oneof(
         anyValue,
@@ -300,7 +317,7 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
     ok: true,
     state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
   });
-  assert.equal(parseSave(JSON.stringify({ version: 14, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 15, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });
 
@@ -542,7 +559,9 @@ test("saves before scenes upgrade to one scene; a damaged scene list keeps the f
   const v12 = { ...defaultState(), version: 12, map, scenes: undefined, scene: undefined, lastScene: undefined };
   const parsed = parseSave(JSON.stringify(v12));
   assert.ok(parsed.ok);
-  assert.deepEqual(parsed.state.scenes, [{ id: "scene-1", name: "", removed: false, parked: null }]);
+  assert.deepEqual(parsed.state.scenes, [
+    { id: "scene-1", name: "", removed: false, parked: null, curtain: { kind: "black" }, ready: null },
+  ]);
   const two = run([
     { type: "placeMap", map },
     { type: "addScene", name: "Road" },
@@ -568,4 +587,66 @@ test("saves before scenes upgrade to one scene; a damaged scene list keeps the f
     bad((r) => ((r.scenes as { parked: { map: unknown } }[])[0]!.parked.map = { id: "nope" })),
     false,
   );
+});
+
+test("a scene's own curtain (D-039): shown after a switch, never under B; title and picture only, never the name", () => {
+  const s = run([
+    { type: "renameScene", id: "scene-1", name: "Goblin ambush" },
+    { type: "sceneCurtain", id: "scene-1", curtain: { kind: "title", text: "The forest road" } },
+    { type: "addScene", name: "Mill" },
+    { type: "sceneCurtain", id: "scene-2", curtain: { kind: "picture", id: "pic-0123abcd" } },
+    { type: "switchScene", id: "scene-1" },
+  ]);
+  assert.deepEqual(playerViewOf(s, "window").cover, { title: "The forest road" });
+  assert.ok(!JSON.stringify(playerViewOf(s, "window")).includes("Goblin"));
+  assert.deepEqual(coverOf(run([{ type: "switchScene", id: "scene-2" }], s)), { picture: "pic-0123abcd" });
+  // Lifting it ends the scene's curtain; B brings back plain black.
+  assert.equal(
+    coverOf(
+      run(
+        [
+          { type: "curtain", on: false },
+          { type: "curtain", on: true },
+        ],
+        s,
+      ),
+    ),
+    null,
+  );
+  assert.equal(coverOf(run([{ type: "curtain", on: true }], s)), null);
+  assert.equal(run([{ type: "sceneCurtain", id: "scene-1", curtain: { kind: "title", text: "x".repeat(81) } }], s), s);
+});
+
+test("saved spots (D-039) slide even a locked map, on whole inches; Mark ready and Reset put a scene back", () => {
+  const s = run([
+    { type: "placeMap", map },
+    { type: "saveSpot", name: "Gate" },
+    { type: "lockMap", on: false },
+    { type: "moveMap", dx: 20, dy: 0 },
+    { type: "turnMap" },
+    { type: "lockMap", on: true },
+    { type: "saveSpot", name: "Tower" },
+  ]);
+  assert.deepEqual(s.map!.spots, [
+    { id: 1, name: "Gate", x: 4, y: 5, turns: 0 },
+    { id: 2, name: "Tower", x: 24, y: 5, turns: 1 },
+  ]);
+  const gate = run([{ type: "goToSpot", id: 1 }], s);
+  assert.deepEqual([gate.map!.x, gate.map!.y, gate.map!.turns, gate.mapLocked], [4, 5, 0, true]);
+  assert.deepEqual(
+    run([{ type: "removeSpot", id: 1 }], s).map!.spots.map((p) => p.name),
+    ["Tower"],
+  );
+  // Reset goes back to the copy kept at Mark ready, fight and all.
+  const ready = run([{ type: "markReady", id: "scene-1" }], s);
+  const played = run(
+    [{ type: "placeDisc", colour: "red", x: 1, y: 1, size: 1 }, { type: "startFight" }, { type: "fog", op: { kind: "revealAll" } }],
+    ready,
+  );
+  const reset = run([{ type: "resetScene" }], played);
+  assert.deepEqual([reset.map, reset.fight], [s.map, null]);
+  assert.equal(run([{ type: "resetScene" }], s), s);
+  // The DM window gets waiting scenes and ready copies without their contents.
+  const away = dmStateOf(run([{ type: "addScene", name: "" }], played));
+  assert.deepEqual([away.scenes[0]!.parked!.map!.discs, away.scenes[0]!.ready!.map!.spots], [[], []]);
 });

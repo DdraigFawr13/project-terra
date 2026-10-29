@@ -17,7 +17,7 @@ import type { DiscColour } from "../core/fight.ts";
 import { initPanel, type Tab } from "./panel.ts";
 import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
-import { drawTable, mapImages, onPortraitLoad } from "./table-draw.ts";
+import { drawTable, mapImages, onPortraitLoad, pictureImages } from "./table-draw.ts";
 
 // ---- Appearance (D-033): this laptop's own, like the layouts; set first so the window never flashes another look ----
 const APPEARANCE_KEY = "terra.appearance.v1";
@@ -134,8 +134,9 @@ function renderState(s: TableState): void {
 function drawTablePreview(): void {
   if (!state || !status) return;
   const view = playerViewOf(state, status.surfaceKey);
-  previewText.textContent = PREVIEW_TEXT[view.view];
-  const mode = view.view === "curtain" || view.view === "idle" ? null : view.view;
+  // A scene's own curtain shows in the thumbnail as it does on the table (D-039).
+  const mode = view.view === "curtain" ? (view.cover ? "cover" : null) : view.view === "idle" ? null : view.view;
+  previewText.textContent = mode === "cover" ? "" : PREVIEW_TEXT[view.view];
   tablePreview.hidden = !mode;
   if (!mode) return;
   const cal = view.calibration ?? defaultCalibration(status.surface);
@@ -149,7 +150,7 @@ function drawTablePreview(): void {
   tablePreview.height = Math.round(h * dpr);
   drawTable(
     tablePreview.getContext("2d")!,
-    { cal, layer, mode, calibrated: !!view.calibration, view, image: tableImage, fog, area: visibleRect(cal, status.surface) },
+    { cal, layer, mode, calibrated: !!view.calibration, view, image: tableImage, fog, area: visibleRect(cal, status.surface), picture },
     dpr * k,
   );
 }
@@ -344,6 +345,7 @@ const image = mapImages(() => {
 });
 // The preview shows what the table gets: a patched map's clean copy (D-036).
 const tableImage = mapImages(drawTablePreview, "table");
+const picture = pictureImages(drawTablePreview);
 terra.onMapPatched(tableImage.reload);
 onPortraitLoad(() => {
   maps.render();
@@ -371,7 +373,7 @@ const partySec = section(
   el("p", { class: "hint" }, "Names, AC, HP and passives, typed in once and kept between sessions."),
   button("Party sheet", {}, () => party.show()),
 );
-const scenes = initScenes(terra, $<HTMLButtonElement>("sceneBtn"));
+const scenes = initScenes(terra, $<HTMLButtonElement>("sceneBtn"), $<HTMLButtonElement>("spotsMap"));
 const panel = initPanel(
   {
     setup: [scenes.section, $("setupPanel"), partySec],
