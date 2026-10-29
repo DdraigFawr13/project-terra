@@ -19,6 +19,7 @@ const map: PlacedMap = {
   bounds: { x: 0, y: 0, width: 20, height: 10 },
   x: 2,
   y: 3,
+  feetPerSquare: 5,
   turns: 0,
   fog: [],
   discs: [],

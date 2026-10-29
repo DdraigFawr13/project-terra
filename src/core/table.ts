@@ -42,7 +42,7 @@ import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
-const SAVE_VERSION = 9;
+const SAVE_VERSION = 10;
 /** Pins on one map at most: plenty for marks, and a stuck pen can't fill the save. */
 export const MAX_PINS = 40;
 
@@ -58,6 +58,14 @@ export const MAX_LINE_POINTS = 400;
 /** A lasting freehand line (D-035), in the map's own inches. `table`: players see it; else only the DM. */
 type Drawing = { id: number; ink: Ink; table: boolean; points: Point[] };
 
+const FEET_PER_SQUARE = [5, 10] as const;
+export type FeetPerSquare = (typeof FEET_PER_SQUARE)[number];
+/** Feet per square from untrusted data; maps from before D-036 are 5 ft. */
+export function parseFeetPerSquare(raw: unknown): FeetPerSquare | null {
+  if (raw === undefined) return 5;
+  return FEET_PER_SQUARE.includes(raw as FeetPerSquare) ? (((raw as number) + 0) as FeetPerSquare) : null;
+}
+
 /** A straightened map from the personal library (D-010), placed on the table. Positions are in inches (D-005). */
 export type PlacedMap = {
   /** The library file's id. */
@@ -66,6 +74,8 @@ export type PlacedMap = {
   name: string;
   /** The image's extent around its marked rectangle's top-left corner, in inches. */
   bounds: Bounds;
+  /** Feet one square stands for (D-036). A square is always 1 inch on the table; later tools (ruler, sizes) count in feet. */
+  feetPerSquare: FeetPerSquare;
   /** Where that corner sits on the table, in whole inches, so the map's squares line up with the table grid. */
   x: number;
   y: number;
@@ -280,14 +290,15 @@ export function parsePlacedMap(raw: unknown): PlacedMap | null {
   const pins = raw.pins === undefined ? [] : parsePins(raw.pins);
   // And with no drawings before freehand drawing.
   const drawings = raw.drawings === undefined ? [] : parseDrawings(raw.drawings);
+  const feetPerSquare = parseFeetPerSquare(raw.feetPerSquare);
   const b = raw.bounds;
   const bounds = { x: inches(b.x), y: inches(b.y), width: inches(b.width, 1), height: inches(b.height, 1) };
   if (typeof id !== "string" || !MAP_ID.test(id) || typeof name !== "string" || name.length > 120) return null;
   if (bounds.x === null || bounds.y === null || bounds.width === null || bounds.height === null) return null;
   if (inches(x) === null || inches(y) === null || !(turns === 0 || turns === 1 || turns === 2 || turns === 3) || !fog) return null;
-  if (!discs || !groups || !pins || !drawings) return null;
+  if (!discs || !groups || !pins || !drawings || !feetPerSquare) return null;
   const at = { x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"] };
-  return { id, name, bounds: bounds as Bounds, ...at, fog, discs, groups, pins, drawings };
+  return { id, name, bounds: bounds as Bounds, feetPerSquare, ...at, fog, discs, groups, pins, drawings };
 }
 
 /** A line's points: 2 to MAX_LINE_POINTS, each in reach, rounded to hundredths of an inch. */
@@ -607,7 +618,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, 6, 7, 8, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.
