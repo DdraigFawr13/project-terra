@@ -8,13 +8,13 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Just done
 
-- 2026-10-29 Step 7m (D-039), branch `ccr-f55b2366-e7hkj0`, not yet in a PR: another scene as a curtain (the world map, `curtainScene` in table.ts), link pins (`linkPin`, a Select tap opens `pinMenu` in dm-scenes.ts), the party marker (`party` on a map; `#partyMap`, Select drags it). Save version 15. Fill the table in import (D-041; `fillTable`), and a fix so a whole-picture mark no longer adds an inch (`planRectify`). The e2e suite's 34 async waits never waited (LESSONS); they now use `until`.
+- 2026-10-29 Step 7m (D-039), [walkthrough](https://claude.ai/artifact/VjjZsMpVUkiZcojpUkqRx8), approved by Morgan: another scene as a curtain (the world map, `curtainScene` in table.ts), link pins (`linkPin`, a Select tap opens `pinMenu` in dm-scenes.ts), the party marker (`party` on a map; `#partyMap`, Select drags it). Save version 15. Fill the table in import (D-041; `fillTable`), and a fix so a whole-picture mark no longer adds an inch (`planRectify`). The e2e suite's 34 async waits never waited (LESSONS); they now use `until`.
 - 2026-10-29 Step 7l (D-039), [walkthrough](https://claude.ai/artifact/XC9dLhFeP9VHHiU3xqKDXg), merged as [PR #32](https://github.com/DdraigFawr13/project-terra/pull/32): a curtain per scene (black, title twice, or a picture via `terra-curtain://`, table-limited to the one shown; `cover` in the state and player view, cleared by B), saved spots on the map bar (`#spotsMap`, slide a locked map), Mark ready / Reset in a scene's menu; saves reuse unchanged scenes' JSON (measurements in D-039). Save version 14.
 - Earlier: [archive](archive/handoff-2026-10.md).
 
 ## Next
 
-0. Step 7m built: Morgan reviews the summary, then open its PR and merge when green (D-018). D-039's steps are then done; next is the rehearsal.
+0. Step 7m PR: merge when green (D-018). Then D-039's steps are done; next is the rehearsal.
 1. Step 8, rehearsal, when the laptop and projector arrive: follow [REHEARSAL.md](REHEARSAL.md). Confirm the built-in screen shows as "This laptop, in a window" and the display scale (14" 1080p usually defaults to 150%, a DM window of about 1280 × 680). On the laptop, re-import `data/monsters/mm2024.json` from the private library so the portraits arrive.
 2. Morgan's photos decide (VER-07): letters, symbols and portraits readable from the players' seats (whether 1-inch portraits are worth switching on); HP ring, patched Thundertree, ping, pins and lines on the projector; close the app mid-fight and reopen it.
 3. Still open: calibration keyed to the Windows display id; unplugging the projector drops the table window over the DM window; no Windows CI run of the app (REHEARSAL.md part 4). From step 7g: the "fading line saves nothing" check failed 1 in 40 local runs; likely cause found in step 7m (async waits that never waited, LESSONS), 5 of 5 clean runs since; watch for it.
