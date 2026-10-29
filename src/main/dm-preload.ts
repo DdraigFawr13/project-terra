@@ -20,9 +20,6 @@ export type TableStatus = {
   notice: string | null;
 };
 
-/** An earlier save: its file name, when it was kept, and a line on what it holds. */
-export type Backup = { name: string; at: number; holds: string };
-
 const api = {
   getState: (): Promise<TableState> => ipcRenderer.invoke("state:get"),
   /** Resolves once the main process has taken the command; the new state arrives through `onState` first. */
@@ -33,12 +30,6 @@ const api = {
   /** A fading line on the table, in table inches: gone in about 10 seconds, nothing saved (D-035). */
   sketch: (ink: Ink, points: Point[]): Promise<void> => ipcRenderer.invoke("table:sketch", ink, points),
   canUndo: (): Promise<boolean> => ipcRenderer.invoke("history:get"),
-  /** The earlier saves, newest first (D-037). */
-  listBackups: (): Promise<Backup[]> => ipcRenderer.invoke("backups:list"),
-  /** Make an earlier save current; resolves with why not, or null. */
-  restoreBackup: (name: string): Promise<string | null> => ipcRenderer.invoke("backups:restore", name),
-  /** The problem report's text, to copy and paste to Claude (D-037). */
-  problemReport: (): Promise<string> => ipcRenderer.invoke("report:get"),
   onHistory: (fn: (canUndo: boolean) => void) => ipcRenderer.on("history:changed", (_e, can: boolean) => fn(can)),
   listMaps: (): Promise<LibraryMap[]> => ipcRenderer.invoke("library:list"),
   saveMap: (name: string, png: Uint8Array, bounds: Bounds, feetPerSquare: FeetPerSquare): Promise<LibraryMap> =>
