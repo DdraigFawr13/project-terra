@@ -333,10 +333,10 @@ const selection = {
   tap: (colour: DiscColour, letter: string, at: { x: number; y: number }) => quick.show(colour, letter, at),
 };
 
-// The panel's tabs (D-038). A section can be in more than one tab: Groups is in Explore and Fight.
+// The panel's tabs (D-038). A section can be in more than one tab: the Encounter list is in Explore and Fight.
 let afterLayout = () => {};
 const section = (title: string, ...kids: HTMLElement[]) => el("section", { class: "side-sec" }, el("h3", {}, title), ...kids);
-const groupsSec = section("Groups", $("groupsPanel"));
+const encounterSec = section("Encounter", $("encounterPanel"));
 const partySec = section(
   "Party",
   el("p", { class: "hint" }, "Names, AC, HP and passives, typed in once and kept between sessions."),
@@ -345,8 +345,8 @@ const partySec = section(
 const panel = initPanel(
   {
     setup: [$("setupPanel"), partySec],
-    explore: [section("Fog", $("fogPanel")), groupsSec],
-    fight: [section("Initiative", $("initiativePanel")), groupsSec],
+    explore: [section("Fog", $("fogPanel")), encounterSec],
+    fight: [encounterSec],
   },
   () => afterLayout(),
 );
@@ -370,8 +370,8 @@ terra.onState((s) => {
 });
 
 const monsters = initMonsters(terra, selection);
-const quick = initQuickHp(terra, monsters.show);
-const fight = initFight(terra, monsters.show);
+const quick = initQuickHp(terra, monsters.show, () => party.show());
+const fight = initFight(terra, monsters.show, (id, at) => quick.showCharacter(id, at));
 const party = initParty(terra);
 const flipBtn = $<HTMLButtonElement>("flipLetters");
 flipBtn.addEventListener("click", () => terra.apply({ type: "flipLetters", on: flipBtn.getAttribute("aria-pressed") !== "true" }));

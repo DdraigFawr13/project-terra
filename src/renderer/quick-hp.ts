@@ -1,6 +1,7 @@
 // HP from the disc (D-032): a tap on a disc opens a small pad beside it, with the amount, Damage and Heal, and Sheet for
-// the group's full sheet. Without an HP max it offers the condition word instead, as the sheet does (D-027).
-import { conditionOf, discHp, discMax, type Condition, type DiscColour } from "../core/fight.ts";
+// the group's full sheet. Without an HP max it offers the condition word instead, as the sheet does (D-027). A tap on a
+// character's name in the Encounter list opens the same pad for the character, with Temp HP too (D-038).
+import { conditionFromHp, conditionOf, discHp, discMax, type Condition, type DiscColour } from "../core/fight.ts";
 import type { TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { COLOUR_NAME, el, swatch } from "./dom.ts";
@@ -10,7 +11,7 @@ import { popover } from "./popover.ts";
 const WORD: Record<Condition, string> = { fine: "Fine", bloodied: "Bloodied", nearDeath: "Near death", down: "Down" };
 const NEXT: Record<Condition, Condition> = { fine: "bloodied", bloodied: "nearDeath", nearDeath: "down", down: "fine" };
 
-export function initQuickHp(terra: DmApi, openSheet: (c: DiscColour) => void) {
+export function initQuickHp(terra: DmApi, openSheet: (c: DiscColour) => void, openParty: () => void) {
   let state: TableState | null = null;
   let shown: { colour: DiscColour; letter: string; head: HTMLElement; body: HTMLElement; close: () => void } | null = null;
   const pad = numpad(
@@ -24,8 +25,35 @@ export function initQuickHp(terra: DmApi, openSheet: (c: DiscColour) => void) {
     },
   );
 
+  /** The character's pad: Damage takes temp HP first; Temp HP sets it (D-027). */
+  let character: { id: string; head: HTMLElement; close: () => void } | null = null;
+  const pcPad = numpad(
+    [
+      { label: "− Damage", kind: "damage", className: "damage" },
+      { label: "+ Heal", kind: "heal", className: "heal" },
+      { label: "Temp HP", kind: "temp", className: "temp", zeroOk: true },
+    ],
+    (kind, amount) => {
+      if (!character) return;
+      if (kind === "temp") void terra.apply({ type: "tempHp", id: character.id, tempHp: amount });
+      else void terra.apply({ type: "characterHp", id: character.id, change: kind === "damage" ? -amount : amount });
+    },
+  );
+  function renderCharacter(): void {
+    if (!character || !state) return;
+    const pc = state.party.find((p) => p.id === character!.id);
+    if (!pc) return character.close();
+    const word = conditionFromHp(pc.hp, pc.hpMax);
+    character.head.replaceChildren(
+      el("b", {}, pc.name),
+      el("span", { class: `hp-word ${word}` }, `${pc.hp} / ${pc.hpMax}${pc.tempHp ? ` +${pc.tempHp}` : ""} · ${WORD[word]}`),
+    );
+    pcPad.setTarget(pc.name);
+  }
+
   /** The pad's heading and body for the disc as it is now; it closes if the disc is gone. */
   function render(): void {
+    renderCharacter();
     if (!shown || !state) return;
     const { colour, letter } = shown;
     const map = state.map;
@@ -75,6 +103,23 @@ export function initQuickHp(terra: DmApi, openSheet: (c: DiscColour) => void) {
       p.el.classList.add("quick-hp");
       shown = { colour, letter, head, body, close: p.close };
       render();
+    },
+    /** Open the pad for a character, beside the point where its name was tapped. */
+    showCharacter(id: string, at: { x: number; y: number }): void {
+      const head = el("header", { class: "pop-head" });
+      const sheet = el("button", { type: "button", class: "sheet" }, "Party sheet");
+      const p = popover(
+        at,
+        [head, el("div", { class: "pop-body" }, pcPad.el, el("div", { class: "row-buttons" }, sheet))],
+        () => (character = null),
+      );
+      p.el.classList.add("quick-hp");
+      sheet.addEventListener("click", () => {
+        p.close();
+        openParty();
+      });
+      character = { id, head, close: p.close };
+      renderCharacter();
     },
   };
 }

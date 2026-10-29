@@ -38,7 +38,8 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 
 ### The DM window
 
-- **The map and one panel (D-038):** the map fills the window, with its tools on its left edge. The panel on the right shows a thumbnail of what the table shows (hold it to see it big), then three tabs: **Setup** (table screen, calibration, the Party sheet), **Explore** (fog for the whole map, groups) and **Fight** (initiative, groups). Start fight switches to Fight, End fight back to Explore.
+- **The map and one panel (D-038):** the map fills the window, with its tools on its left edge. The panel on the right shows a thumbnail of what the table shows (hold it to see it big), then three tabs: **Setup** (table screen, calibration, the Party sheet), **Explore** (fog for the whole map, the Encounter list) and **Fight** (the Encounter list). Start fight switches to Fight, End fight back to Explore.
+- **Encounter list:** the party (each with a thin HP bar and numbers; tap a name for an HP pad with Damage, Heal and Temp HP) and the colour groups (tap for the sheet). In a fight the same rows run in turn order with their rolls, and a strip pinned at the top says the round, whose turn it is and who is next, even while a sheet is open.
 - **Sheets:** the Party and monster sheets open in the panel in place of the tab's lists; **Back** returns to the lists. One sheet shows at a time, and the one open when the app closes opens again.
 - **Panel size:** drag the panel's edge to make it wider or narrower (or focus the edge and use the arrow keys); the width is remembered. Tab folds the panel away so the map has the whole window.
 - **Menus:** Table (setup, calibrate, test grid, flip letters, lock, import, earlier saves, problem report), Fight (start or end, Party) and View (the panel's tabs, fold, appearance). Curtain and Next turn stay on the bar; the status bar at the bottom shows the table screen, the round, the zoom and any problem.
