@@ -399,6 +399,8 @@ const srdZombie = {
   cr: "1/4",
   actions: [{ name: "Slam", text: "Test attack." }],
   checks: { pageChecked: true },
+  // A generated picture, not book art (D-010).
+  portrait: `data:image/png;base64,${checkerboardPng().toString("base64")}`,
 };
 
 test("a fight: party and monster windows, discs placed with the pen, HP by number pad, a stat block, and nothing DM-only on the table", async () => {
@@ -535,6 +537,34 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await dm.click(".quick-hp button.mini");
     await table.waitForFunction(async () => (await window.terra.getView()).discs[0]?.mini === true);
     assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("Zombie"));
+    // Portraits (D-036): the test zombie carries a generated picture. A 1-inch token shows the symbol until the DM asks
+    // for the portrait there too; then the table loads it by the key it was given, and no other key finds anything.
+    assert.equal((await table.evaluate(() => window.terra.getView())).discs[0].portrait, null);
+    await dm.evaluate(async () => {
+      const g = (await window.terra.getState()).map.groups.yellow;
+      await window.terra.apply({ type: "group", colour: "yellow", info: { ...g, smallPortrait: true } });
+    });
+    await table.waitForFunction(async () => !!(await window.terra.getView()).discs[0]?.portrait);
+    const key = (await table.evaluate(() => window.terra.getView())).discs[0].portrait;
+    const loads = (src) =>
+      table.evaluate(
+        (s) =>
+          new Promise((res) => {
+            const img = new Image();
+            img.onload = () => res(img.naturalWidth);
+            img.onerror = () => res(0);
+            img.src = s;
+          }),
+        src,
+      );
+    assert.deepEqual(
+      [
+        await loads(`terra-portrait://${key}`),
+        await loads("terra-portrait://yellow/other"),
+        await loads("terra-portrait://book/SRD52%3Azombie"),
+      ],
+      [400, 0, 0],
+    );
 
     // Ping (D-034): a tap pings the table; holding leaves a pin the players see; a tap on the pin takes it away.
     await dm.keyboard.press("p");

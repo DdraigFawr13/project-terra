@@ -64,7 +64,7 @@ test("discs snap to squares, take the next letter, start hidden, and reach the t
     s,
   );
   assert.deepEqual(playerViewOf(shown, "window").discs, [
-    { colour: "yellow", letter: "A", x: 0.5, y: 7.5, size: 1, symbol: null, mini: false },
+    { colour: "yellow", letter: "A", x: 0.5, y: 7.5, size: 1, symbol: null, portrait: null, mini: false },
   ]);
   // A removed letter is given out again.
   const again = run(

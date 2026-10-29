@@ -44,6 +44,10 @@ export type GroupInfo = {
   symbol: CreatureType | null;
   /** The table shows the group's symbol (D-036). Until then its discs are plain letters. */
   revealed: boolean;
+  /** The linked stat block has a portrait (D-036): revealed tokens of 2 inches and up show it. */
+  hasPortrait: boolean;
+  /** Show the portrait on 1-inch tokens too, where by default the symbol reads better (D-036). */
+  smallPortrait: boolean;
 };
 export type Groups = Partial<Record<DiscColour, GroupInfo>>;
 export const blankGroup = (): GroupInfo => ({
@@ -55,6 +59,8 @@ export const blankGroup = (): GroupInfo => ({
   notes: "",
   symbol: null,
   revealed: false,
+  hasPortrait: false,
+  smallPortrait: false,
 });
 
 /** The 2024 creature types, each with a symbol drawn in code (D-036). */
@@ -171,8 +177,11 @@ export function parseGroupInfo(raw: unknown): GroupInfo | null {
   // Groups saved before D-036 have no symbol and aren't revealed.
   const symbol = raw.symbol ?? null;
   const revealed = raw.revealed ?? false;
-  if ((symbol !== null && !isCreatureType(symbol)) || typeof revealed !== "boolean") return null;
-  return { name, creature, ac, speed, hpMax, notes, symbol, revealed };
+  const hasPortrait = raw.hasPortrait ?? false;
+  const smallPortrait = raw.smallPortrait ?? false;
+  if (symbol !== null && !isCreatureType(symbol)) return null;
+  if (typeof revealed !== "boolean" || typeof hasPortrait !== "boolean" || typeof smallPortrait !== "boolean") return null;
+  return { name, creature, ac, speed, hpMax, notes, symbol, revealed, hasPortrait, smallPortrait };
 }
 
 export function parseGroups(raw: unknown): Groups | null {
@@ -394,4 +403,24 @@ export function stripOf(fight: Fight | null, discs: readonly Disc[], groups: Gro
       });
   });
   return { round: fight.round, chips };
+}
+
+/**
+ * What a disc shows the players (D-036): nothing extra until its group is revealed; then the group's symbol, and the
+ * portrait of its linked creature on tokens 2 inches and up, or on 1-inch ones when the DM asks. `portrait` is an
+ * opaque key (`<colour>/<tag>`) the table loads the picture by; the tag changes when the linked creature does, and it
+ * never spells the creature's name.
+ */
+export function tokenLook(d: Disc, groups: Groups): { symbol: CreatureType | null; portrait: string | null } {
+  const g = groups[d.colour];
+  if (!g?.revealed) return { symbol: null, portrait: null };
+  const portrait = g.hasPortrait && g.creature && (d.size >= 2 || g.smallPortrait) ? `${d.colour}/${hashTag(g.creature)}` : null;
+  return { symbol: g.symbol, portrait };
+}
+
+/** A short hash (FNV-1a) of a creature key, so a changed link loads a new picture. */
+function hashTag(key: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 0x01000193) >>> 0;
+  return h.toString(36);
 }

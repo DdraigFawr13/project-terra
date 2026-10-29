@@ -20,6 +20,7 @@ import {
   UNDOABLE,
   type TableState,
 } from "../core/table.ts";
+import { isColour, tokenLook } from "../core/fight.ts";
 import { countCreatures, findCreatures, getCreature, importCreatures } from "./creatures.ts";
 import { listMaps, mapFile, saveMap, savePatch, tableMapFile } from "./library.ts";
 
@@ -235,7 +236,34 @@ async function serveMap(file: string | null): Promise<Response> {
 // Map images reach both windows through terra-map://<id>, which serves only PNGs from the personal library (D-010).
 protocol.registerSchemesAsPrivileged([
   { scheme: "terra-map", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+  { scheme: "terra-portrait", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
 ]);
+
+/**
+ * terra-portrait://<colour>/<tag>: a revealed group's picture (D-036). It is looked up in the state at the moment of
+ * asking, so it answers only while the group is revealed and the key matches what the table was told to show; before
+ * Reveal, or for any other key, there is nothing to load.
+ */
+function servePortrait(url: string): Response {
+  const u = new URL(url);
+  const colour = u.hostname;
+  const map = state.map;
+  if (!map || !isColour(colour)) return new Response("Not found", { status: 404 });
+  // A 2-inch disc always shows its group's portrait once revealed, so this is the key the table can have been given.
+  const disc = { colour, letter: "A", x: 0, y: 0, size: 2, shown: true, condition: "fine", hp: null, hpMax: null, mini: false } as const;
+  const want = tokenLook(disc, map.groups).portrait;
+  const g = map.groups[colour];
+  const portrait = want === `${colour}${u.pathname}` && g?.creature ? getCreature(app.getPath("userData"), g.creature)?.portrait : null;
+  return portraitResponse(portrait);
+}
+
+/** A library portrait's data URL as an image response, or not found. */
+function portraitResponse(portrait: string | null | undefined): Response {
+  const m = portrait?.match(/^data:(image\/[a-z]+);base64,(.*)$/);
+  if (!m) return new Response("Not found", { status: 404 });
+  const headers = { "content-type": m[1]!, "access-control-allow-origin": "*", "cache-control": "no-store" };
+  return new Response(Buffer.from(m[2]!, "base64"), { headers });
+}
 
 /** Make the new state current: tell both windows, save, and move the table window if its screen changed. */
 function commit(next: TableState): void {
@@ -317,10 +345,17 @@ if (!app.requestSingleInstanceLock()) {
       const dir = app.getPath("userData");
       return serveMap(url.pathname === "/table" ? tableMapFile(dir, url.hostname) : mapFile(dir, url.hostname));
     });
+    // The DM's window may also preview any library creature's picture: terra-portrait://book/<key>.
+    protocol.handle("terra-portrait", (req) => {
+      const u = new URL(req.url);
+      if (u.hostname !== "book") return servePortrait(req.url);
+      return portraitResponse(getCreature(app.getPath("userData"), decodeURIComponent(u.pathname.slice(1)))?.portrait);
+    });
     // The table's window: only the table's copy, whatever it asks for, so a patched map's numbers never reach it.
     session
       .fromPartition(TABLE_PARTITION)
       .protocol.handle("terra-map", (req) => serveMap(tableMapFile(app.getPath("userData"), new URL(req.url).hostname)));
+    session.fromPartition(TABLE_PARTITION).protocol.handle("terra-portrait", (req) => servePortrait(req.url));
     // A quiet stretch of role-play mustn't let Windows switch off the projector or put the laptop to sleep (D-029).
     powerSaveBlocker.start("prevent-display-sleep");
     screen.on("display-added", placePlayerWindow);

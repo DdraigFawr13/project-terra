@@ -36,11 +36,22 @@ function symbolField(value: string, onChange: (v: string) => void): HTMLLabelEle
   return el("label", {}, "Symbol on the table", select);
 }
 
+/** 1-inch tokens show the symbol unless the DM asks for the portrait there too (D-036). */
+function smallPortraitField(on: boolean, onChange: (v: boolean) => void): HTMLLabelElement {
+  const box = el("input", { type: "checkbox" });
+  box.checked = on;
+  box.addEventListener("change", () => onChange(box.checked));
+  return el("label", { class: "wide check" }, box, "Portrait on 1-inch tokens too (2-inch and bigger always show it)");
+}
+
 const WORD: Record<Condition, string> = { fine: "Fine", bloodied: "Bloodied", nearDeath: "Near death", down: "Down" };
 const NEXT_CONDITION: Record<Condition, Condition> = { fine: "bloodied", bloodied: "nearDeath", nearDeath: "down", down: "fine" };
 
 type View = "hp" | "edit" | "book";
-type Draft = { info: Record<"name" | "ac" | "speed" | "hpMax" | "notes" | "symbol", string>; discMax: Record<string, string> };
+type Draft = {
+  info: Record<"name" | "ac" | "speed" | "hpMax" | "notes" | "symbol" | "smallPortrait", string>;
+  discMax: Record<string, string>;
+};
 type Panel = {
   win: FloatWin;
   pad: Numpad;
@@ -220,6 +231,7 @@ export function initMonsters(
       hpMax: g.hpMax?.toString() ?? "",
       notes: g.notes,
       symbol: g.symbol ?? "",
+      smallPortrait: g.smallPortrait ? "yes" : "",
     },
     discMax: Object.fromEntries(discs.map((d) => [d.letter, d.hpMax?.toString() ?? ""])),
   });
@@ -231,6 +243,7 @@ export function initMonsters(
       const n = (k: "ac" | "speed" | "hpMax") => (d.info[k].trim() === "" ? null : (wholeOrNull(d.info[k]) ?? NaN));
       // The same checks the main process makes, so a slip is explained and the typing kept.
       const symbol = d.info.symbol || null;
+      const smallPortrait = d.info.smallPortrait === "yes";
       const info = parseGroupInfo({
         ...g,
         name: d.info.name,
@@ -263,6 +276,7 @@ export function initMonsters(
       field("Speed (ft)", d.info.speed, { ...NUMBER, max: "999" }, (v) => (d.info.speed = v)),
       field("HP max", d.info.hpMax, { ...NUMBER, min: "1", max: "999" }, (v) => (d.info.hpMax = v)),
       symbolField(d.info.symbol, (v) => (d.info.symbol = v)),
+      ...(g.hasPortrait ? [smallPortraitField(d.info.smallPortrait === "yes", (v) => (d.info.smallPortrait = v ? "yes" : ""))] : []),
       el("h4", { class: "wide" }, "Each disc"),
       ...discs.map((disc) =>
         el(
@@ -372,6 +386,7 @@ export function initMonsters(
             speed: block.speed,
             // The symbol follows the creature's type unless the DM already chose one (D-036).
             symbol: g.symbol ?? creatureTypeOf(block.kind),
+            hasPortrait: !!block.portrait,
           },
         });
         b.choosing = false;
@@ -443,6 +458,10 @@ function statBlock(b: StatBlock): HTMLElement {
   return el(
     "article",
     { class: "statblock" },
+    // The DM sees the portrait before revealing it (D-036); the table's own route serves it only after Reveal.
+    ...(b.portrait
+      ? [el("img", { class: "portrait", src: `terra-portrait://book/${encodeURIComponent(b.key)}`, alt: `${b.name}: the book's picture` })]
+      : []),
     el("h3", {}, b.name),
     el("p", { class: "kind" }, b.kind),
     el(

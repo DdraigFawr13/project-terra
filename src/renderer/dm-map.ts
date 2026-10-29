@@ -5,10 +5,18 @@
 // a tap and leaves a pin with a long press. Draw (D-035) draws freehand lines, lasting or fading.
 import { defaultCalibration, screenOutline } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
-import { conditionOf, hpFraction, nextLetter, snapDisc, type Condition, type Disc, type DiscColour } from "../core/fight.ts";
+import { conditionOf, hpFraction, tokenLook, nextLetter, snapDisc, type Condition, type Disc, type DiscColour } from "../core/fight.ts";
 import { MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
 import { mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
-import { MAX_LINE_POINTS, parseFeetPerSquare, type Command, type Ink, type PlacedMap, type TableState } from "../core/table.ts";
+import {
+  MAX_LINE_POINTS,
+  parseFeetPerSquare,
+  type Command,
+  type Ink,
+  type PlacedMap,
+  type PlayerDisc,
+  type TableState,
+} from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
 import { fillFog, type FogPainter } from "./fog-draw.ts";
 import { initPatch } from "./dm-patch.ts";
@@ -490,13 +498,15 @@ export function initMaps(
       const t = mapToTable(map, p);
       return { x: ox + t.x * s, y: oy + t.y * s };
     };
-    const draw = (d: Pick<Disc, "colour" | "letter" | "size"> & Partial<Pick<Disc, "mini">>, at: Point, alpha: number) => {
+    const draw = (
+      d: Pick<Disc, "colour" | "letter" | "size"> & Partial<Pick<PlayerDisc, "symbol" | "portrait" | "mini">>,
+      at: Point,
+      alpha: number,
+    ) => {
       const c = px(at);
       const w = Math.max(d.size * s, MIN_DISC_PX);
       ctx.globalAlpha = alpha;
-      // As the players see it: a revealed group's symbol, the letter on a tab when a mini stands on it (D-036).
-      const g = map.groups[d.colour];
-      drawDisc(ctx, { ...d, symbol: g?.revealed ? g.symbol : null }, c.x, c.y, w);
+      drawDisc(ctx, d, c.x, c.y, w);
       ctx.globalAlpha = 1;
       return { c, w };
     };
@@ -510,7 +520,8 @@ export function initMaps(
     for (const d of map.discs) {
       const moving = discDrag && discKey(discDrag) === discKey(d);
       const down = conditionOf(d, map.groups) === "down";
-      const { c, w } = draw(d, moving ? discDrag!.at : d, down ? 0.3 : d.shown ? 1 : 0.45);
+      // As the players see it: a revealed group's symbol or portrait, the letter on a tab when a mini stands on it (D-036).
+      const { c, w } = draw({ ...d, ...tokenLook(d, map.groups) }, moving ? discDrag!.at : d, down ? 0.3 : d.shown ? 1 : 0.45);
       const full = down ? null : hpFraction(d, map.groups);
       if (full !== null) hpRing(ctx, c, w, full, conditionOf(d, map.groups));
       if (down) {
