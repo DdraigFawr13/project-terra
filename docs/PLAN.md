@@ -26,11 +26,14 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 7h. **One panel (D-038).** The docking goes: the map fills the window beside one panel with Setup, Explore and Fight tabs and a table thumbnail; floating tools; bigger headers; Tab folds the panel; its edge drags to resize. Morgan tests: screenshots at laptop size.
 7i. **Encounter list (D-038).** Initiative and Groups become one list; the party as a list with HP bars; sheets open in the panel under a pinned turn strip. Morgan tests: a mock round, from screenshots and then on the laptop.
 7j. **Words and setup (D-038).** Uncover (U) / Dim (G), On table / Off table, Show picture; full-window calibrate and import; the first-screen checklist. Morgan tests: calibrate on the laptop.
+7k. **Scenes (D-039).** Each scene keeps its map, fog, discs, groups, pins, drawings and paused fight; a Scenes list in Setup; one-tap switching that drops the curtain. Needed for session 1. Morgan tests: prepare three scenes, switch with minis on the table, leave a fight half done and come back, close and reopen the app.
+7l. **Curtains, spots and reset (D-039).** Black, picture or title curtain per scene; saved spots on big maps; Mark ready and Reset. Morgan tests: a title read from both long sides, a picture in the dark room, jumping between two spots, resetting a scene after a fight.
+7m. **World map (D-039).** Link pins, a party marker and the World map curtain. Morgan tests: travel on the world map, then open a battle map from a pin.
 8. **Rehearsal.** A full dry run of Thundertree at home, following [REHEARSAL.md](REHEARSAL.md): each part has a pass line and the photo that proves it. Anything that fails is hidden for session 1, not redesigned (D-037).
 
 ## After session 1, in order
 
-1. **Scenes.** A scene keeps a map with its fog, discs, pins, drawings and fight, so taking a map off no longer loses them. Prepare scenes ahead, switch between them at the table, choose the curtain per scene (D-023), saved spots on big maps, and a world map linking to battle maps. Today one map at a time is kept (D-037).
+1. **Scenes.** Moved before session 1 as steps 7k–7m (D-039). Left here: scenes grouped by adventure, and editing a scene while another is on the table.
 2. **Map annotation.** Trace rooms, walls, doors and materials on an imported map. It brings one-tap room reveal (D-007, D-025), doors, room notes and the material tags living effects need (D-014). The generator later produces the same annotation.
 3. **Library.** Already built: library import, stat block and HP per disc, portraits (D-028, D-036). Still to build:
    - Map intake: corner snapping, PDF page import (pdf.js), library maps ready to place, map library tidy-up (D-036).

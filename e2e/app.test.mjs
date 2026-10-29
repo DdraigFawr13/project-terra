@@ -414,6 +414,41 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.click("#zoomIn");
     await dm.click("#zoomFit");
     await dm.click("button[data-tool='select']");
+
+    // Scenes (D-039): a new scene opens empty behind the curtain, and the board waits in the list with its map.
+    await dm.click(".side-tabs button[data-tab='setup']");
+    await dm.click("#newScene");
+    await dm.fill("#sceneName", "Road");
+    await dm.press("#sceneName", "Enter");
+    await table.waitForFunction(() => document.body.dataset.view === "curtain");
+    let s = await dm.evaluate(() => window.terra.getState());
+    assert.deepEqual([s.scene, s.map, s.curtain], ["scene-2", null, true]);
+    assert.deepEqual(await dm.locator("#sceneList .scene-name").allTextContents(), ["board", "Road"]);
+    assert.equal(await dm.textContent("#sceneBtn span"), "Road");
+    // Each scene has its own undo steps: the board's placing isn't undone from here.
+    await dm.waitForSelector("#undo:disabled");
+    // The table window can't load the waiting scene's map, so it can't show a place the players haven't reached.
+    const loads = (src) =>
+      table.evaluate(
+        (u) =>
+          new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = u;
+          }),
+        src,
+      );
+    assert.equal(await loads(`terra-map://${id}/table?c`), false);
+    // Back to the board from the name above the tabs: everything is where it was, still behind the curtain.
+    await dm.click("#sceneBtn");
+    await dm.click(".scene-pick button:has-text('board')");
+    await dm.waitForFunction(async () => (await window.terra.getState()).scene === "scene-1");
+    s = await dm.evaluate(() => window.terra.getState());
+    assert.deepEqual([s.map.id, s.curtain, s.scenes[1].parked.map], [id, true, null]);
+    assert.equal(await loads(`terra-map://${id}/table?d`), true);
+    await dm.waitForSelector("#undo:enabled");
+    await dm.evaluate(() => window.terra.apply({ type: "curtain", on: false }));
   } finally {
     await app.close();
   }
@@ -423,6 +458,10 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await table.waitForFunction(() => document.body.dataset.view === "map");
     assert.equal((await table.evaluate(() => window.terra.getView())).map.id, id);
     assert.match(await dm.textContent("#mapTitle"), /board/);
+    assert.deepEqual(
+      (await dm.evaluate(() => window.terra.getState())).scenes.map((sc) => sc.name),
+      ["", "Road"],
+    );
   } finally {
     await app.close();
   }

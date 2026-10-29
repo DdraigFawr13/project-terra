@@ -9,6 +9,7 @@ import { initFight } from "./dm-fight.ts";
 import { initMaps } from "./dm-map.ts";
 import { initMonsters } from "./dm-monsters.ts";
 import { initParty } from "./dm-party.ts";
+import { initScenes } from "./dm-scenes.ts";
 import { initQuickHp } from "./quick-hp.ts";
 import { button, el } from "./dom.ts";
 import { popover } from "./popover.ts";
@@ -370,9 +371,10 @@ const partySec = section(
   el("p", { class: "hint" }, "Names, AC, HP and passives, typed in once and kept between sessions."),
   button("Party sheet", {}, () => party.show()),
 );
+const scenes = initScenes(terra, $<HTMLButtonElement>("sceneBtn"));
 const panel = initPanel(
   {
-    setup: [$("setupPanel"), partySec],
+    setup: [scenes.section, $("setupPanel"), partySec],
     explore: [section("Fog", $("fogPanel")), encounterSec],
     fight: [encounterSec],
   },

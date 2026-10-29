@@ -47,6 +47,8 @@ test("a save is described by its map, discs, round and party", () => {
   };
   assert.equal(describeSave(placed, "Thundertree"), "Thundertree, 1 disc, round 3, 1 character");
   assert.equal(describeSave(placed, null), "a map, 1 disc, round 3, 1 character");
+  const scenes = { ...placed, scenes: [...placed.scenes, { id: "scene-2", name: "", removed: false, parked: null }] };
+  assert.equal(describeSave(scenes, null), "a map, 1 disc, round 3, 1 character, 2 scenes");
 });
 
 test("the problem report lists screens, the table's surface, saves, notices and problems", () => {
