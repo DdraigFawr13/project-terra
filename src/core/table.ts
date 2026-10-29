@@ -41,7 +41,7 @@ import {
   type CreatureType,
 } from "./fight.ts";
 import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
-import { mapToTable, type Bounds } from "./map.ts";
+import { mapToTable, placedExtent, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
 const SAVE_VERSION = 15;
@@ -799,10 +799,19 @@ export function apply(state: TableState, c: Command): TableState {
       const y = inches(state.map.y + c.dy);
       return x === null || y === null ? state : { ...state, map: { ...state.map, x, y } };
     }
-    case "turnMap":
-      return state.map && !state.mapLocked
-        ? { ...state, map: { ...state.map, turns: ((state.map.turns + 1) % 4) as PlacedMap["turns"] } }
-        : state;
+    case "turnMap": {
+      // A quarter turn clockwise about the map's middle, so it stays where it was on the table (D-041). The corner
+      // moves by whole inches, keeping the squares on the table grid; halves round away from zero, so four turns come
+      // back to the start.
+      const m = state.map;
+      if (!m || state.mapLocked) return state;
+      const turned = { ...m, turns: ((m.turns + 1) % 4) as PlacedMap["turns"] };
+      const [a, b] = [placedExtent(m), placedExtent(turned)];
+      const shift = (v: number) => Math.sign(v) * Math.round(Math.abs(v)) + 0;
+      const x = inches(m.x + shift(a.x + a.width / 2 - b.x - b.width / 2));
+      const y = inches(m.y + shift(a.y + a.height / 2 - b.y - b.height / 2));
+      return x === null || y === null ? state : { ...state, map: { ...turned, x, y } };
+    }
     case "removeMap":
       return state.mapLocked ? state : { ...state, map: null };
     case "fog":

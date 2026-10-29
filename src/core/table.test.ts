@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fc from "fast-check";
 import { defaultCalibration } from "./calibration.ts";
 import { blankGroup, creatureTypeOf } from "./fight.ts";
+import { placedExtent } from "./map.ts";
 import {
   parsePlacedMap,
   apply,
@@ -113,7 +114,22 @@ test("maps move by whole inches and turn in quarter turns", () => {
     { type: "turnMap" },
     { type: "turnMap" },
   ]);
-  assert.deepEqual(s.map, { ...map, x: 3, y: 7, turns: 1 });
+  // Turning keeps the map's middle in place (D-041), on whole inches, and four turns come back to the start.
+  const once = run([{ type: "placeMap", map }, { type: "lockMap", on: false }, { type: "moveMap", dx: -1, dy: 2 }, { type: "turnMap" }]);
+  assert.deepEqual(s.map, once.map);
+  const mid = (m: PlacedMap) => {
+    const e = placedExtent(m);
+    return { x: e.x + e.width / 2, y: e.y + e.height / 2 };
+  };
+  assert.deepEqual(mid(once.map!), mid({ ...map, x: 3, y: 7 }));
+  assert.deepEqual(once.map!.turns, 1);
+  const four = run([{ type: "turnMap" }, { type: "turnMap" }, { type: "turnMap" }, { type: "turnMap" }], once);
+  assert.deepEqual(four.map, once.map);
+  const odd = run([
+    { type: "placeMap", map: { ...map, bounds: { x: 0, y: 0, width: 7, height: 4 } } },
+    { type: "lockMap", on: false },
+  ]);
+  assert.deepEqual(run([{ type: "turnMap" }, { type: "turnMap" }, { type: "turnMap" }, { type: "turnMap" }], odd).map, odd.map);
   assert.equal(parseCommand({ type: "moveMap", dx: 0.5, dy: 0 }), null);
   // Fog is kept in map inches, so it moves and turns with the map; a fog command with no map changes nothing.
   const reveal = { kind: "box", mode: "reveal", x: 0, y: 0, width: 2, height: 2 } as const;
@@ -637,7 +653,7 @@ test("saved spots (D-039) slide even a locked map, on whole inches; Mark ready a
   ]);
   assert.deepEqual(s.map!.spots, [
     { id: 1, name: "Gate", x: 4, y: 5, turns: 0 },
-    { id: 2, name: "Tower", x: 24, y: 5, turns: 1 },
+    { id: 2, name: "Tower", x: 44, y: -1, turns: 1 },
   ]);
   const gate = run([{ type: "goToSpot", id: 1 }], s);
   assert.deepEqual([gate.map!.x, gate.map!.y, gate.map!.turns, gate.mapLocked], [4, 5, 0, true]);
