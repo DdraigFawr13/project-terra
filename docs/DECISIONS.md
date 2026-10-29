@@ -18,8 +18,8 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-003 Session 1 scope
 
-- **Status:** Accepted (2026-10-28); character cards added 2026-10-28 in the book library interview; save rollback and a problem report added by D-037.
-- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain, since D-035 freehand drawing, since D-036 map scale, a corner magnifier, the HP ring, the patch tool and revealed tokens, and since D-037 keeping the last 3 saves and a problem report. Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
+- **Status:** Accepted (2026-10-28); character cards added 2026-10-28 in the book library interview; save rollback and a problem report added by D-037; the one-panel DM window by D-038.
+- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain, since D-035 freehand drawing, since D-036 map scale, a corner magnifier, the HP ring, the patch tool and revealed tokens, since D-037 keeping the last 3 saves and a problem report, and since D-038 the one-panel DM window. Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
 - **Why:** 22 features were ranked "Now" against 1–3 months with games monthly or less. Both reviews flagged it, and Morgan cut the list in the review. In the book library interview Morgan first moved six library features into session 1, then kept only character cards after the review showed the cost.
 
 ## D-004 Projector rig and calibration
@@ -138,7 +138,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-023 UI design
 
-- **Status:** Accepted (2026-10-28), approved by Morgan in the UI design interview; control sizes changed by D-031, colours by D-033 ([round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)).
+- **Status:** Accepted (2026-10-28), approved by Morgan in the UI design interview; control sizes changed by D-031, colours by D-033, the R and H shortcuts by D-038 ([round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)).
 - **Decision:**
   - DM window: the "Ember" look. Dark warm brown, a copper-red highlight (not amber, so it can't be mistaken for the yellow enemy disc), Alegreya SC for headings only, and Source Sans 3 for everything else. Both fonts are bundled (SIL OFL), so the app looks the same on any laptop and works offline.
   - Layout: D-012 with the "Classic" sizes (left about 290 px, right about 340 px). The side panels fold away with a button or Tab. Tools run along the bottom with icons, names and keys.
@@ -162,7 +162,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-025 Fog
 
-- **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults. Item 5's op limit changed by D-029: long fog lists are baked, never refused. Item 8 changed by D-037: rooms come from map annotation, not only the generator.
+- **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults. Item 5's op limit changed by D-029: long fog lists are baked, never refused. Item 8 changed by D-037: rooms come from map annotation, not only the generator. Tool names and keys changed by D-038 (Uncover U, Dim G).
 - **Decision:**
   1. Three states on the table: never seen is black; seen before is the map in grey, darkened, with a line every half inch; in view now is the map itself (D-023). The DM sees the whole map, tinted where players can't see now and darker where they've never been.
   2. Touch first. The bottom tools are 56 px buttons: Select (V), Reveal (R), Hide (H); draw with Brush (1, 2 or 4 inches), Outline (a freehand loop that fills) or Box (snaps to whole squares), with S stepping through them; Undo. Under the preview: "Party moves on" (in view becomes seen before), Reveal all and Cover all. One finger, the pen or the mouse paints; a second finger or Esc cancels the stroke. Morgan uses a stylus: touches are ignored while the pen draws (a resting palm), a hovering pen shows the brush ring, and the pen's eraser hides.
@@ -232,7 +232,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-031 Movable windows and smaller controls
 
-- **Status:** Accepted (2026-10-28). Morgan asked for windows that move "like Visual Studio" and for buttons "smaller by a bit", since a stylus doesn't need big targets. Changes D-012 (fixed side panels), D-023 (40 px controls, 56 px tools) and D-028 items 1 and 7 (floating sheets, button sizes).
+- **Status:** Accepted (2026-10-28). Morgan asked for windows that move "like Visual Studio" and for buttons "smaller by a bit", since a stylus doesn't need big targets. Changes D-012 (fixed side panels), D-023 (40 px controls, 56 px tools) and D-028 items 1 and 7 (floating sheets, button sizes). Items 1–3 SUPERSEDED by D-038 (one panel, no docking); item 4's sizes stand.
 - **Decision:**
   1. The map stays in the middle. Initiative, Groups, "On the table now" (with the whole-map fog buttons), the Party sheet and each monster sheet are windows. A window docks in the left, right or bottom area, where windows share a group as tabs and groups stack with dividers; or it floats over the DM window and is sized from its corner. Drag a tab or a floating title bar: a highlight shows where it lands (an area's edge, beside or into a group, or floating).
   2. Areas and groups resize by dragging the dividers. Tab (or Panels) folds every docked window away. The Windows menu shows or hides the map's windows and resets the layout. Sheets close when done and open where they were last, as tabs beside any open sheet by default.
@@ -242,7 +242,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-032 DM window redesign
 
-- **Status:** Accepted (2026-10-28), from the UI review ([round 1](https://claude.ai/artifact/N2LH9mtnUHNT5QydAdB8Zz), [round 2 and draft](https://claude.ai/artifact/To2kRT3RWFcb16mti3cDov)): "Approved with the changes I wrote". Builds on D-031; changes D-023 (top bar, bottom tools) and D-028 (a tap on a disc).
+- **Status:** Accepted (2026-10-28), from the UI review ([round 1](https://claude.ai/artifact/N2LH9mtnUHNT5QydAdB8Zz), [round 2 and draft](https://claude.ai/artifact/To2kRT3RWFcb16mti3cDov)): "Approved with the changes I wrote". Builds on D-031; changes D-023 (top bar, bottom tools) and D-028 (a tap on a disc). Items 1–5 SUPERSEDED by D-038; items 6–10 stand.
 - **Decision:** all of it before step 7 (Morgan: "we have time to do all of these").
   1. Window look: framed windows on a dark ground with a 6–8 px gap, slightly rounded corners; the window last touched has a copper outline. Headers: see D-033. A window slides into place in about 0.15 s when it docks or floats.
   2. Window bars: grab a window anywhere on its bar that isn't a button; its own buttons sit in a second row under the tabs, so tab names stay whole; a window folds to its bar; a floating window can be pinned, staying above other floating windows and in place when presets change.
@@ -315,3 +315,16 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   6. Merges: monster search and spell lookup become one book search; place by count and size from the stat block join it as "adding monsters"; the map follow-ups become map intake; ruler, shapes with lengths and spell templates become one measure tool; map symbols reuse the token symbols; down marks join conditions, which gain durations and concentration counted on Next turn; the encounter builder and encounter tester are one; item handouts appear once, in story tools; room notes, story tracker and Far Realm tracker move to story tools; weather becomes an optional layer of living effects.
   7. Cuts: automatic line of sight (replaced by a light-radius fog shape; camera tracking stays in Later as the only route to it), the dice roller, the name and loot generators, and the NPC conversation player until it is defined.
 - **Why:** the state holds one map, and taking it off drops its fog, discs, pins and drawings (`src/core/table.ts`), so a session with two locations would lose prep. One-tap rooms, doors, room notes and material tags all needed map structure that only the generator would supply, while Morgan's maps come from the book. Automatic line of sight had nothing to see from: it was limited to markers the DM moves (D-007), and players have no discs (D-027). Players roll real dice (D-013). Several items were listed twice across phases. The rehearsal had no pass criteria, and the audit's save rotation and problem report were never built.
+
+## D-038 DM window: the map first, one panel, one word per idea
+
+- **Status:** Accepted (2026-10-29), from the [usability audit](https://claude.ai/artifact/R1TJm1AfCyvqSuktZjiSyD) and the layout interview ([round 1](https://claude.ai/artifact/BLvKT9sMLPEecrEdGC5dKX), [review and final](https://claude.ai/artifact/GwwNfsNY3ssddwUbF5tr98)): "Approved, start building". Supersedes D-031 items 1–3 and D-032 items 1–5; changes D-023 and D-025 (tool names and keys) and D-034 item 3 (how sheets reopen).
+- **Decision:**
+  1. The map fills the DM window beside one panel on the right (Morgan holds the pen in the right hand). The tools float on the map's left edge. The docked and floating windows, presets and View → Edit layout go. The panel's edge drags to resize it, and its width is remembered; Tab folds it away. The stored layout gets a new key.
+  2. The panel has tabs: Setup (table screen, Calibrate, map library, party roster), Explore (the fog buttons, groups with On table / Off table switches) and Fight (a pinned turn strip, then the Encounter list in turn order). Start fight switches to Fight, End fight back to Explore. A thumbnail of the table sits at the top of every tab, and holding it shows it big.
+  3. One Encounter list replaces Initiative and Groups. The party shows as a list with HP bars; tapping a name opens the same HP pad as tapping a disc. Sheets open in the panel below the turn strip, with Back; the panel reopens the tab and sheet that were open.
+  4. Words: the fog tools are Uncover (U) and Dim (G); the whole-map buttons are Dim what's in view, Uncover all and Cover all. Discs are On table / Off table, a switch with the word on it. A group's art button is Show picture. Each idea gets its own icon.
+  5. Calibrate and map import use the whole window, with Cancel and Done fixed at the bottom. The empty map shows a checklist: table screen, calibrate, import a map, add the party; each step ticks itself.
+  6. Window headers grow to 13–14 px in sentence case. One end-to-end journey runs the DM window at 1280 × 680; the suite stays under 60 s (D-020).
+  7. Built after step 7g and before the rehearsal, as three steps (PLAN.md 7h–7j). The rehearsal waits until they are done.
+- **Why:** At the laptop's 1280 × 680 the docked windows left the map about 30% of the screen and discs about 18 px across, the tool options were icons with names only in tooltips a pen never shows, and "Reveal" and "Hide" each meant three things. A sheet replacing the list would hide the turn order mid-fight, hence the pinned strip. The rehearsal should test the screen session 1 uses.

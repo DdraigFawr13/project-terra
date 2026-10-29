@@ -23,6 +23,9 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 7e. **Patch tool (D-036).** Fill or clone over room numbers on the table's own copy. Morgan tests: paint out Thundertree's numbers; the DM still sees them, the table doesn't.
 7f. **Revealed tokens (D-036).** Symbol or portrait in the coloured ring after Reveal; letter badge, or a tab when a mini stands on it. Morgan tests: a photo of the projected table with a mini on one token.
 7g. **Rehearsal safety (D-037).** The last 3 saves are kept, so a bad state can be rolled back after a restart (undo lasts one run). Table → Problem report copies the app version, the display list and recent errors as text for Morgan to paste to Claude. Morgan tests: restore an older save; paste a report.
+7h. **One panel (D-038).** The docking goes: the map fills the window beside one panel with Setup, Explore and Fight tabs and a table thumbnail; floating tools; bigger headers; Tab folds the panel; its edge drags to resize. Morgan tests: screenshots at laptop size.
+7i. **Encounter list (D-038).** Initiative and Groups become one list; the party as a list with HP bars; sheets open in the panel under a pinned turn strip. Morgan tests: a mock round, from screenshots and then on the laptop.
+7j. **Words and setup (D-038).** Uncover (U) / Dim (G), On table / Off table, Show picture; full-window calibrate and import; the first-screen checklist. Morgan tests: calibrate on the laptop.
 8. **Rehearsal.** A full dry run of Thundertree at home, following [REHEARSAL.md](REHEARSAL.md): each part has a pass line and the photo that proves it. Anything that fails is hidden for session 1, not redesigned (D-037).
 
 ## After session 1, in order
