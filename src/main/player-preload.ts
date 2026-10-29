@@ -11,6 +11,8 @@ const api = {
   /** A fading line the DM drew for the players, in table inches (D-035). */
   onSketch: (fn: (s: { ink: Ink; points: Point[] }) => void) =>
     ipcRenderer.on("player:sketch", (_e, s: { ink: Ink; points: Point[] }) => fn(s)),
+  /** A map's table copy changed (D-036): load its picture again. */
+  onMapPatched: (fn: (id: string) => void) => ipcRenderer.on("map:patched", (_e, id: string) => fn(id)),
 };
 
 export type PlayerApi = typeof api;

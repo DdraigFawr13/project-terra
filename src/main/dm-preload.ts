@@ -34,6 +34,9 @@ const api = {
   listMaps: (): Promise<LibraryMap[]> => ipcRenderer.invoke("library:list"),
   saveMap: (name: string, png: Uint8Array, bounds: Bounds, feetPerSquare: FeetPerSquare): Promise<LibraryMap> =>
     ipcRenderer.invoke("library:save", name, png, bounds, feetPerSquare),
+  /** Store the table's patched copy of a map, or with null go back to the map itself (D-036). */
+  savePatch: (id: string, png: Uint8Array | null): Promise<void> => ipcRenderer.invoke("library:patch", id, png),
+  onMapPatched: (fn: (id: string) => void) => ipcRenderer.on("map:patched", (_e, id: string) => fn(id)),
   getStatus: (): Promise<TableStatus> => ipcRenderer.invoke("table:status"),
   importCreatures: (text: string): Promise<ImportResult> => ipcRenderer.invoke("creatures:import", text),
   searchCreatures: (query: string): Promise<CreatureHit[]> => ipcRenderer.invoke("creatures:search", query),

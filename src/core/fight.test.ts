@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blankGroup, conditionFromHp, conditionOf } from "./fight.ts";
+import { blankGroup, conditionFromHp, conditionOf, hpFraction, type Disc } from "./fight.ts";
 import {
   apply,
   defaultState,
@@ -255,9 +255,16 @@ test("a version 5 save upgrades: group names become group info, discs and cards 
   });
 });
 
-test("the condition word from HP: Bloodied at half, Near death at a quarter, Down at 0", () => {
+test("the condition word from HP: Bloodied at half, Near death at a quarter, Down at 0; the HP ring's fill", () => {
   assert.deepEqual(
     [31, 16, 15, 8, 7, 1, 0].map((hp) => conditionFromHp(hp, 31)),
     ["fine", "fine", "bloodied", "bloodied", "nearDeath", "nearDeath", "down"],
+  );
+  // The ring (D-036): full at null HP, a fraction of the disc's own max over the group's, none without a max.
+  const d: Disc = { colour: "yellow", letter: "A", x: 0.5, y: 0.5, size: 1, shown: true, condition: "fine", hp: null, hpMax: null };
+  const groups = { yellow: { ...blankGroup(), hpMax: 20 } };
+  assert.deepEqual(
+    [hpFraction(d, groups), hpFraction({ ...d, hp: 5 }, groups), hpFraction({ ...d, hp: 5, hpMax: 40 }, groups), hpFraction(d, {})],
+    [1, 0.25, 0.125, null],
   );
 });

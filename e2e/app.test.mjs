@@ -45,7 +45,13 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     assert.match(await dm.textContent("#status"), /No second screen found/);
     await table.waitForFunction(() => document.body.dataset.view === "testGrid");
     // The table window can read the player view and nothing else, and can't be navigated away (D-002).
-    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onPing", "onSketch", "onView"]);
+    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), [
+      "getView",
+      "onMapPatched",
+      "onPing",
+      "onSketch",
+      "onView",
+    ]);
     // A file dropped on a window arrives as a file:// navigation.
     await table.evaluate((url) => (location.href = url), new URL("../package.json", import.meta.url).href);
     await table.waitForTimeout(300);
@@ -224,6 +230,35 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     }, id);
     // 400 × 400 picture at 50 pixels a square, straightened at the same 50 pixels per inch.
     assert.deepEqual(served, [400, 0]);
+
+    // Patch tool (D-036): swipe across the middle and save. The DM still loads the original; the table window, asking
+    // for either picture, only ever gets the patched copy.
+    await dm.click("#patchMap");
+    await dm.waitForFunction(() => document.getElementById("patchStatus").textContent.startsWith("Swipe"));
+    const pc = await dm.locator("#patchCanvas").boundingBox();
+    await dm.mouse.move(pc.x + pc.width * 0.3, pc.y + pc.height / 2);
+    await dm.mouse.down();
+    await dm.mouse.move(pc.x + pc.width * 0.7, pc.y + pc.height / 2, { steps: 5 });
+    await dm.mouse.up();
+    await dm.click("#patchSave");
+    await dm.waitForSelector("#patcher", { state: "hidden" });
+    assert.ok(fs.existsSync(path.join(userData, "library", "maps", `${id}.table.png`)));
+    const fingerprint = (page, src) =>
+      page.evaluate(async (s) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = s;
+        await img.decode();
+        const c = new OffscreenCanvas(img.naturalWidth, img.naturalHeight);
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        return ctx.getImageData(0, 0, c.width, c.height).data.join(",");
+      }, src);
+    const original = await fingerprint(dm, `terra-map://${id}/?a`);
+    const patched = await fingerprint(dm, `terra-map://${id}/table?a`);
+    assert.notEqual(original, patched);
+    assert.equal(await fingerprint(table, `terra-map://${id}/?b`), patched);
+    assert.equal(await fingerprint(table, `terra-map://${id}/table?b`), patched);
 
     // Fog (D-025): a new map is all black on the table. Paint a box with Reveal, and the table and the DM's preview
     // show the map there; Ctrl+Z covers it again.
@@ -485,7 +520,13 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     const shown = JSON.stringify({ ...view, map: view.map && { ...view.map, id: "" } });
     for (const secret of ["Zombie", "SRD52", "board", "hp", "ac", "passive", "init", "notes"]) assert.ok(!shown.includes(secret), secret);
     // The table window's bridge has no way to the library.
-    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onPing", "onSketch", "onView"]);
+    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), [
+      "getView",
+      "onMapPatched",
+      "onPing",
+      "onSketch",
+      "onView",
+    ]);
 
     // Ping (D-034): a tap pings the table; holding leaves a pin the players see; a tap on the pin takes it away.
     await dm.keyboard.press("p");

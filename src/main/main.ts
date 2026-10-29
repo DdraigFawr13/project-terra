@@ -1,6 +1,6 @@
 // Electron main process: opens the DM window and the player (table) window, keeps the table
 // state, and saves it after every change so a crash or restart reopens where it was.
-import { app, BrowserWindow, ipcMain, net, powerSaveBlocker, protocol, screen, type Display } from "electron";
+import { app, BrowserWindow, ipcMain, net, powerSaveBlocker, protocol, screen, session, type Display } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -21,7 +21,7 @@ import {
   type TableState,
 } from "../core/table.ts";
 import { countCreatures, findCreatures, getCreature, importCreatures } from "./creatures.ts";
-import { listMaps, mapFile, saveMap } from "./library.ts";
+import { listMaps, mapFile, saveMap, savePatch, tableMapFile } from "./library.ts";
 
 /** Undo takes back map, disc and fight changes only: switches like the curtain and the screen choice stay as the DM last set them. */
 function keepOnUndo(s: TableState): Partial<TableState> {
@@ -193,7 +193,8 @@ function createWindows(): void {
     title: "Project Terra (Table)",
     backgroundColor: "#000000",
     autoHideMenuBar: true,
-    webPreferences: webPreferences("player-preload.cjs"),
+    // Its own session, whose terra-map:// serves only what the table may show (D-036).
+    webPreferences: { ...webPreferences("player-preload.cjs"), partition: TABLE_PARTITION },
   });
   playerWindow.loadFile(path.join(__dirname, "player.html"));
   // The table window only closes with the app, so a stray click can't lose it mid-game.
@@ -218,6 +219,17 @@ function reloadIfGone(w: BrowserWindow): void {
     crashes.push(now);
     if (crashes.filter((t) => now - t < 60_000).length <= 3) w.webContents.reload();
   });
+}
+
+const TABLE_PARTITION = "table";
+
+/** A library PNG for terra-map://, never cached, so a new patch shows at once. */
+async function serveMap(file: string | null): Promise<Response> {
+  if (!file || !fs.existsSync(file)) return new Response("Not found", { status: 404 });
+  // Readable by the app's own pages, so a canvas with a map on it can still be read back (the e2e tests and patching do).
+  const png = await net.fetch(pathToFileURL(file).toString());
+  const headers = { "content-type": "image/png", "access-control-allow-origin": "*", "cache-control": "no-store" };
+  return new Response(png.body, { headers });
 }
 
 // Map images reach both windows through terra-map://<id>, which serves only PNGs from the personal library (D-010).
@@ -289,18 +301,26 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown, feet: unknown) =>
       saveMap(app.getPath("userData"), name, png, bounds, feet),
     );
+    ipcMain.handle("library:patch", (_e, id: unknown, png: unknown) => {
+      savePatch(app.getPath("userData"), id, png);
+      // Both windows drop the old picture and load the new copy.
+      for (const w of [dmWindow, playerWindow]) send(w, "map:patched", id);
+    });
     // Stat blocks: the DM window only (D-028). The table window's bridge has no channel to these.
     ipcMain.handle("creatures:import", (_e, text: unknown) => importCreatures(app.getPath("userData"), text));
     ipcMain.handle("creatures:search", (_e, query: unknown) => findCreatures(app.getPath("userData"), query));
     ipcMain.handle("creatures:get", (_e, key: unknown) => getCreature(app.getPath("userData"), key));
     ipcMain.handle("creatures:count", () => countCreatures(app.getPath("userData")));
-    protocol.handle("terra-map", async (req) => {
-      const file = mapFile(app.getPath("userData"), new URL(req.url).hostname);
-      if (!file || !fs.existsSync(file)) return new Response("Not found", { status: 404 });
-      // Readable by the app's own pages, so a canvas with a map on it can still be read back (the e2e tests do).
-      const png = await net.fetch(pathToFileURL(file).toString());
-      return new Response(png.body, { headers: { "content-type": "image/png", "access-control-allow-origin": "*" } });
+    // The DM's window: terra-map://<id>/ is the map as imported, terra-map://<id>/table what the table gets.
+    protocol.handle("terra-map", (req) => {
+      const url = new URL(req.url);
+      const dir = app.getPath("userData");
+      return serveMap(url.pathname === "/table" ? tableMapFile(dir, url.hostname) : mapFile(dir, url.hostname));
     });
+    // The table's window: only the table's copy, whatever it asks for, so a patched map's numbers never reach it.
+    session
+      .fromPartition(TABLE_PARTITION)
+      .protocol.handle("terra-map", (req) => serveMap(tableMapFile(app.getPath("userData"), new URL(req.url).hostname)));
     // A quiet stretch of role-play mustn't let Windows switch off the projector or put the laptop to sleep (D-029).
     powerSaveBlocker.start("prevent-display-sleep");
     screen.on("display-added", placePlayerWindow);

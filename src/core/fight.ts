@@ -218,6 +218,13 @@ export function discHp(d: Disc, groups: Groups): number | null {
   return max === null ? null : Math.min(d.hp ?? max, max);
 }
 
+/** How full a disc's HP is, 0 to 1, for the DM map's HP ring (D-036); null without an HP max. */
+export function hpFraction(d: Disc, groups: Groups): number | null {
+  const max = discMax(d, groups);
+  const hp = discHp(d, groups);
+  return max === null || hp === null ? null : Math.max(0, hp) / max;
+}
+
 /** The condition word from HP: Bloodied at half, Near death at a quarter, Down at 0 (D-028). */
 export function conditionFromHp(hp: number, max: number): Condition {
   if (hp <= 0) return "down";

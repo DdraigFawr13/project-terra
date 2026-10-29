@@ -146,7 +146,7 @@ function drawTablePreview(): void {
   tablePreview.height = Math.round(h * dpr);
   drawTable(
     tablePreview.getContext("2d")!,
-    { cal, layer, mode, calibrated: !!view.calibration, view, image, fog, area: visibleRect(cal, status.surface) },
+    { cal, layer, mode, calibrated: !!view.calibration, view, image: tableImage, fog, area: visibleRect(cal, status.surface) },
     dpr * k,
   );
 }
@@ -312,6 +312,9 @@ const image = mapImages(() => {
   maps.render();
   drawTablePreview();
 });
+// The preview shows what the table gets: a patched map's clean copy (D-036).
+const tableImage = mapImages(drawTablePreview, "table");
+terra.onMapPatched(tableImage.reload);
 // The disc picked on the map or in its monster sheet, highlighted in both. A tap on a disc opens its HP pad (D-032).
 let picked: string | null = null;
 const selection = {
