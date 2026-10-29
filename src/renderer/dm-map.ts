@@ -5,7 +5,7 @@
 // a tap and leaves a pin with a long press. Draw (D-035) draws freehand lines, lasting or fading.
 import { defaultCalibration, screenOutline } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
-import { conditionOf, nextLetter, snapDisc, type Disc, type DiscColour } from "../core/fight.ts";
+import { conditionOf, hpFraction, nextLetter, snapDisc, type Condition, type Disc, type DiscColour } from "../core/fight.ts";
 import { MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
 import { mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
 import { MAX_LINE_POINTS, parseFeetPerSquare, type Command, type Ink, type PlacedMap, type TableState } from "../core/table.ts";
@@ -82,6 +82,9 @@ const LINE_HIT_PX = 12;
 const GRAB_PX = 22;
 /** Discs are drawn at least this wide on the DM's map so their letters stay readable. */
 const MIN_DISC_PX = 18;
+
+/** HP ring colours by condition: green, amber at Bloodied, red at Near death (D-028, D-036). */
+const HP_RING: Record<Condition, string> = { fine: "#3fa34d", bloodied: "#e0a100", nearDeath: "#d64035", down: "#d64035" };
 
 /** How a map's square size reads after its name: 5 ft is the usual, so only 10 ft is named (D-036). */
 const feetNote = (feet: number) => (feet === 5 ? "" : ` · ${feet} ft squares`);
@@ -461,6 +464,21 @@ export function initMaps(
     }
   }
 
+  /** A thin ring round a disc that empties clockwise from the top as it takes damage (D-036). DM map only (D-002). */
+  function hpRing(ctx: CanvasRenderingContext2D, c: Point, w: number, full: number, condition: Condition): void {
+    const lw = Math.max(4, w * 0.12);
+    const r = w / 2 + lw / 2 + 1;
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = HP_RING[condition];
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, r, -Math.PI / 2, -Math.PI / 2 + full * Math.PI * 2);
+    ctx.stroke();
+  }
+
   /** Discs drawn upright in canvas pixels: see-through when hidden (D-006), faint and crossed when down. */
   function drawDiscs(ctx: CanvasRenderingContext2D, map: PlacedMap, s: number, ox: number, oy: number): void {
     const px = (p: Point) => {
@@ -486,6 +504,8 @@ export function initMaps(
       const moving = discDrag && discKey(discDrag) === discKey(d);
       const down = conditionOf(d, map.groups) === "down";
       const { c, w } = draw(d, moving ? discDrag!.at : d, down ? 0.3 : d.shown ? 1 : 0.45);
+      const full = down ? null : hpFraction(d, map.groups);
+      if (full !== null) hpRing(ctx, c, w, full, conditionOf(d, map.groups));
       if (down) {
         ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 2;
