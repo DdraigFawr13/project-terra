@@ -4,18 +4,18 @@ Updated: 2026-10-29. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: maps and monster tokens (D-036, PRs #20–#23), the usability audit fixes (#25), rehearsal safety (7g, D-037, #26) and the one-panel DM window (7h–7j, D-038, #27, #28 and the 7j PR). Feature freeze until the rehearsal: only fixes and what it turns up (audit recommendation). Left: step 8, the rehearsal, which needs the laptop and projector. Tested in the cloud, plus one install test on Morgan's Windows PC (not the laptop, no projector). The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1), expected the week of 2026-11-02, so projected steps stay "built, awaiting Morgan's check" (VER-07).
+Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: maps and monster tokens (D-036, PRs #20–#23), the usability audit fixes (#25), rehearsal safety (7g, D-037, #26) and the one-panel DM window (7h–7j, D-038, #27, #28 and the 7j PR). Morgan lifted the feature freeze for scenes (D-039). Left: step 8, the rehearsal, which needs the laptop and projector. Tested in the cloud, plus one install test on Morgan's Windows PC (not the laptop, no projector). The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1), expected the week of 2026-11-02, so projected steps stay "built, awaiting Morgan's check" (VER-07).
 
 ## Just done
 
-- 2026-10-29 Morgan chose to plan scenes now (PLAN.md after session 1, item 1) rather than pre-rehearsal fixes; build once the plan is approved. [Round 1](https://claude.ai/artifact/Y3uEnGfJziZzL4rDMKDhHg) answered (8 items Now); [review](https://claude.ai/artifact/FwVL85QKKZwQoRzDg93s8s) out, proposing stages A (core, before session 1), B (curtain kinds, spots, reset), C (world map). Review answered (all agreed; "all three before session 1"); [final](https://claude.ai/artifact/Vyme4FqB9tfjD2U6WNhQVR) out: steps 7k (A), 7l (B), 7m (C). Next: read `final`; on approval write D-039 and PLAN, then build 7k.
+- 2026-10-29 Scenes planned and approved (D-039; [round 1](https://claude.ai/artifact/Y3uEnGfJziZzL4rDMKDhHg), [review](https://claude.ai/artifact/FwVL85QKKZwQoRzDg93s8s), [final](https://claude.ai/artifact/Vyme4FqB9tfjD2U6WNhQVR)): steps 7k (scenes, needed for session 1), 7l (curtain kinds, saved spots, reset) and 7m (world map) in PLAN.md. Building 7k on branch `ccr-f55b2366-e7hkj0`.
 - 2026-10-29 Step 7j (D-038), PR after #28: fog tools Uncover (U, sun icon) and Dim (G, cloud; internal ids stay `reveal`/`hide`); Dim what's in view, Uncover all; On table / Off table switches (`role=switch`); Show picture (picture icon). Calibrate (`#calTools`), import and patch are `.full-step` overlays over `.work` with their buttons at the foot; canvases fit the room left (`stage-frame`). The empty map shows a checklist (`renderReady` in dm.ts) that ticks itself. D-038 steps 7h–7j all built.
 - 2026-10-29 Step 7i (D-038), [PR #28](https://github.com/DdraigFawr13/project-terra/pull/28): `#encounterPanel` replaces Initiative and Groups (`dm-fight.ts`): party rows with a thin HP bar and numbers (tap the name: `quick.showCharacter`, a pad with Damage, Heal, Temp HP), group rows with per-disc conditions; in a fight the same rows in turn order; `#turnStrip` pinned above tabs and sheets (next from `nextTurn`).
-- 2026-10-29 Step 7g, rehearsal safety (D-037): `src/core/saves.ts` (earlier save names, pruning to 3, every 10 min, `describeSave`, `problemReport`); main keeps an earlier save at start (skipped when identical to the newest) and every 10 minutes in `<app data>/earlier-saves/`, `saves:list`/`saves:restore` (keeps the rig, clears undo, keeps the current state first), `report:copy` (clipboard); a problem log of main problems and page console errors. Table → Earlier saves… and Problem report. Tests: 50 unit, 4 e2e (about 14 s; the fight journey runs at 1280 × 680).
 - Earlier: [archive](archive/handoff-2026-10.md).
 
 ## Next
 
+0. Step 7k (D-039 items 1–4), then 7l and 7m; session 1 needs 7k. Save version 12 → 13.
 1. Step 8, rehearsal, when the laptop and projector arrive: follow [REHEARSAL.md](REHEARSAL.md). Confirm the built-in screen shows as "This laptop, in a window" and the display scale (14" 1080p usually defaults to 150%, a DM window of about 1280 × 680). On the laptop, re-import `data/monsters/mm2024.json` from the private library so the portraits arrive.
 2. Morgan's photos decide (VER-07): letters, symbols and portraits readable from the players' seats (whether 1-inch portraits are worth switching on); HP ring, patched Thundertree, ping, pins and lines on the projector; close the app mid-fight and reopen it.
 3. Still open: calibration keyed to the Windows display id; unplugging the projector drops the table window over the DM window; no Windows CI run of the app (REHEARSAL.md part 4). From step 7g: the fight journey's "fading line saves nothing" check failed 1 in 40 local runs (main 0 in 14), cause not found (VER-04).
@@ -51,10 +51,10 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Decisions since the last plan update
 
+- 2026-10-29 D-039 scenes before session 1: steps 7k–7m; B stays black; the table loads only the current scene's map.
 - 2026-10-29 D-038 DM window: the map first, one panel with tabs, Encounter list, Uncover/Dim and On/Off table; steps 7h–7j before the rehearsal.
 - 2026-10-29 D-037 plan audit: scenes and map annotation first, merges and cuts; supersedes D-017.
 - 2026-10-29 D-036 maps and monster tokens: feet per square, magnifier, HP ring, patch tool, revealed tokens before session 1; the rest after.
 - 2026-10-28 D-035 freehand drawing before session 1; symbols, shapes, labels after.
 - 2026-10-28 D-034 ping, pins, reopening sheets, audit leftovers.
-- 2026-10-28 D-032 DM window redesign; D-033 looks (three dark, two light, 7:1 contrast).
-- 2026-10-28 D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep; D-010 changed: book data goes in the private repo `project-terra-library`, never here.
+- 2026-10-28 D-032 DM window redesign; D-033 looks; D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep; D-010: book data only in `project-terra-library`.
