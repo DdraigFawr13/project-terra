@@ -27,6 +27,8 @@ export type Disc = {
   hp: number | null;
   /** This disc's own HP max, when it differs from its group's; null uses the group's. */
   hpMax: number | null;
+  /** A physical mini stands on it, so its letter moves to a tab below (D-036). */
+  mini: boolean;
 };
 /** What the DM knows about a colour group (D-028). All DM-only. */
 export type GroupInfo = {
@@ -38,9 +40,48 @@ export type GroupInfo = {
   speed: number | null;
   hpMax: number | null;
   notes: string;
+  /** The creature-type symbol drawn in the ring once revealed (D-036), or null for a plain letter disc. */
+  symbol: CreatureType | null;
+  /** The table shows the group's symbol (D-036). Until then its discs are plain letters. */
+  revealed: boolean;
 };
 export type Groups = Partial<Record<DiscColour, GroupInfo>>;
-export const blankGroup = (): GroupInfo => ({ name: "", creature: null, ac: null, speed: null, hpMax: null, notes: "" });
+export const blankGroup = (): GroupInfo => ({
+  name: "",
+  creature: null,
+  ac: null,
+  speed: null,
+  hpMax: null,
+  notes: "",
+  symbol: null,
+  revealed: false,
+});
+
+/** The 2024 creature types, each with a symbol drawn in code (D-036). */
+export const CREATURE_TYPES = [
+  "aberration",
+  "beast",
+  "celestial",
+  "construct",
+  "dragon",
+  "elemental",
+  "fey",
+  "fiend",
+  "giant",
+  "humanoid",
+  "monstrosity",
+  "ooze",
+  "plant",
+  "undead",
+] as const;
+export type CreatureType = (typeof CREATURE_TYPES)[number];
+const isCreatureType = (v: unknown): v is CreatureType => CREATURE_TYPES.includes(v as CreatureType);
+
+/** The creature type in a stat block's size-and-type line, such as "Medium Undead, Neutral Evil"; null if none. */
+export function creatureTypeOf(kind: string): CreatureType | null {
+  for (const w of kind.toLowerCase().match(/[a-z]+/g) ?? []) if (isCreatureType(w)) return w;
+  return null;
+}
 
 /** A player character's card. DM-only except the name, which goes on the turn strip. */
 export type Character = {
@@ -100,7 +141,10 @@ function parseDisc(raw: unknown): Disc | null {
   const hp = optInt(raw.hp, 0, MAX_HP);
   const hpMax = optInt(raw.hpMax, 1, MAX_HP);
   if (hp === undefined || hpMax === undefined) return null;
-  return { colour, letter, x, y, size, shown, condition, hp, hpMax };
+  // Discs saved before D-036 have no mini on them.
+  const mini = raw.mini ?? false;
+  if (typeof mini !== "boolean") return null;
+  return { colour, letter, x, y, size, shown, condition, hp, hpMax, mini };
 }
 
 /** A map's discs; null if any is wrong or two share a colour and letter. */
@@ -124,7 +168,11 @@ export function parseGroupInfo(raw: unknown): GroupInfo | null {
   const hpMax = optInt(raw.hpMax, 1, MAX_HP);
   if (name === null || notes === null || ac === undefined || speed === undefined || hpMax === undefined) return null;
   if (creature !== null && (typeof creature !== "string" || !CREATURE_KEY.test(creature))) return null;
-  return { name, creature, ac, speed, hpMax, notes };
+  // Groups saved before D-036 have no symbol and aren't revealed.
+  const symbol = raw.symbol ?? null;
+  const revealed = raw.revealed ?? false;
+  if ((symbol !== null && !isCreatureType(symbol)) || typeof revealed !== "boolean") return null;
+  return { name, creature, ac, speed, hpMax, notes, symbol, revealed };
 }
 
 export function parseGroups(raw: unknown): Groups | null {
@@ -203,7 +251,7 @@ export function nextLetter(discs: readonly Disc[], colour: DiscColour): string |
 export function placeDisc(discs: readonly Disc[], colour: DiscColour, at: Point, size: number): Disc[] {
   const letter = nextLetter(discs, colour);
   if (!letter) return [...discs];
-  return [...discs, { colour, letter, ...snapDisc(at, size), size, shown: false, condition: "fine", hp: null, hpMax: null }];
+  return [...discs, { colour, letter, ...snapDisc(at, size), size, shown: false, condition: "fine", hp: null, hpMax: null, mini: false }];
 }
 
 export const sameDisc = (d: Disc, colour: DiscColour, letter: string) => d.colour === colour && d.letter === letter;

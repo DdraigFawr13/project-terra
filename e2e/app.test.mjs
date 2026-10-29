@@ -527,6 +527,14 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
       "onSketch",
       "onView",
     ]);
+    // Reveal (D-036): linking the zombie chose its symbol; one tap shows it on the table, still without its name. Mini
+    // on it, from the disc's HP pad, tells the table to put the letter on a tab.
+    await mon.locator("button", { hasText: "Reveal" }).click();
+    await table.waitForFunction(async () => (await window.terra.getView()).discs[0]?.symbol === "undead");
+    await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await dm.click(".quick-hp button.mini");
+    await table.waitForFunction(async () => (await window.terra.getView()).discs[0]?.mini === true);
+    assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("Zombie"));
 
     // Ping (D-034): a tap pings the table; holding leaves a pin the players see; a tap on the pin takes it away.
     await dm.keyboard.press("p");

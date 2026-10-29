@@ -4,11 +4,14 @@ import type { CreatureHit, StatBlock } from "../core/creatures.ts";
 import {
   blankGroup,
   conditionOf,
+  CREATURE_TYPES,
+  creatureTypeOf,
   DISC_COLOURS,
   parseGroupInfo,
   discHp,
   discMax,
   type Condition,
+  type CreatureType,
   type Disc,
   type DiscColour,
   type GroupInfo,
@@ -20,11 +23,24 @@ import { button, COLOUR_NAME, el, field, NUMBER, stat, swatch, wholeOrNull } fro
 import { floatWin, forgetSheet, wasOpen, type FloatWin } from "./float-win.ts";
 import { numpad, type Numpad } from "./numpad.ts";
 
+/** The symbol choice in Edit: none keeps plain letter discs even after Reveal is pressed. */
+function symbolField(value: string, onChange: (v: string) => void): HTMLLabelElement {
+  const select = el(
+    "select",
+    {},
+    el("option", { value: "" }, "None: letters only"),
+    ...CREATURE_TYPES.map((t: CreatureType) => el("option", { value: t }, t[0]!.toUpperCase() + t.slice(1))),
+  );
+  select.value = value;
+  select.addEventListener("change", () => onChange(select.value));
+  return el("label", {}, "Symbol on the table", select);
+}
+
 const WORD: Record<Condition, string> = { fine: "Fine", bloodied: "Bloodied", nearDeath: "Near death", down: "Down" };
 const NEXT_CONDITION: Record<Condition, Condition> = { fine: "bloodied", bloodied: "nearDeath", nearDeath: "down", down: "fine" };
 
 type View = "hp" | "edit" | "book";
-type Draft = { info: Record<"name" | "ac" | "speed" | "hpMax" | "notes", string>; discMax: Record<string, string> };
+type Draft = { info: Record<"name" | "ac" | "speed" | "hpMax" | "notes" | "symbol", string>; discMax: Record<string, string> };
 type Panel = {
   win: FloatWin;
   pad: Numpad;
@@ -108,7 +124,17 @@ export function initMonsters(
         }
         render();
       });
-    p.win.actions.replaceChildren(tab("book", "Book"), tab("edit", "Edit"));
+    // Reveal (D-036): the table shows the group's symbol in place of plain letters. It needs a symbol first.
+    const reveal = button(
+      g.revealed ? "Revealed" : "Reveal",
+      {
+        "aria-pressed": String(g.revealed),
+        disabled: !g.symbol && !g.revealed,
+        title: g.symbol ? "Show this group's symbol on the table" : "Pick a symbol with Edit, or a creature with Book",
+      },
+      () => run({ type: "group", colour: c, info: { ...g, revealed: !g.revealed } }),
+    );
+    p.win.actions.replaceChildren(reveal, tab("book", "Book"), tab("edit", "Edit"));
     if (p.view === "edit") return p.win.body.replaceChildren(editView(s, c, p, g, discs));
     if (p.view === "book") return p.win.body.replaceChildren(bookView(c, p, g));
 
@@ -187,7 +213,14 @@ export function initMonsters(
   }
 
   const draftOf = (g: GroupInfo, discs: Disc[]): Draft => ({
-    info: { name: g.name, ac: g.ac?.toString() ?? "", speed: g.speed?.toString() ?? "", hpMax: g.hpMax?.toString() ?? "", notes: g.notes },
+    info: {
+      name: g.name,
+      ac: g.ac?.toString() ?? "",
+      speed: g.speed?.toString() ?? "",
+      hpMax: g.hpMax?.toString() ?? "",
+      notes: g.notes,
+      symbol: g.symbol ?? "",
+    },
     discMax: Object.fromEntries(discs.map((d) => [d.letter, d.hpMax?.toString() ?? ""])),
   });
 
@@ -197,7 +230,16 @@ export function initMonsters(
     const save = () => {
       const n = (k: "ac" | "speed" | "hpMax") => (d.info[k].trim() === "" ? null : (wholeOrNull(d.info[k]) ?? NaN));
       // The same checks the main process makes, so a slip is explained and the typing kept.
-      const info = parseGroupInfo({ ...g, name: d.info.name, ac: n("ac"), speed: n("speed"), hpMax: n("hpMax"), notes: d.info.notes });
+      const symbol = d.info.symbol || null;
+      const info = parseGroupInfo({
+        ...g,
+        name: d.info.name,
+        ac: n("ac"),
+        speed: n("speed"),
+        hpMax: n("hpMax"),
+        notes: d.info.notes,
+        symbol,
+      });
       const own = discs.map((disc) =>
         (d.discMax[disc.letter] ?? "").trim() === "" ? null : (wholeOrNull(d.discMax[disc.letter]!) ?? NaN),
       );
@@ -220,6 +262,7 @@ export function initMonsters(
       field("AC", d.info.ac, { ...NUMBER, max: "40" }, (v) => (d.info.ac = v)),
       field("Speed (ft)", d.info.speed, { ...NUMBER, max: "999" }, (v) => (d.info.speed = v)),
       field("HP max", d.info.hpMax, { ...NUMBER, min: "1", max: "999" }, (v) => (d.info.hpMax = v)),
+      symbolField(d.info.symbol, (v) => (d.info.symbol = v)),
       el("h4", { class: "wide" }, "Each disc"),
       ...discs.map((disc) =>
         el(
@@ -320,7 +363,16 @@ export function initMonsters(
         run({
           type: "group",
           colour: c,
-          info: { ...g, name: g.name || block.name, creature: block.key, ac: block.ac, hpMax: block.hp, speed: block.speed },
+          info: {
+            ...g,
+            name: g.name || block.name,
+            creature: block.key,
+            ac: block.ac,
+            hpMax: block.hp,
+            speed: block.speed,
+            // The symbol follows the creature's type unless the DM already chose one (D-036).
+            symbol: g.symbol ?? creatureTypeOf(block.kind),
+          },
         });
         b.choosing = false;
       });

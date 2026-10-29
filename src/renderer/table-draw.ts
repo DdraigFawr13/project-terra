@@ -5,6 +5,7 @@ import type { Chip, DiscColour, Strip } from "../core/fight.ts";
 import type { Ink, PlayerDisc, PlayerView } from "../core/table.ts";
 import type { Point } from "../core/homography.ts";
 import type { FogPainter } from "./fog-draw.ts";
+import { drawSymbol } from "./symbols.ts";
 
 // Plain bold lettering on the table, from the bundled font, so it reads at an angle and upside down (D-023).
 export const FONT = `"Source Sans 3", "Segoe UI", system-ui, sans-serif`;
@@ -104,7 +105,7 @@ export function drawPin(ctx: CanvasRenderingContext2D, x: number, y: number, inc
  */
 export function drawDisc(
   ctx: CanvasRenderingContext2D,
-  disc: Pick<PlayerDisc, "colour" | "letter">,
+  disc: Pick<PlayerDisc, "colour" | "letter"> & Partial<Pick<PlayerDisc, "symbol" | "mini">>,
   x: number,
   y: number,
   d: number,
@@ -114,20 +115,65 @@ export function drawDisc(
   const r = d / 2;
   ctx.beginPath();
   ctx.arc(x, y, r * 0.92, 0, Math.PI * 2);
-  ctx.fillStyle = fill;
+  ctx.fillStyle = disc.symbol ? TOKEN_GROUND : fill;
   ctx.fill();
-  ctx.lineWidth = r * 0.14;
-  ctx.strokeStyle = "#ffffff";
-  ctx.stroke();
-  ctx.fillStyle = ink;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `700 ${r * 1.15}px ${FONT}`;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(turn);
-  ctx.fillText(disc.letter, 0, r * 0.06);
+  if (disc.symbol) {
+    // Revealed (D-036): the symbol on a dark ground inside a ring of the group's colour.
+    ctx.lineWidth = r * 0.2;
+    ctx.strokeStyle = fill;
+    ctx.stroke();
+    drawSymbol(ctx, disc.symbol, 0, 0, r * 0.58, TOKEN_INK, TOKEN_GROUND);
+  } else {
+    ctx.lineWidth = r * 0.14;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+    if (!disc.mini) letterAt(ctx, disc.letter, 0, 0, r * 1.15, ink);
+  }
+  // The letter is what players call out, so it must stay readable: on a badge inside the ring, or on a tab below the
+  // token when a mini stands on it and would cover the badge (D-036). Below means towards the reader, so it turns too.
+  const t = Math.max(r * 0.7, 9);
+  if (disc.mini) {
+    const w = Math.max(r * 1.1, t * 1.2);
+    tag(ctx, -w / 2, r * 1.02, w, t * 1.15, fill);
+    letterAt(ctx, disc.letter, 0, r * 1.02 + t * 0.58, t, ink);
+  } else if (disc.symbol) {
+    const bx = r * 0.58;
+    ctx.beginPath();
+    ctx.arc(bx, bx, r * 0.47, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, r * 0.06);
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+    letterAt(ctx, disc.letter, bx, bx, r * 0.64, ink);
+  }
   ctx.restore();
+}
+
+/** A revealed token's ground and symbol colours: dark and light, readable under any disc colour's ring. */
+const TOKEN_GROUND = "#1d2124";
+const TOKEN_INK = "#f3efe2";
+
+function letterAt(ctx: CanvasRenderingContext2D, letter: string, x: number, y: number, size: number, ink: string): void {
+  ctx.fillStyle = ink;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `700 ${size}px ${FONT}`;
+  ctx.fillText(letter, x, y + size * 0.05);
+}
+
+/** A rounded tab with a white edge, for a letter beside a token. */
+function tag(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string): void {
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, h * 0.3);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, h * 0.08);
+  ctx.strokeStyle = "#ffffff";
+  ctx.stroke();
 }
 
 /** Width of one chip at text size `t`, in the context's units. */

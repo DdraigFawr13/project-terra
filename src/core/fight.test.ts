@@ -63,7 +63,9 @@ test("discs snap to squares, take the next letter, start hidden, and reach the t
     ],
     s,
   );
-  assert.deepEqual(playerViewOf(shown, "window").discs, [{ colour: "yellow", letter: "A", x: 0.5, y: 7.5, size: 1 }]);
+  assert.deepEqual(playerViewOf(shown, "window").discs, [
+    { colour: "yellow", letter: "A", x: 0.5, y: 7.5, size: 1, symbol: null, mini: false },
+  ]);
   // A removed letter is given out again.
   const again = run(
     [
@@ -242,7 +244,7 @@ test("a version 5 save upgrades: group names become group info, discs and cards 
   const loaded = parseSave(JSON.stringify(v5));
   assert.ok(loaded.ok);
   assert.deepEqual(loaded.state.map!.groups, { yellow: { ...blankGroup(), name: "Zombies" } });
-  assert.deepEqual(loaded.state.map!.discs, [{ ...disc, hp: null, hpMax: null }]);
+  assert.deepEqual(loaded.state.map!.discs, [{ ...disc, hp: null, hpMax: null, mini: false }]);
   assert.deepEqual(loaded.state.party[0], {
     id: "pc-1",
     name: "Ash",
@@ -261,7 +263,18 @@ test("the condition word from HP: Bloodied at half, Near death at a quarter, Dow
     ["fine", "fine", "bloodied", "bloodied", "nearDeath", "nearDeath", "down"],
   );
   // The ring (D-036): full at null HP, a fraction of the disc's own max over the group's, none without a max.
-  const d: Disc = { colour: "yellow", letter: "A", x: 0.5, y: 0.5, size: 1, shown: true, condition: "fine", hp: null, hpMax: null };
+  const d: Disc = {
+    colour: "yellow",
+    letter: "A",
+    x: 0.5,
+    y: 0.5,
+    size: 1,
+    shown: true,
+    condition: "fine",
+    hp: null,
+    hpMax: null,
+    mini: false,
+  };
   const groups = { yellow: { ...blankGroup(), hpMax: 20 } };
   assert.deepEqual(
     [hpFraction(d, groups), hpFraction({ ...d, hp: 5 }, groups), hpFraction({ ...d, hp: 5, hpMax: 40 }, groups), hpFraction(d, {})],

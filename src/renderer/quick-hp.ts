@@ -45,11 +45,18 @@ export function initQuickHp(terra: DmApi, openSheet: (c: DiscColour) => void) {
       shown?.close();
       openSheet(colour);
     });
-    if (max !== null) shown.body.replaceChildren(pad.el, sheet);
+    // A physical mini on the token moves its letter to a tab below, where the mini can't cover it (D-036).
+    const mini = el("button", { type: "button", class: "mini", "aria-pressed": String(d.mini) }, "Mini on it");
+    mini.addEventListener("click", () => void terra.apply({ type: "discMini", colour, letter, on: !d.mini }));
+    if (max !== null) shown.body.replaceChildren(pad.el, el("div", { class: "row-buttons" }, mini, sheet));
     else {
       const next = el("button", { type: "button", class: "condition" }, `Condition: ${WORD[d.condition]}`);
       next.addEventListener("click", () => void terra.apply({ type: "condition", colour, letter, condition: NEXT[d.condition] }));
-      shown.body.replaceChildren(el("p", { class: "hint" }, "No HP max yet: set one in the sheet, or step the condition."), next, sheet);
+      shown.body.replaceChildren(
+        el("p", { class: "hint" }, "No HP max yet: set one in the sheet, or step the condition."),
+        next,
+        el("div", { class: "row-buttons" }, mini, sheet),
+      );
     }
   }
 
