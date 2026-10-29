@@ -1652,3 +1652,15 @@ button.pop-close {
 .disc-edit label input {
   width: 100%;
 }
+/* The problem report (D-037): its text, readable and selectable, scrolling inside a wider pop-up. */
+.pop:has(.report-text) {
+  width: min(560px, calc(100vw - 16px));
+}
+.report-text {
+  margin: 0;
+  max-height: 50vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+  user-select: text;
+}

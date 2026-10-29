@@ -31,6 +31,11 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 4. A new map starts **locked**: dragging pans the view. To line it up under the projector, press **Lock** to unlock it, drag it into place (whole inches, so the squares stay on the grid), **Turn** it if needed, and lock it again. Ctrl+Z undoes map changes.
 5. Zoom in to paint fog or place discs precisely: pinch, the mouse wheel, or − and + in the map's button row; **Fit** shows it all. Two fingers or a drag pan.
 
+### When something goes wrong (step 7g)
+
+- **Table → Earlier saves…** goes back to how the table was when the app last opened, or up to about 10 minutes ago (three are kept). The table as it is now is kept as an earlier save first, so going back can be taken back. Screens, calibration and the curtain stay as they are.
+- **Table → Problem report** copies a short report (screens, saves, recent errors; nothing from the game). Paste it to Claude.
+
 ### The DM window
 
 - **Layouts:** Prep, Explore and Fight at the top switch between arrangements of windows; each remembers how you arrange it, and View > Reset this layout puts it back.

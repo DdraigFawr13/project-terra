@@ -4,12 +4,14 @@ import { DARK_LOOKS, LIGHT_LOOKS, LOOK_NAME, lookOf, parseAppearance, type Appea
 import { defaultCalibration, layerFor, moveCorner, nudgeCorner, visibleRect, type Calibration } from "../core/calibration.ts";
 import { describeDisplay } from "../core/displays.ts";
 import { playerViewOf, viewOf, type TableState } from "../core/table.ts";
-import type { DmApi, TableStatus } from "../main/dm-preload.ts";
+import type { DmApi, EarlierSave, TableStatus } from "../main/dm-preload.ts";
 import { initFight } from "./dm-fight.ts";
 import { initMaps } from "./dm-map.ts";
 import { initMonsters } from "./dm-monsters.ts";
 import { initParty } from "./dm-party.ts";
 import { initQuickHp } from "./quick-hp.ts";
+import { el } from "./dom.ts";
+import { popover } from "./popover.ts";
 import type { DiscColour } from "../core/fight.ts";
 import { initDock, type Home, type Preset } from "./dock.ts";
 import { useDock } from "./float-win.ts";
@@ -442,7 +444,17 @@ function menuItems(name: string): Item[] {
           $<HTMLInputElement>("mapFile").click();
         },
       },
+      "-",
+      { text: "Earlier saves…", act: () => void showEarlier() },
+      { text: "Problem report", act: () => void showReport() },
     ];
+  if (name === "saves")
+    return earlier.length
+      ? [
+          { label: "Go back to an earlier save; the table now is kept as one" },
+          ...earlier.map((e) => ({ text: `${whenSaved(e.time)}: ${e.summary}`, act: () => void restore(e.name) })),
+        ]
+      : [{ label: "No earlier saves yet" }];
   if (name === "fight")
     return [
       latest?.fight
@@ -495,6 +507,33 @@ function menuItems(name: string): Item[] {
     },
   ];
 }
+// ---- Earlier saves and the problem report (D-037) ----
+
+let earlier: EarlierSave[] = [];
+const tableMenuBtn = () => menuBtns.find((b) => b.dataset.menu === "table")!;
+/** "Thu 19:42": the weekday tells today's saves from last session's. */
+const whenSaved = (t: number) => new Date(t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+async function showEarlier(): Promise<void> {
+  earlier = await terra.listSaves();
+  // Opens in place of the Table menu, like Appearance… in View.
+  openMenu(tableMenuBtn(), "saves");
+}
+function besideTableMenu(content: HTMLElement[]): void {
+  const r = tableMenuBtn().getBoundingClientRect();
+  popover({ x: r.left, y: r.bottom + 200 }, content);
+}
+async function restore(name: string): Promise<void> {
+  if (!(await terra.restoreSave(name))) besideTableMenu([el("p", { class: "hint" }, "That save couldn't be read.")]);
+}
+async function showReport(): Promise<void> {
+  const text = await terra.problemReport();
+  besideTableMenu([
+    el("h3", { class: "pop-head" }, "Problem report"),
+    el("p", { class: "hint" }, "Copied. Paste it to Claude."),
+    el("pre", { id: "reportText", class: "report-text" }, text),
+  ]);
+}
+
 const menuEl = $<HTMLDivElement>("menu");
 const menuBtns = [...document.querySelectorAll<HTMLButtonElement>(".menu-btn")];
 function closeMenu(): void {

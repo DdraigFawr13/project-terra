@@ -142,6 +142,35 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     assert.equal(await table.getAttribute("body", "data-calibrated"), "true");
     assert.match(await dm.textContent("#calState"), /^Calibrated for/);
     assert.equal(await dm.getAttribute("html", "data-look"), "linen");
+
+    // Earlier saves (D-037): the table as it opened was kept, so a change made now can be rolled back after a restart.
+    const party = () => dm.evaluate(async () => (await window.terra.getState()).party.length);
+    await dm.evaluate(() =>
+      window.terra.apply({ type: "addCharacter", character: { name: "Ash", ac: 15, hp: 20, hpMax: 20, passive: 12, speed: 30 } }),
+    );
+    assert.equal(await party(), 1);
+    const goBack = async (summary) => {
+      await dm.click(".menu-btn[data-menu='table']");
+      await dm.click("#menu >> text=Earlier saves…");
+      await dm.click(`#menu >> text=${summary}`);
+    };
+    await goBack("no map, 0 characters");
+    await dm.waitForFunction(async () => (await window.terra.getState()).party.length === 0);
+    // Going back keeps the rig as it is (D-037), and the table it left became an earlier save, so it can be taken back.
+    await table.waitForFunction(() => document.body.dataset.view === "curtain");
+    assert.equal(await table.getAttribute("body", "data-calibrated"), "true");
+    await goBack("no map, 1 character");
+    await dm.waitForFunction(async () => (await window.terra.getState()).party.length === 1);
+    assert.ok(fs.readdirSync(path.join(userData, "earlier-saves")).length <= 3);
+
+    // The problem report is copied for Morgan to paste to Claude, and shown.
+    await dm.click(".menu-btn[data-menu='table']");
+    await dm.click("#menu >> text=Problem report");
+    assert.match(await dm.textContent("#reportText"), /^Project Terra problem report/);
+    const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
+    assert.match(copied, /Screens:\n- \d+ /);
+    // Only screens and problems: nothing from the game, such as a character's name.
+    assert.doesNotMatch(copied, /Ash/);
   } finally {
     await app.close();
   }
