@@ -37,6 +37,12 @@
             <button id="turnMap" type="button">Turn</button>
             <button id="removeMap" type="button">Take off table</button>
             <button id="patchMap" type="button" title="Paint room numbers out of the table's copy of this map">Patch numbers</button>
+            <button id="editWalls" type="button" title="Trace walls, pillars and doors on this map (never shown on the table)">
+              Edit walls
+            </button>
+            <button id="wallsMap" type="button" aria-pressed="false" title="Show the traced walls on your map (never on the table)">
+              Walls
+            </button>
             <button id="spotsMap" type="button" title="Saved spots: slide a big map to a place under the projector">Spots</button>
             <button id="partyMap" type="button" title="Show where the party is, such as on a world map">Party marker</button>
             <span class="spacer"></span>
@@ -418,6 +424,42 @@
                 <button id="patchCancel" type="button">Cancel</button>
                 <button id="patchRemove" type="button">Give the table the original</button>
                 <button id="patchSave" type="button" class="primary">Save for the table</button>
+              </div>
+            </section>
+
+            <section id="walls" class="card wide full-step" aria-labelledby="walls-heading" hidden>
+              <h2 id="walls-heading">Walls</h2>
+              <p class="hint">
+                For you only: the table never shows these. Rooms, Look from here and line of sight will use them. Draw with the pen; a
+                finger moves the map.
+              </p>
+              <div class="patchtools">
+                <div class="presets" role="group" aria-label="What to draw">
+                  <button type="button" data-walls-tool="wall" aria-pressed="true">Wall</button>
+                  <button type="button" data-walls-tool="freehand" aria-pressed="false">Freehand</button>
+                  <button type="button" data-walls-tool="pillar" aria-pressed="false">Pillar</button>
+                  <button type="button" data-walls-tool="door" aria-pressed="false">Door</button>
+                  <button type="button" data-walls-tool="secret" aria-pressed="false">Secret door</button>
+                  <button type="button" data-walls-tool="window" aria-pressed="false">Window</button>
+                  <button type="button" data-walls-tool="opening" aria-pressed="false">Opening</button>
+                  <button type="button" data-walls-tool="erase" aria-pressed="false">Rub out</button>
+                </div>
+                <div class="presets" role="group" aria-label="Zoom">
+                  <button type="button" data-walls-zoom="1" aria-pressed="true">Whole map</button>
+                  <button type="button" data-walls-zoom="2" aria-pressed="false">2×</button>
+                  <button type="button" data-walls-zoom="4" aria-pressed="false">4×</button>
+                </div>
+                <button id="wallsFinish" type="button" disabled>Finish line</button>
+                <button id="wallsUndo" type="button" disabled>Undo</button>
+              </div>
+              <div id="wallsScroll" class="patch-scroll walls-scroll">
+                <canvas id="wallsCanvas" aria-label="The map with its traced walls. Tap corners with the pen to draw a wall."></canvas>
+              </div>
+              <p id="wallsStatus" class="hint" role="status"></p>
+              <p id="wallsCount" class="hint"></p>
+              <div class="row">
+                <button id="wallsCancel" type="button">Cancel</button>
+                <button id="wallsDone" type="button" class="primary">Done</button>
               </div>
             </section>
 

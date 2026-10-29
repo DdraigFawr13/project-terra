@@ -4,6 +4,7 @@
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { ANNOTATION_VERSION, annotationFile, emptyAnnotation, parseAnnotation, type Annotation } from "../core/annotation.ts";
 import type { Bounds } from "../core/map.ts";
 import { parsePlacedMap, type FeetPerSquare } from "../core/table.ts";
 
@@ -90,4 +91,46 @@ export function listMaps(userData: string): LibraryMap[] {
     }
   }
   return maps.sort((a, b) => b.id.localeCompare(a.id));
+}
+
+/** The map's bounds from its library entry, or null if the id or entry isn't usable. */
+function entryBounds(userData: string, id: unknown): { file: string; bounds: Bounds } | null {
+  const png = typeof id === "string" ? mapFile(userData, id) : null;
+  if (!png || !fs.existsSync(png)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(png.replace(/\.png$/, ".json"), "utf8"));
+    const checked = parsePlacedMap({ ...raw, x: 0, y: 0, turns: 0 });
+    return checked ? { file: png.replace(/\.png$/, ".walls.json"), bounds: checked.bounds } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A map's walls, pillars and openings (D-044), or an empty annotation if it has none yet. DM-only: the table window's
+ * bridge has no channel to this. A file that can't be read is set aside as `.bad.json`, never written over (GAME-05).
+ */
+export function loadAnnotation(userData: string, id: unknown): Annotation {
+  const entry = entryBounds(userData, id);
+  if (!entry || !fs.existsSync(entry.file)) return emptyAnnotation();
+  let parsed: Annotation | null = null;
+  try {
+    parsed = parseAnnotation(JSON.parse(fs.readFileSync(entry.file, "utf8")), entry.bounds);
+  } catch {
+    parsed = null;
+  }
+  if (parsed) return parsed;
+  fs.renameSync(entry.file, entry.file.replace(/\.json$/, `.bad-${Date.now()}.json`));
+  return emptyAnnotation();
+}
+
+/** Store a map's annotation; refused whole if any part of it is unusable for that map. */
+export function saveAnnotation(userData: string, id: unknown, raw: unknown): Annotation {
+  const entry = entryBounds(userData, id);
+  if (!entry) throw new Error("That map isn't in the library.");
+  const checked = parseAnnotation(raw && typeof raw === "object" ? { ...raw, version: ANNOTATION_VERSION } : raw, entry.bounds);
+  if (!checked) throw new Error("The walls couldn't be saved: some of them are outside the map or damaged.");
+  fs.writeFileSync(`${entry.file}.tmp`, JSON.stringify(annotationFile(checked)) + "\n");
+  fs.renameSync(`${entry.file}.tmp`, entry.file);
+  return checked;
 }

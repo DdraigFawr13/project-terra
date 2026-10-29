@@ -34,7 +34,11 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 ## After session 1, in order
 
 1. **Scenes.** Moved before session 1 as steps 7k–7m (D-039). Left here: scenes grouped by adventure, and editing a scene while another is on the table.
-2. **Map annotation.** Trace rooms, walls, doors, windows and materials on an imported map. Each wall, door or window blocks light, sight and sound separately, so sight and sound need no second pass (D-040). It brings one-tap room reveal (D-007, D-025), doors, room notes and the material tags living effects need (D-014). The generator later produces the same annotation.
+2. **Map annotation (D-044).** Trace walls, doors, windows, rooms and materials on an imported map. Each wall, door or window blocks light, sight and sound separately (D-040). It brings one-tap room reveal (D-007, D-025), doors and the material tags living effects need (D-014); room notes stay in story tools. The generator later produces the same annotation. Started before session 1 at Morgan's request (2026-10-29).
+   - 2A. Walls editor: whole-window Annotate from the map library; tap corners (¼ inch snap) or freehand; pillars; Door, Secret door, Window and Opening lines; undo; a walls switch on the DM map. Morgan tests: trace two rooms of Thundertree with the pen.
+   - 2B. VTT import and prep tracing: .dd2vtt/.uvtt become a new library map with walls and doors; Claude traces the book maps into the private library as VTT files. Morgan tests: import the Sleeping Giant and Thundertree, fix one wall.
+   - 2C. Rooms: outline or tap-to-find, names, a tap with Uncover or Dim does the whole room with the clipped ½-inch grow; door state per scene, set back by Reset. Morgan tests: uncover Thundertree room by room on the table.
+   - 2D. Areas and the wall check: materials and difficult terrain (DM only); light from a tapped point in the editor. Morgan tests: tag a building as wood, find a gap with the wall check.
 3. **Sight (D-040).**
    - Enemy discs in never-seen fog stay off the table: the player view leaves them out (D-002), and the DM map marks them hidden by fog. This only hides; it never shows a disc set Off table.
    - Doors open and close on annotated maps.
