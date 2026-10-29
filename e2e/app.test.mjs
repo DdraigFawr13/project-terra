@@ -7,6 +7,8 @@ import os from "node:os";
 import path from "node:path";
 import zlib from "node:zlib";
 import { _electron as electron } from "playwright";
+import { defaultCalibration, visibleRect } from "../src/core/calibration.ts";
+import { fillTable } from "../src/core/map.ts";
 
 /** The DM window's size on the laptop: 1920 x 1080 at Windows' 150%. */
 const LAPTOP = [1280, 680];
@@ -528,6 +530,20 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     assert.deepEqual(
       (await dm.evaluate(() => window.terra.getState())).scenes.map((sc) => sc.name),
       ["", "Road"],
+    );
+    // Fill the table (D-039): a picture with no squares is sized and placed to fill what the projector reaches.
+    await dm.evaluate(() => window.terra.apply({ type: "addScene", name: "Region" }));
+    await dm.setInputFiles("#mapFile", { name: "region.png", mimeType: "image/png", buffer: checkerboardPng() });
+    await dm.waitForSelector("#importer:not([hidden])");
+    await dm.click("#importFill");
+    await until(dm, async () => !!(await window.terra.getState()).map);
+    const [s2, status] = await dm.evaluate(async () => [await window.terra.getState(), await window.terra.getStatus()]);
+    const filled = s2.map;
+    const cal = s2.calibrations[status.surfaceKey] ?? defaultCalibration(status.surface);
+    const fit = fillTable({ width: 400, height: 400 }, visibleRect(cal, status.surface));
+    assert.deepEqual(
+      [filled.bounds, filled.x, filled.y, filled.turns],
+      [{ x: 0, y: 0, width: fit.widthIn, height: fit.heightIn }, fit.x, fit.y, fit.turns],
     );
   } finally {
     await app.close();

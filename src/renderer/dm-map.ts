@@ -3,11 +3,11 @@
 // stores the result in the personal library (D-010). Fog (step 5, D-025) is painted here with Uncover and Dim (the tools `reveal` and `hide`, D-038), and
 // enemy discs (step 6, D-027) are placed with Marker and dragged with Select. Ping (step 7, D-034) pings the table with
 // a tap and leaves a pin with a long press. Draw (D-035) draws freehand lines, lasting or fading.
-import { defaultCalibration, screenOutline } from "../core/calibration.ts";
+import { defaultCalibration, screenOutline, visibleRect } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
 import { conditionOf, hpFraction, tokenLook, nextLetter, snapDisc, type Condition, type Disc, type DiscColour } from "../core/fight.ts";
 import { MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
-import { mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
+import { fillTable, mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
 import {
   MAX_LINE_POINTS,
   parseFeetPerSquare,
@@ -309,10 +309,31 @@ export function initMaps(
     render();
   }
 
-  async function finishImport(): Promise<void> {
+  /**
+   * `fill`: a picture with no squares, such as a region map. The whole picture is used, sized and turned to fill what
+   * the projector reaches without stretching, and placed in the middle of it (D-039).
+   */
+  async function finishImport(fill = false): Promise<void> {
     const im = importing;
-    if (!im || im.busy) return;
+    if (!im || im.busy || !status) return;
     const { bitmap } = im;
+    const cal = state?.calibrations[status.surfaceKey] ?? defaultCalibration(status.surface);
+    const fit = fill ? fillTable(bitmap, visibleRect(cal, status.surface)) : null;
+    if (fill && !fit) {
+      importStatus.textContent = "Calibrate the table first: the projected area is too small to fill.";
+      return;
+    }
+    if (fit) {
+      const [w, h] = [bitmap.width, bitmap.height];
+      im.corners = [
+        { x: 0, y: 0 },
+        { x: w, y: 0 },
+        { x: w, y: h },
+        { x: 0, y: h },
+      ];
+      markW.value = String(fit.widthIn);
+      markH.value = String(fit.heightIn);
+    }
     const marking = parseMarking({ corners: im.corners, widthIn: Number(markW.value), heightIn: Number(markH.value) }, bitmap);
     if (!marking) {
       importStatus.textContent = isConvex(im.corners)
@@ -337,7 +358,19 @@ export function initMaps(
       importing = null;
       await run({
         type: "placeMap",
-        map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null },
+        map: {
+          ...entry,
+          x: fit?.x ?? 0,
+          y: fit?.y ?? 0,
+          turns: fit?.turns ?? 0,
+          fog: [],
+          discs: [],
+          groups: {},
+          pins: [],
+          drawings: [],
+          spots: [],
+          party: null,
+        },
       });
       refreshLibrary();
     } catch (e) {
@@ -1168,6 +1201,7 @@ export function initMaps(
     render();
   });
   $<HTMLButtonElement>("importOk").addEventListener("click", () => void finishImport());
+  $<HTMLButtonElement>("importFill").addEventListener("click", () => void finishImport(true));
   undoBtn.addEventListener("click", undo);
   window.addEventListener("resize", render);
 

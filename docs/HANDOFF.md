@@ -8,7 +8,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Just done
 
-- 2026-10-29 Step 7m (D-039), branch `ccr-f55b2366-e7hkj0`, not yet in a PR: another scene as a curtain (the world map, `curtainScene` in table.ts), link pins (`linkPin`, a Select tap opens `pinMenu` in dm-scenes.ts), the party marker (`party` on a map; `#partyMap`, Select drags it). Save version 15. The e2e suite's 34 async waits never waited (LESSONS); they now use `until`.
+- 2026-10-29 Step 7m (D-039), branch `ccr-f55b2366-e7hkj0`, not yet in a PR: another scene as a curtain (the world map, `curtainScene` in table.ts), link pins (`linkPin`, a Select tap opens `pinMenu` in dm-scenes.ts), the party marker (`party` on a map; `#partyMap`, Select drags it). Save version 15. Fill the table in import (D-041; `fillTable`), and a fix so a whole-picture mark no longer adds an inch (`planRectify`). The e2e suite's 34 async waits never waited (LESSONS); they now use `until`.
 - 2026-10-29 Step 7l (D-039), [walkthrough](https://claude.ai/artifact/XC9dLhFeP9VHHiU3xqKDXg), merged as [PR #32](https://github.com/DdraigFawr13/project-terra/pull/32): a curtain per scene (black, title twice, or a picture via `terra-curtain://`, table-limited to the one shown; `cover` in the state and player view, cleared by B), saved spots on the map bar (`#spotsMap`, slide a locked map), Mark ready / Reset in a scene's menu; saves reuse unchanged scenes' JSON (measurements in D-039). Save version 14.
 - Earlier: [archive](archive/handoff-2026-10.md).
 
@@ -50,8 +50,8 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Decisions since the last plan update
 
-- 2026-10-29 D-040 sight: Look from here replaces the light-radius shape; a Sight phase after map annotation ([Arkenforge report](https://claude.ai/artifact/Bq9i76akbah11aL3TyoZ3K)).
-- 2026-10-29 D-039 scenes before session 1: steps 7k–7m; B stays black; the table loads only the current scene's map.
+- 2026-10-29 D-041 pictures with no squares fill the table, turned if bigger, never stretched.
+- 2026-10-29 D-040 sight: Look from here replaces the light-radius shape, after map annotation ([Arkenforge report](https://claude.ai/artifact/Bq9i76akbah11aL3TyoZ3K)); D-039 scenes before session 1 (steps 7k–7m, B stays black).
 - 2026-10-29 D-038 DM window: the map first, one panel with tabs, Encounter list, Uncover/Dim and On/Off table; steps 7h–7j before the rehearsal.
 - 2026-10-29 D-037 plan audit: scenes and map annotation first, merges and cuts; supersedes D-017.
 - 2026-10-29 D-036 maps and monster tokens: feet per square, magnifier, HP ring, patch tool, revealed tokens before session 1; the rest after.

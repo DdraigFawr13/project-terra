@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { apply, invert, rectToQuad, type Quad } from "./homography.ts";
-import { mapToTable, parseMarking, tableToMap, placedExtent, planRectify, rectify, type Pixels } from "./map.ts";
+import { fillTable, mapToTable, parseMarking, tableToMap, placedExtent, planRectify, rectify, type Pixels } from "./map.ts";
 
 // A slanted "phone photo" of a checkerboard with 1-inch squares: square (col, row) is white when col + row is even.
 const slant: Quad = [
@@ -128,4 +128,40 @@ test("the far, squashed edge of a steep photo is left out instead of stretched",
   // The near part of the board is kept; the far end (more than 4 times squashed) is not.
   assert.ok(plan.bounds.y + plan.bounds.height >= 5, JSON.stringify(plan.bounds));
   assert.ok(plan.bounds.y > -34, JSON.stringify(plan.bounds));
+});
+
+test("a picture with no squares fills the table as far as it can, turned if that is bigger, never stretched (D-039)", () => {
+  const board = { x: 0, y: 0, width: 42, height: 24 };
+  // A tall region map, 2648 x 3625 pixels: turned it lies 30 x 22 inches, centred on the board.
+  const tall = fillTable({ width: 2648, height: 3625 }, board)!;
+  assert.deepEqual(tall, { widthIn: 22, heightIn: 30, x: 36, y: 1, turns: 1 });
+  const at = { bounds: { x: 0, y: 0, width: tall.widthIn, height: tall.heightIn }, x: tall.x, y: tall.y, turns: tall.turns };
+  assert.deepEqual(placedExtent(at), { x: 6, y: 1, width: 30, height: 22 });
+  assert.ok(Math.abs(tall.widthIn / tall.heightIn - 2648 / 3625) / (2648 / 3625) <= 0.015);
+  // A wide picture stays as it is, within an area that starts away from the corner.
+  assert.deepEqual(fillTable({ width: 1600, height: 900 }, { x: 2, y: 1.5, width: 40, height: 21 }), {
+    widthIn: 37,
+    heightIn: 21,
+    x: 4,
+    y: 2,
+    turns: 0,
+  });
+  assert.equal(fillTable({ width: 100, height: 100 }, { x: 0, y: 0, width: 0.5, height: 0.5 }), null);
+  // The whole picture marked as the rectangle straightens to exactly that size, with no strip past its edge.
+  const whole = parseMarking(
+    {
+      corners: [
+        { x: 0, y: 0 },
+        { x: 400, y: 0 },
+        { x: 400, y: 400 },
+        { x: 0, y: 400 },
+      ],
+      widthIn: 6,
+      heightIn: 6,
+    },
+    { width: 400, height: 400 },
+  )!;
+  assert.deepEqual(planRectify(whole, { width: 400, height: 400 }).bounds, { x: 0, y: 0, width: 6, height: 6 });
+  // Never -0, which saves as 0 (LESSONS).
+  assert.ok(!Object.is(fillTable({ width: 100, height: 100 }, { x: -0.4, y: -0.4, width: 10, height: 10 })!.x, -0));
 });

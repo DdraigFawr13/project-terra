@@ -58,10 +58,13 @@ export function planRectify(m: Marking, image: { width: number; height: number }
         pts.push({ x: reach(0, m.widthIn, t.x), y: reach(0, m.heightIn, t.y) });
     }
   pts.push({ x: 0, y: 0 }, { x: m.widthIn, y: m.heightIn });
-  const x0 = Math.floor(Math.min(...pts.map((p) => p.x)));
-  const y0 = Math.floor(Math.min(...pts.map((p) => p.y)));
-  const x1 = Math.ceil(Math.max(...pts.map((p) => p.x)));
-  const y1 = Math.ceil(Math.max(...pts.map((p) => p.y)));
+  // A corner on the picture's very edge comes back a hair past a whole inch; without this it would round up a whole
+  // inch and add a black strip (seen with Fill the table, D-039).
+  const snap = (v: number) => (Math.abs(v - Math.round(v)) < 1e-6 ? Math.round(v) : v);
+  const x0 = Math.floor(snap(Math.min(...pts.map((p) => p.x))));
+  const y0 = Math.floor(snap(Math.min(...pts.map((p) => p.y))));
+  const x1 = Math.ceil(snap(Math.max(...pts.map((p) => p.x))));
+  const y1 = Math.ceil(snap(Math.max(...pts.map((p) => p.y))));
   const bounds = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 
   // Source pixels per inch inside the marked rectangle, so straightening neither blurs nor bloats the image.
@@ -140,4 +143,39 @@ export function placedExtent(p: Placement): Bounds {
   const x = Math.min(pts[0]!.x, pts[1]!.x);
   const y = Math.min(pts[0]!.y, pts[1]!.y);
   return { x, y, width: Math.abs(pts[0]!.x - pts[1]!.x), height: Math.abs(pts[0]!.y - pts[1]!.y) };
+}
+
+/**
+ * A picture with no squares, such as a region map, sized and turned to fill `area` (the part of the table the projector
+ * reaches, in inches) as far as it can without stretching (D-039). Sizes are whole inches, so the shape can change by a
+ * hair; the size that changes it least among the largest few is kept. `widthIn` and `heightIn` are the picture's own
+ * width and height, and (x, y) and `turns` place its top-left corner so it sits centred in the area. Null when the area
+ * is smaller than an inch.
+ */
+export function fillTable(
+  picture: { width: number; height: number },
+  area: Bounds,
+): { widthIn: number; heightIn: number; x: number; y: number; turns: 0 | 1 } | null {
+  let best: { w: number; h: number; turns: 0 | 1; off: number } | null = null;
+  for (const turns of [0, 1] as const) {
+    // The picture as it lies on the table, in pixels.
+    const [pw, ph] = turns ? [picture.height, picture.width] : [picture.width, picture.height];
+    const most = Math.floor(Math.min(area.width, (area.height * pw) / ph));
+    for (let w = most; w >= Math.max(1, most - 3); w--) {
+      const h = Math.round((w * ph) / pw);
+      if (h < 1 || h > Math.floor(area.height)) continue;
+      const off = Math.abs(h / w - ph / pw) / (ph / pw);
+      // Bigger wins while it stays within 1.5% of the picture's shape; else the truest shape.
+      const better = !best || (off <= 0.015 && (best.off > 0.015 || w * h > best.w * best.h)) || (best.off > 0.015 && off < best.off);
+      if (better) best = { w, h, turns, off };
+    }
+  }
+  if (!best) return null;
+  // `+ 0`: rounding can give -0, which JSON saves as 0 (LESSONS).
+  const left = Math.round(area.x + (area.width - best.w) / 2) + 0;
+  const top = Math.round(area.y + (area.height - best.h) / 2) + 0;
+  // A quarter turn clockwise about the corner puts the picture to the corner's left, so the corner is its right edge.
+  return best.turns
+    ? { widthIn: best.h, heightIn: best.w, x: left + best.w, y: top, turns: 1 }
+    : { widthIn: best.w, heightIn: best.h, x: left, y: top, turns: 0 };
 }
