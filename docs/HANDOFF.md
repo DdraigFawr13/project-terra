@@ -8,17 +8,17 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Just done
 
+- 2026-10-29 Step 7m (D-039), [walkthrough](https://claude.ai/artifact/VjjZsMpVUkiZcojpUkqRx8), approved by Morgan: another scene as a curtain (the world map, `curtainScene` in table.ts), link pins (`linkPin`, a Select tap opens `pinMenu` in dm-scenes.ts), the party marker (`party` on a map; `#partyMap`, Select drags it). Save version 15. Fill the table in import (D-042; `fillTable`), and a fix so a whole-picture mark no longer adds an inch (`planRectify`). The e2e suite's 34 async waits never waited (LESSONS); they now use `until`.
 - 2026-10-29 Map generator concept (D-041, testing only until its design phase; tests in `mapgen.test.ts`), outside the app: `src/core/mapgen.ts` (seeded dungeon, cave, ruins, town; walls, doors, objects, lights, areas, in inches), `mapdraw.ts` (pencil), `detect.ts` (walls and objects from a picture), `light.ts` (bright and dim light with shadows), `scripts/maps.mjs <dir> [ppi] [seed]` (PNG plus data). [Test run page](https://claude.ai/artifact/Gs8EnBJbwqFJghRbyVyu64). Detector: 100% of walls, objects and closed doors on generated maps from 20 ppi (closed doors block light; walls and objects from 12 ppi); on 5 painted Lost Mine battle maps scored against their VTT walls, 23–99% found but 4–35% of finds real, so not for real maps. Unit suite 1.8–2.0 s, at its budget. PR opened with Morgan's OK. Fits D-040: `light.ts`'s wall-cut shape is what Look from here needs; map light sources stay in Later there, so this is a test concept only. Not planned yet: the generator phase still needs its interview.
-- 2026-10-29 Step 7l (D-039), [walkthrough](https://claude.ai/artifact/XC9dLhFeP9VHHiU3xqKDXg), approved by Morgan: a curtain per scene (black, title twice, or a picture via `terra-curtain://`, table-limited to the one shown; `cover` in the state and player view, cleared by B), saved spots on the map bar (`#spotsMap`, slide a locked map), Mark ready / Reset in a scene's menu; saves reuse unchanged scenes' JSON (measurements in D-039). Save version 14.
-- 2026-10-29 Step 7k (D-039), [walkthrough](https://claude.ai/artifact/4FmMr1fhg6hJTD6DmRFEuS), merged as [PR #30](https://github.com/DdraigFawr13/project-terra/pull/30): scenes in `src/core/table.ts` (save version 13; `scenes`, `scene`, `lastScene`; the current scene's content stays in `map`/`fight`/`mapLocked`, the others are `parked`); `dm-scenes.ts` (Scenes list in Setup, `#sceneBtn` above the tabs); undo per scene and the table's `terra-map` limited to the current map (`main.ts`); REHEARSAL part 3b. Tests: 53 unit, 4 e2e (about 20 s).
+- 2026-10-29 Step 7l (D-039), [walkthrough](https://claude.ai/artifact/XC9dLhFeP9VHHiU3xqKDXg), merged as [PR #32](https://github.com/DdraigFawr13/project-terra/pull/32): a curtain per scene (black, title twice, or a picture via `terra-curtain://`, table-limited to the one shown; `cover` in the state and player view, cleared by B), saved spots on the map bar (`#spotsMap`, slide a locked map), Mark ready / Reset in a scene's menu; saves reuse unchanged scenes' JSON (measurements in D-039). Save version 14.
 - Earlier: [archive](archive/handoff-2026-10.md).
 
 ## Next
 
-0. Step 7l PR: merge when green (D-018). Then 7m, the world map.
+0. Step 7m PR: merge when green (D-018). Then D-039's steps are done; next is the rehearsal.
 1. Step 8, rehearsal, when the laptop and projector arrive: follow [REHEARSAL.md](REHEARSAL.md). Confirm the built-in screen shows as "This laptop, in a window" and the display scale (14" 1080p usually defaults to 150%, a DM window of about 1280 × 680). On the laptop, re-import `data/monsters/mm2024.json` from the private library so the portraits arrive.
 2. Morgan's photos decide (VER-07): letters, symbols and portraits readable from the players' seats (whether 1-inch portraits are worth switching on); HP ring, patched Thundertree, ping, pins and lines on the projector; close the app mid-fight and reopen it.
-3. Still open: calibration keyed to the Windows display id; unplugging the projector drops the table window over the DM window; no Windows CI run of the app (REHEARSAL.md part 4). From step 7g: the fight journey's "fading line saves nothing" check failed 1 in 40 local runs (main 0 in 14), cause not found (VER-04).
+3. Still open: calibration keyed to the Windows display id; unplugging the projector drops the table window over the DM window; no Windows CI run of the app (REHEARSAL.md part 4). From step 7g: the "fading line saves nothing" check failed 1 in 40 local runs; likely cause found in step 7m (async waits that never waited, LESSONS), 5 of 5 clean runs since; watch for it.
 4. After session 1 (PLAN.md, D-037, D-040): the scenes leftovers, map annotation, then sight, then the library.
 
 - **Book library** (private repo `project-terra-library`; attach with add_repo; D-010, D-026): 503 MM creatures (6 page-checked, 4 with portraits), 35 Phandelver creatures, 391 PHB spells, 39 DMG treasure tables, 17 magic items, MM habitat lists, Lost Mine maps. How to re-read the book PDFs (Drive files, PDF page = book page + 3 for the MM) is in that repo's README, never here: this repo is public. Never use 5e.tools; book content never goes in this repo, its CI or PR text.
@@ -51,8 +51,8 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Decisions since the last plan update
 
-- 2026-10-29 D-040 sight: Look from here replaces the light-radius shape; a Sight phase after map annotation ([Arkenforge report](https://claude.ai/artifact/Bq9i76akbah11aL3TyoZ3K)).
-- 2026-10-29 D-039 scenes before session 1: steps 7k–7m; B stays black; the table loads only the current scene's map.
+- 2026-10-29 D-042 pictures with no squares fill the table, turned if bigger, never stretched; Turn turns about the middle.
+- 2026-10-29 D-040 sight: Look from here replaces the light-radius shape, after map annotation ([Arkenforge report](https://claude.ai/artifact/Bq9i76akbah11aL3TyoZ3K)); D-039 scenes before session 1 (steps 7k–7m, B stays black).
 - 2026-10-29 D-038 DM window: the map first, one panel with tabs, Encounter list, Uncover/Dim and On/Off table; steps 7h–7j before the rehearsal.
 - 2026-10-29 D-037 plan audit: scenes and map annotation first, merges and cuts; supersedes D-017.
 - 2026-10-29 D-036 maps and monster tokens: feet per square, magnifier, HP ring, patch tool, revealed tokens before session 1; the rest after.

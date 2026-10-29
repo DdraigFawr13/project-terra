@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fc from "fast-check";
 import { defaultCalibration } from "./calibration.ts";
 import { blankGroup, creatureTypeOf } from "./fight.ts";
+import { placedExtent } from "./map.ts";
 import {
   parsePlacedMap,
   apply,
@@ -39,6 +40,7 @@ const map: PlacedMap = {
   pins: [],
   drawings: [],
   spots: [],
+  party: null,
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
@@ -95,6 +97,7 @@ test("the table window gets only the player view: no map name, the calibration f
     pins: [],
     drawings: [],
     cover: null,
+    party: null,
   });
   assert.equal(playerViewOf(s, "window").calibration, null);
   assert.ok(!JSON.stringify(playerViewOf(s, "display:7")).includes("Secret"));
@@ -111,7 +114,22 @@ test("maps move by whole inches and turn in quarter turns", () => {
     { type: "turnMap" },
     { type: "turnMap" },
   ]);
-  assert.deepEqual(s.map, { ...map, x: 3, y: 7, turns: 1 });
+  // Turning keeps the map's middle in place (D-042), on whole inches, and four turns come back to the start.
+  const once = run([{ type: "placeMap", map }, { type: "lockMap", on: false }, { type: "moveMap", dx: -1, dy: 2 }, { type: "turnMap" }]);
+  assert.deepEqual(s.map, once.map);
+  const mid = (m: PlacedMap) => {
+    const e = placedExtent(m);
+    return { x: e.x + e.width / 2, y: e.y + e.height / 2 };
+  };
+  assert.deepEqual(mid(once.map!), mid({ ...map, x: 3, y: 7 }));
+  assert.deepEqual(once.map!.turns, 1);
+  const four = run([{ type: "turnMap" }, { type: "turnMap" }, { type: "turnMap" }, { type: "turnMap" }], once);
+  assert.deepEqual(four.map, once.map);
+  const odd = run([
+    { type: "placeMap", map: { ...map, bounds: { x: 0, y: 0, width: 7, height: 4 } } },
+    { type: "lockMap", on: false },
+  ]);
+  assert.deepEqual(run([{ type: "turnMap" }, { type: "turnMap" }, { type: "turnMap" }, { type: "turnMap" }], odd).map, odd.map);
   assert.equal(parseCommand({ type: "moveMap", dx: 0.5, dy: 0 }), null);
   // Fog is kept in map inches, so it moves and turns with the map; a fog command with no map changes nothing.
   const reveal = { kind: "box", mode: "reveal", x: 0, y: 0, width: 2, height: 2 } as const;
@@ -269,7 +287,11 @@ test("the same commands give the same state, and any state saves and loads uncha
       id: fc.constantFrom("scene-1", "scene-2"),
       curtain: fc.oneof(
         anyValue,
-        fc.record({ kind: fc.constantFrom("black", "title", "picture", "x"), text: fc.string(), id: fc.constantFrom("pic-0123abcd", "x") }),
+        fc.record({
+          kind: fc.constantFrom("black", "title", "picture", "scene", "x"),
+          text: fc.string(),
+          id: fc.constantFrom("pic-0123abcd", "x", "scene-1", "scene-2"),
+        }),
       ),
     }),
     fc.record({
@@ -277,6 +299,8 @@ test("the same commands give the same state, and any state saves and loads uncha
       name: fc.oneof(fc.string(), anyValue),
       id: anyValue,
     }),
+    fc.record({ type: fc.constant("linkPin"), id: fc.constantFrom(1, 2, -0), scene: fc.constantFrom("scene-1", "scene-2", null, "x") }),
+    fc.record({ type: fc.constant("party"), at: fc.oneof(fc.constant(null), anyValue, fc.record({ x: anyValue, y: anyValue })) }),
     fc.record({
       type: fc.constant("fog"),
       op: fc.oneof(
@@ -317,7 +341,7 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
     ok: true,
     state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
   });
-  assert.equal(parseSave(JSON.stringify({ version: 15, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 16, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });
 
@@ -330,8 +354,8 @@ test("pins (D-034): placed in map inches, moved with the map, only table pins re
     { type: "moveMap", dx: 1, dy: 0 },
   ]);
   assert.deepEqual(s.map!.pins, [
-    { id: 1, x: 1.23, y: 2, table: true },
-    { id: 2, x: 3, y: 1, table: false },
+    { id: 1, x: 1.23, y: 2, table: true, link: null },
+    { id: 2, x: 3, y: 1, table: false, link: null },
   ]);
   // The DM's own pin never goes to the table; the table pin moved with the map.
   assert.deepEqual(playerViewOf(s, "window").pins, [{ x: map.x + 1 + 1.23, y: map.y + 2 }]);
@@ -629,7 +653,7 @@ test("saved spots (D-039) slide even a locked map, on whole inches; Mark ready a
   ]);
   assert.deepEqual(s.map!.spots, [
     { id: 1, name: "Gate", x: 4, y: 5, turns: 0 },
-    { id: 2, name: "Tower", x: 24, y: 5, turns: 1 },
+    { id: 2, name: "Tower", x: 44, y: -1, turns: 1 },
   ]);
   const gate = run([{ type: "goToSpot", id: 1 }], s);
   assert.deepEqual([gate.map!.x, gate.map!.y, gate.map!.turns, gate.mapLocked], [4, 5, 0, true]);
@@ -649,4 +673,43 @@ test("saved spots (D-039) slide even a locked map, on whole inches; Mark ready a
   // The DM window gets waiting scenes and ready copies without their contents.
   const away = dmStateOf(run([{ type: "addScene", name: "" }], played));
   assert.deepEqual([away.scenes[0]!.parked!.map!.discs, away.scenes[0]!.ready!.map!.spots], [[], []]);
+});
+
+test("the world map (D-039): link pins, the party marker, and the world map as another scene's curtain", () => {
+  const world = { ...map, id: "map-world", name: "The region (DM)" };
+  const s = run([
+    { type: "placeMap", map: world },
+    { type: "renameScene", id: "scene-1", name: "World" },
+    { type: "fog", op: { kind: "revealAll" } },
+    { type: "placePin", x: 3, y: 3, table: true },
+    { type: "placePin", x: 6, y: 3, table: true },
+    { type: "linkPin", id: 1, scene: "scene-2" },
+    { type: "party", at: { x: 1.234, y: 2 } },
+    { type: "addScene", name: "Secret cave" },
+    { type: "placeMap", map },
+    { type: "sceneCurtain", id: "scene-2", curtain: { kind: "scene", id: "scene-1" } },
+    { type: "switchScene", id: "scene-1" },
+    { type: "switchScene", id: "scene-2" },
+  ]);
+  // A linked pin is the DM's own until they say otherwise; the link never reaches the table.
+  const pins = s.scenes[0]!.parked!.map!.pins;
+  assert.deepEqual(
+    pins.map((p) => [p.link, p.table]),
+    [
+      ["scene-2", false],
+      [null, true],
+    ],
+  );
+  // Behind the cave's curtain, the table shows the world as the players know it, party marker and all.
+  const view = playerViewOf(s, "window");
+  assert.deepEqual([view.view, view.map?.id, view.party, view.pins.length, view.strip], ["map", "map-world", { x: 5.23, y: 7 }, 1, null]);
+  assert.ok(!JSON.stringify(view).includes("Secret") && !JSON.stringify(view).includes("scene-"));
+  // Lifting the curtain shows the cave; B is plain black.
+  assert.equal(playerViewOf(run([{ type: "curtain", on: false }], s), "window").map?.id, "map-1");
+  assert.equal(playerViewOf(run([{ type: "curtain", on: true }], s), "window").view, "curtain");
+  // A removed world map can't be shown.
+  assert.equal(playerViewOf(run([{ type: "removeScene", id: "scene-1", on: true }], s), "window").view, "curtain");
+  assert.equal(run([{ type: "party", at: null }], s).map!.party, null);
+  // The DM window's thumbnail draws the same: the world comes whole while it is the curtain.
+  assert.deepEqual(playerViewOf(dmStateOf(s), "window"), view);
 });

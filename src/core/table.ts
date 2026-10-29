@@ -41,15 +41,18 @@ import {
   type CreatureType,
 } from "./fight.ts";
 import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
-import { mapToTable, type Bounds } from "./map.ts";
+import { mapToTable, placedExtent, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
-const SAVE_VERSION = 14;
+const SAVE_VERSION = 15;
 /** Pins on one map at most: plenty for marks, and a stuck pen can't fill the save. */
 export const MAX_PINS = 40;
 
-/** A lasting mark on the map (D-034), in the map's own inches so it moves and turns with it. `table`: players see it; else only the DM. */
-type Pin = { id: number; x: number; y: number; table: boolean };
+/**
+ * A lasting mark on the map (D-034), in the map's own inches so it moves and turns with it. `table`: players see it;
+ * else only the DM. `link`: the scene a tap with Select opens, as on a world map (D-039). DM-only.
+ */
+type Pin = { id: number; x: number; y: number; table: boolean; link: string | null };
 
 /** Pen colours (D-035): white and two that no disc uses, so a line never reads as an enemy group. */
 export const INKS = ["white", "cyan", "pink"] as const;
@@ -95,6 +98,8 @@ export type PlacedMap = {
   drawings: Drawing[];
   /** Saved spots on a big map (D-039): where the map sat on the table, to slide it back there. A newly placed map has none. */
   spots: Spot[];
+  /** Where the party is, on a world map (D-039), in the map's own inches. Players see it. */
+  party: Point | null;
 };
 
 /** A named place for the map on the table: its corner's position and turn, as `moveMap` and `turnMap` leave them. */
@@ -120,7 +125,12 @@ export type Scene = {
   ready: SceneContent | null;
 };
 /** A scene's curtain: black, a title (player-facing text, shown twice, D-008), or a picture the DM chose. */
-type SceneCurtain = { kind: "black" } | { kind: "title"; text: string } | { kind: "picture"; id: string };
+type SceneCurtain =
+  | { kind: "black" }
+  | { kind: "title"; text: string }
+  | { kind: "picture"; id: string }
+  /** Another scene as the players know it, such as the world map, while the DM sets this one up (D-039). */
+  | { kind: "scene"; id: string };
 export const MAX_TITLE = 80;
 /** Scenes at most, the Removed list included: a busy adventure has a few dozen places, and the save stays small. */
 const MAX_SCENES = 60;
@@ -224,7 +234,11 @@ export type Command =
   /** Save where the map sits now as a named spot; go to one (even on a locked map, D-039); remove one. */
   | { type: "saveSpot"; name: string }
   | { type: "goToSpot"; id: number }
-  | { type: "removeSpot"; id: number };
+  | { type: "removeSpot"; id: number }
+  /** Link a pin to a scene, or unlink it with null (D-039). A linked pin starts as the DM's own. */
+  | { type: "linkPin"; id: number; scene: string | null }
+  /** Put the party marker at a point in map inches, or take it away with null. */
+  | { type: "party"; at: Point | null };
 
 /**
  * Commands the DM can take back with Undo. Switches such as the curtain, calibration drags and character cards are not
@@ -260,6 +274,8 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
   "saveSpot",
   "goToSpot",
   "removeSpot",
+  "linkPin",
+  "party",
 ]);
 
 export type TableView = "curtain" | "calibrate" | "map" | "testGrid" | "idle";
@@ -305,11 +321,18 @@ export function sceneTitle(state: TableState, scene: Scene): string {
 export function dmStateOf(state: TableState): TableState {
   const light = (c: SceneContent): SceneContent => ({
     ...c,
-    map: c.map && { ...c.map, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [] },
+    map: c.map && { ...c.map, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null },
   });
+  // The scene shown as the curtain now comes whole, so the table thumbnail can draw it (D-039).
+  const shown = curtainScene(state) ? state.scenes.find((s) => s.id === state.scene)?.curtain : undefined;
+  const keep = shown?.kind === "scene" ? shown.id : null;
   return {
     ...state,
-    scenes: state.scenes.map((s) => ({ ...s, parked: s.parked && light(s.parked), ready: s.ready && light(s.ready) })),
+    scenes: state.scenes.map((s) => ({
+      ...s,
+      parked: s.parked && (s.id === keep ? s.parked : light(s.parked)),
+      ready: s.ready && light(s.ready),
+    })),
   };
 }
 
@@ -357,6 +380,8 @@ export type PlayerView = {
   pins: Point[];
   /** Lasting lines the players may see, in table inches (D-035). */
   drawings: { ink: Ink; points: Point[] }[];
+  /** The party marker in table inches (D-039), or null. */
+  party: Point | null;
   /** Under the curtain after a switch: the scene's title or picture, never its name (D-039). Null is black. */
   cover: { title: string } | { picture: string } | null;
 };
@@ -367,8 +392,24 @@ export function coverOf(state: TableState): PlayerView["cover"] {
   return c?.kind === "title" ? { title: c.text } : c?.kind === "picture" ? { picture: c.id } : null;
 }
 
+/**
+ * While a scene's curtain is another scene (D-039), the table shows that scene as its players last saw it: its map,
+ * uncovered fog, discs, pins, lines and party marker, never its fight. Null when no such curtain is down.
+ */
+function curtainScene(state: TableState): TableState | null {
+  const c = state.curtain && state.cover ? state.scenes.find((s) => s.id === state.scene)?.curtain : undefined;
+  const other = c?.kind === "scene" ? state.scenes.find((s) => s.id === c.id && !s.removed) : undefined;
+  if (!other?.parked?.map) return null;
+  return { ...state, ...other.parked, fight: null, curtain: false, cover: false, calibrating: false, testGrid: false };
+}
+
+/** The state the table shows now: the current scene's, or the scene shown as its curtain. */
+export const onTable = (state: TableState): TableState => curtainScene(state) ?? state;
+
 /** The player view for the surface the table window is on now. */
 export function playerViewOf(state: TableState, surfaceKey: string): PlayerView {
+  const shown = curtainScene(state);
+  if (shown) return playerViewOf(shown, surfaceKey);
   const m = state.map;
   return {
     view: viewOf(state),
@@ -386,6 +427,7 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
     pins: (m?.pins ?? []).filter((p) => p.table).map((p) => mapToTable(m!, p)),
     drawings: (m?.drawings ?? []).filter((d) => d.table).map((d) => ({ ink: d.ink, points: d.points.map((p) => mapToTable(m!, p)) })),
     cover: coverOf(state),
+    party: m?.party ? mapToTable(m, m.party) : null,
   };
 }
 
@@ -426,17 +468,19 @@ export function parsePlacedMap(raw: unknown): PlacedMap | null {
   const pins = raw.pins === undefined ? [] : parsePins(raw.pins);
   // And with no drawings before freehand drawing.
   const drawings = raw.drawings === undefined ? [] : parseDrawings(raw.drawings);
-  // And with no spots before scenes.
+  // And with no spots before scenes, and no party marker before the world map.
   const spots = raw.spots === undefined ? [] : parseSpots(raw.spots);
+  const party = raw.party === undefined || raw.party === null ? null : isObject(raw.party) ? point(raw.party) : undefined;
   const feetPerSquare = parseFeetPerSquare(raw.feetPerSquare);
   const b = raw.bounds;
   const bounds = { x: inches(b.x), y: inches(b.y), width: inches(b.width, 1), height: inches(b.height, 1) };
   if (typeof id !== "string" || !MAP_ID.test(id) || typeof name !== "string" || name.length > 120) return null;
   if (bounds.x === null || bounds.y === null || bounds.width === null || bounds.height === null) return null;
   if (inches(x) === null || inches(y) === null || !(turns === 0 || turns === 1 || turns === 2 || turns === 3) || !fog) return null;
-  if (!discs || !groups || !pins || !drawings || !spots || !feetPerSquare) return null;
+  if (!discs || !groups || !pins || !drawings || !spots || party === undefined || !feetPerSquare) return null;
   const at = { x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"] };
-  return { id, name, bounds: bounds as Bounds, feetPerSquare, ...at, fog, discs, groups, pins, drawings, spots };
+  const marker = party && { x: hundredths(party.x), y: hundredths(party.y) };
+  return { id, name, bounds: bounds as Bounds, feetPerSquare, ...at, fog, discs, groups, pins, drawings, spots, party: marker };
 }
 
 const isTurns = (v: unknown): v is PlacedMap["turns"] => v === 0 || v === 1 || v === 2 || v === 3;
@@ -462,6 +506,7 @@ function parseSceneCurtain(raw: unknown): SceneCurtain | null {
   if (raw.kind === "black") return BLACK;
   if (raw.kind === "title") return typeof raw.text === "string" && raw.text.length <= MAX_TITLE ? { kind: "title", text: raw.text } : null;
   if (raw.kind === "picture") return typeof raw.id === "string" && PICTURE_ID.test(raw.id) ? { kind: "picture", id: raw.id } : null;
+  if (raw.kind === "scene") return isSceneId(raw.id) ? { kind: "scene", id: raw.id } : null;
   return null;
 }
 
@@ -499,8 +544,11 @@ function parsePins(raw: unknown): Pin[] | null {
   for (const p of raw) {
     const at = isObject(p) ? point(p) : null;
     const id = isObject(p) ? inches(p.id, 1, 99_999) : null;
+    // Pins saved before links (save version 14) link nowhere.
+    const link = isObject(p) && p.link !== undefined ? p.link : null;
     if (!at || id === null || typeof (p as Pin).table !== "boolean" || pins.some((q) => q.id === id)) return null;
-    pins.push({ id, ...at, table: (p as Pin).table });
+    if (link !== null && !isSceneId(link)) return null;
+    pins.push({ id, ...at, table: (p as Pin).table, link });
   }
   return pins;
 }
@@ -666,6 +714,15 @@ export function parseCommand(raw: unknown): Command | null {
       const id = inches(raw.id, 1, 99_999);
       return id === null ? null : { type: raw.type, id };
     }
+    case "linkPin": {
+      const id = inches(raw.id, 1, 99_999);
+      return id !== null && (raw.scene === null || isSceneId(raw.scene)) ? { type: "linkPin", id, scene: raw.scene } : null;
+    }
+    case "party": {
+      if (raw.at === null) return { type: "party", at: null };
+      const at = isObject(raw.at) ? point(raw.at) : null;
+      return at && { type: "party", at };
+    }
     default:
       return null;
   }
@@ -742,10 +799,19 @@ export function apply(state: TableState, c: Command): TableState {
       const y = inches(state.map.y + c.dy);
       return x === null || y === null ? state : { ...state, map: { ...state.map, x, y } };
     }
-    case "turnMap":
-      return state.map && !state.mapLocked
-        ? { ...state, map: { ...state.map, turns: ((state.map.turns + 1) % 4) as PlacedMap["turns"] } }
-        : state;
+    case "turnMap": {
+      // A quarter turn clockwise about the map's middle, so it stays where it was on the table (D-042). The corner
+      // moves by whole inches, keeping the squares on the table grid; halves round away from zero, so four turns come
+      // back to the start.
+      const m = state.map;
+      if (!m || state.mapLocked) return state;
+      const turned = { ...m, turns: ((m.turns + 1) % 4) as PlacedMap["turns"] };
+      const [a, b] = [placedExtent(m), placedExtent(turned)];
+      const shift = (v: number) => Math.sign(v) * Math.round(Math.abs(v)) + 0;
+      const x = inches(m.x + shift(a.x + a.width / 2 - b.x - b.width / 2));
+      const y = inches(m.y + shift(a.y + a.height / 2 - b.y - b.height / 2));
+      return x === null || y === null ? state : { ...state, map: { ...turned, x, y } };
+    }
     case "removeMap":
       return state.mapLocked ? state : { ...state, map: null };
     case "fog":
@@ -801,7 +867,7 @@ export function apply(state: TableState, c: Command): TableState {
       const m = state.map;
       if (!m || m.pins.length >= MAX_PINS) return state;
       // Hundredths of an inch: finer than anyone can place, and saves stay short.
-      const pin = { id: Math.max(0, ...m.pins.map((p) => p.id)) + 1, x: hundredths(c.x), y: hundredths(c.y), table: c.table };
+      const pin = { id: Math.max(0, ...m.pins.map((p) => p.id)) + 1, x: hundredths(c.x), y: hundredths(c.y), table: c.table, link: null };
       return { ...state, map: { ...m, pins: [...m.pins, pin] } };
     }
     case "removePin":
@@ -886,6 +952,15 @@ export function apply(state: TableState, c: Command): TableState {
       return state.map?.spots.some((s) => s.id === c.id)
         ? { ...state, map: { ...state.map, spots: state.map.spots.filter((s) => s.id !== c.id) } }
         : state;
+    case "linkPin": {
+      // A link names a place the players haven't been yet, so a linked pin starts hidden from them (D-039).
+      const edit = (p: Pin): Pin => (c.scene ? { ...p, link: c.scene, table: false } : { ...p, link: null });
+      return state.map?.pins.some((p) => p.id === c.id)
+        ? { ...state, map: { ...state.map, pins: state.map.pins.map((p) => (p.id === c.id ? edit(p) : p)) } }
+        : state;
+    }
+    case "party":
+      return state.map ? { ...state, map: { ...state.map, party: c.at && { x: hundredths(c.at.x), y: hundredths(c.at.y) } } } : state;
   }
 }
 
@@ -937,7 +1012,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.

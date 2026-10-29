@@ -362,6 +362,7 @@ const selection = {
     else monsters.render();
   },
   tap: (colour: DiscColour, letter: string, at: { x: number; y: number }) => quick.show(colour, letter, at),
+  pin: (id: number, at: { x: number; y: number }) => scenes.pinMenu(id, at),
 };
 
 // The panel's tabs (D-038). A section can be in more than one tab: the Encounter list is in Explore and Fight.
@@ -383,6 +384,25 @@ const panel = initPanel(
   () => afterLayout(),
 );
 const maps = initMaps(terra, ACCENT, fog, image, selection);
+// The party marker (D-039): the next tap on the map puts it down; Select drags it after.
+const partyBtn = $<HTMLButtonElement>("partyMap");
+partyBtn.addEventListener("click", () => {
+  maps.placeParty();
+  const r = partyBtn.getBoundingClientRect();
+  const kids: HTMLElement[] = [
+    el("header", { class: "pop-head" }, el("b", {}, "Party marker")),
+    el("p", { class: "hint" }, "Tap the map where the party is. Players see it; drag it with Select to move it."),
+  ];
+  if (latest?.map?.party)
+    kids.push(
+      button("Take it away", {}, () => {
+        maps.cancel();
+        void terra.apply({ type: "party", at: null });
+        pop.close();
+      }),
+    );
+  const pop = popover({ x: r.left, y: r.bottom + 80 }, kids);
+});
 afterLayout = () => {
   maps.render();
   drawTablePreview();
