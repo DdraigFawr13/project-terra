@@ -60,7 +60,8 @@ const discSizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[da
 const fogBtns = ["fogDim", "fogRevealAll", "fogCoverAll"].map((id) => $<HTMLButtonElement>(id));
 const lockBtn = $<HTMLButtonElement>("lockMap");
 /** Buttons that change where the map is; a locked map keeps them off (D-029). */
-const placeBtns = [$<HTMLButtonElement>("turnMap"), $<HTMLButtonElement>("removeMap")];
+const [turnBtn, removeBtn] = [$<HTMLButtonElement>("turnMap"), $<HTMLButtonElement>("removeMap")];
+const placeBtns = [turnBtn, removeBtn];
 const zoomLevel = $<HTMLElement>("zoomLevel");
 
 /** Outline colour while the marked corners fold over each other. */
@@ -72,6 +73,8 @@ type DrawWith = "brush" | "outline" | "box";
 const DRAW_ORDER: DrawWith[] = ["brush", "outline", "box"];
 /** Ghost colours while painting: warm light to reveal, copper to hide. */
 const GHOST = { reveal: "rgba(240, 211, 168, 0.5)", hide: "rgba(200, 98, 63, 0.55)" };
+/** The table's edge on the DM map: pale, so it doesn't read as copper selection or a warning. */
+const TABLE_EDGE = "#e8dcc8";
 
 /** One finger, pen or mouse painting fog, in map inches. Strokes reach the table only when lifted (D-025). */
 type Stroke = { pointer: number; pen: boolean; mode: FogMode; points: Point[] };
@@ -428,6 +431,8 @@ export function initMaps(
     lockBtn.setAttribute("aria-pressed", String(locked));
     lockBtn.innerHTML = `${icon(locked ? "lock" : "unlock")}${locked ? "Locked" : "Lock"}`;
     for (const b of placeBtns) b.disabled = locked;
+    turnBtn.title = locked ? "Unlock the map to turn it" : "Turn the map a quarter";
+    removeBtn.title = locked ? "Unlock the map to take it off the table" : "Take the map off the table";
     lockBtn.title = locked
       ? "Locked: dragging pans the view. Unlock to move the map on the table."
       : "Unlocked: dragging moves the map on the table. Lock it to pan by dragging.";
@@ -465,8 +470,10 @@ export function initMaps(
     ctx.restore();
 
     drawDiscs(ctx, shown, s, ox, oy);
+    // The edge of what the table shows, named so it doesn't read as a selection: a pale dashed line, "Table" above its
+    // top-left corner.
     if (outline) {
-      ctx.strokeStyle = accent;
+      ctx.strokeStyle = TABLE_EDGE;
       ctx.lineWidth = 2;
       ctx.setLineDash([8, 6]);
       ctx.beginPath();
@@ -474,6 +481,15 @@ export function initMaps(
       ctx.closePath();
       ctx.stroke();
       ctx.setLineDash([]);
+      // Just outside the corner, so it never sits on discs in play; inside the canvas when the edge is at its top.
+      const corner = { x: ox + outline[0].x * s, y: Math.max(0, oy + outline[0].y * s - 18) };
+      ctx.font = "600 12px 'Source Sans 3', sans-serif";
+      const tw = ctx.measureText("Table").width;
+      ctx.fillStyle = TABLE_EDGE;
+      ctx.fillRect(corner.x, corner.y, tw + 10, 18);
+      ctx.fillStyle = "#1b1410";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Table", corner.x + 5, corner.y + 9.5);
     }
   }
 
@@ -546,7 +562,10 @@ export function initMaps(
       drawPin(ctx, c.x, c.y, Math.max(s, 26), !p.table, accent);
     }
     // Where a tap with Marker will put the next disc: under the finger, or under the hovering pen or mouse.
-    const ghost = placing?.at ?? (tool === "marker" && hover && !discDrag ? snapDisc(hover, discSize) : null);
+    // Not over a disc already there: on the one just placed it would show the next letter on top of its own.
+    const hovered = tool === "marker" && hover && !discDrag ? snapDisc(hover, discSize) : null;
+    const covers = (p: Point) => map.discs.some((d) => Math.hypot(d.x - p.x, d.y - p.y) < (d.size + discSize) / 2);
+    const ghost = placing?.at ?? (hovered && !covers(hovered) ? hovered : null);
     if (ghost && nextLetter(map.discs, colour)) draw({ colour, letter: nextLetter(map.discs, colour)!, size: discSize }, ghost, 0.5);
   }
 
