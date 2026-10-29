@@ -4,22 +4,23 @@ Updated: 2026-10-29. A fresh session must be able to continue from this file alo
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7f are all merged, the last being maps and monster tokens (D-036, steps 7c–7f, PRs #20–#23). Only step 8, the rehearsal, is left; it needs the laptop and projector. Tested in the cloud, plus one install test on Morgan's Windows PC (not the laptop, no projector). The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1), expected the week of 2026-11-02, so projected steps stay "built, awaiting Morgan's check" (VER-07).
+Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7f are all merged, the last being maps and monster tokens (D-036, steps 7c–7f, PRs #20–#23). Left: step 7g, rehearsal safety (D-037), then step 8, the rehearsal, which needs the laptop and projector. Tested in the cloud, plus one install test on Morgan's Windows PC (not the laptop, no projector). The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1), expected the week of 2026-11-02, so projected steps stay "built, awaiting Morgan's check" (VER-07).
 
 ## Just done
 
+- 2026-10-29 Plan audit (D-037): after session 1 now starts with scenes and map annotation; library, battle drama and story tools merged and trimmed; automatic line of sight, dice roller, name and loot generators and NPC conversation player cut; generator moved below story tools. New step 7g and a rehearsal script, [REHEARSAL.md](REHEARSAL.md). D-017 superseded.
 - 2026-10-29 Step 7f part 2, portraits (D-036), [PR #23](https://github.com/DdraigFawr13/project-terra/pull/23): library entries may carry `portrait` (image data URL, checked in `parseCreature`); `GroupInfo.hasPortrait` (set when linking) and `.smallPortrait` (Edit: "Portrait on 1-inch tokens too"); `tokenLook` gives a revealed disc's symbol and portrait key (`<colour>/<hash>`, never the name), portrait on 2-inch and up or when switched on; `terra-portrait://` serves it only while revealed and the key matches (the DM session also serves `book/<key>` for the Book preview). Save version 12. Library [PR #1](https://github.com/DdraigFawr13/project-terra-library/pull/1): portraits for zombie, cultist, needle blight and young green dragon (wyrmling art, dark ground); twig blight and giant spider have no art in the book and keep their symbol. Sources in the library's `data/monsters/README.md`.
 - 2026-10-29 Step 7f part 1 ([PR #22](https://github.com/DdraigFawr13/project-terra/pull/22)): 14 creature-type symbols drawn in code (`src/renderer/symbols.ts`), Reveal per group, Mini on it (letter on a tab), the table gets the symbol only after Reveal. Save version 11.
 - 2026-10-29 Steps 7d HP ring and 7e patch tool ([PR #21](https://github.com/DdraigFawr13/project-terra/pull/21)): the table window has its own session (`partition: "table"`) whose `terra-map://` serves only `tableMapFile` (the patched `<id>.table.png` when there is one). Step 7c ([PR #20](https://github.com/DdraigFawr13/project-terra/pull/20)): feet per square on each map (save version 10) and a corner magnifier.
 - 2026-10-29 Maps and tokens planning approved (D-036; pages below). Tests now: 46 unit (about 1 s), 4 e2e (about 15 s).
-- Earlier: [archive](archive/handoff-2026-10.md).
 
 ## Next
 
-1. Step 8, rehearsal, when the laptop and projector arrive: run "Build Windows app", then the README checks in order (two windows, calibration with a ruler, map import with the Thundertree photo, the projector photo). Confirm the built-in screen says "this laptop" and the display scale (14" 1080p usually defaults to 150%, a DM window of about 1280 × 680). On the laptop, re-import `data/monsters/mm2024.json` from the private library so the portraits arrive.
-2. Morgan's photos decide (VER-07): letters, symbols and portraits readable from the players' seats (whether 1-inch portraits are worth switching on); HP ring, patched Thundertree, ping, pins and lines on the projector; close the app mid-fight and reopen it.
-3. Still open from the audit: calibration is keyed to the Windows display id (check with the real projector); unplugging the projector drops the table window over the DM window; no Windows CI run of the app.
-4. After session 1 (PLAN.md): the library phase, starting with D-036's follow-ups (corner snapping, PDF import with pdf.js, library maps ready to place, map tidy-up, down marks, place a group by count, size from the stat block in feet, monster search).
+1. Step 7g (D-037): keep the last 3 saves with a way to roll back, and Table → Problem report. Can be built before the laptop arrives.
+2. Step 8, rehearsal, when the laptop and projector arrive: follow [REHEARSAL.md](REHEARSAL.md). Confirm the built-in screen says "this laptop" and the display scale (14" 1080p usually defaults to 150%, a DM window of about 1280 × 680). On the laptop, re-import `data/monsters/mm2024.json` from the private library so the portraits arrive.
+3. Morgan's photos decide (VER-07): letters, symbols and portraits readable from the players' seats (whether 1-inch portraits are worth switching on); HP ring, patched Thundertree, ping, pins and lines on the projector; close the app mid-fight and reopen it.
+4. Still open from the audit (checked in REHEARSAL.md part 4): calibration keyed to the Windows display id; unplugging the projector drops the table window over the DM window; no Windows CI run of the app.
+5. After session 1 (PLAN.md, D-037): scenes, then map annotation, then the library.
 
 - **Book library** (private repo `project-terra-library`; attach with add_repo; D-010, D-026): 503 MM creatures (6 page-checked, 4 with portraits), 35 Phandelver creatures, 391 PHB spells, 39 DMG treasure tables, 17 magic items, MM habitat lists, Lost Mine maps. How to re-read the book PDFs (Drive files, PDF page = book page + 3 for the MM) is in that repo's README, never here: this repo is public. Never use 5e.tools; book content never goes in this repo, its CI or PR text.
 
@@ -49,12 +50,11 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7f are all merged, the
 
 ## Decisions since the last plan update
 
+- 2026-10-29 D-037 plan audit: scenes and map annotation first, merges and cuts; supersedes D-017.
 - 2026-10-29 D-036 maps and monster tokens: feet per square, magnifier, HP ring, patch tool, revealed tokens before session 1; the rest after.
 - 2026-10-28 D-035 freehand drawing before session 1; symbols, shapes, labels after.
 - 2026-10-28 D-034 ping, pins, reopening sheets, audit leftovers.
 - 2026-10-28 D-032 DM window redesign; D-033 looks (three dark, two light, 7:1 contrast).
-- 2026-10-28 D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep.
-- 2026-10-28 D-010 changed: book data goes in the private repo `project-terra-library`, never in this public repo.
+- 2026-10-28 D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep; D-010 changed: book data goes in the private repo `project-terra-library`, never here.
 - 2026-10-28 D-021 calibration; D-022 UI design step; D-023 UI design; D-024 map import, undo, library; D-025 fog.
-- 2026-10-28 D-026 book library; D-003 adds character cards, no fixed date; D-013 HP on discs after session 1.
-- 2026-10-28 D-027 initiative, markers and character cards.
+- 2026-10-28 D-026 book library; D-003 adds character cards, no fixed date; D-013 HP on discs after session 1; D-027 initiative, markers and cards.
