@@ -51,10 +51,10 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Decisions since the last plan update
 
+- 2026-10-29 D-042 back from the cuts: a DM-only dice roller (Battle drama), line of sight with character markers (Sight), the NPC conversation player defined (Later).
 - 2026-10-29 D-040 sight: Look from here replaces the light-radius shape; a Sight phase after map annotation ([Arkenforge report](https://claude.ai/artifact/Bq9i76akbah11aL3TyoZ3K)).
 - 2026-10-29 D-039 scenes before session 1: steps 7k–7m; B stays black; the table loads only the current scene's map.
 - 2026-10-29 D-038 DM window: the map first, one panel with tabs, Encounter list, Uncover/Dim and On/Off table; steps 7h–7j before the rehearsal.
 - 2026-10-29 D-037 plan audit: scenes and map annotation first, merges and cuts; supersedes D-017.
 - 2026-10-29 D-036 maps and monster tokens: feet per square, magnifier, HP ring, patch tool, revealed tokens before session 1; the rest after.
-- 2026-10-28 D-035 freehand drawing before session 1; D-034 ping, pins, reopening sheets, audit leftovers.
-- 2026-10-28 D-032 DM window redesign; D-033 looks; D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep; D-010: book data only in `project-terra-library`.
+- 2026-10-28 D-035 freehand drawing; D-034 ping and pins; D-032 DM window redesign; D-033 looks; D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep; D-010: book data only in `project-terra-library`.
