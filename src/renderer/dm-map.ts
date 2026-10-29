@@ -169,7 +169,7 @@ export function initMaps(
         b.type = "button";
         b.textContent = `Place “${m.name}”${feetNote(m.feetPerSquare)}`;
         b.addEventListener("click", () =>
-          run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [] } }),
+          run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [] } }),
         );
         li.append(b);
         return li;
@@ -318,7 +318,10 @@ export function initMaps(
       const png = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
       const entry = await terra.saveMap(nameInput.value, png, plan.bounds, parseFeetPerSquare(Number(markFeet.value)) ?? 5);
       importing = null;
-      await run({ type: "placeMap", map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [] } });
+      await run({
+        type: "placeMap",
+        map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [] },
+      });
       refreshLibrary();
     } catch (e) {
       im.busy = false;

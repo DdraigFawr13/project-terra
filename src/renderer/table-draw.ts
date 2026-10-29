@@ -352,7 +352,25 @@ export function mapImages(onload: () => void, copy: "" | "table" = ""): MapImage
   });
 }
 
-export type TableMode = "calibrate" | "testGrid" | "map";
+/** Curtain pictures (D-039), loaded once each. A picture that fails is forgotten, so the next draw asks again. */
+export function pictureImages(onload: () => void): (id: string) => HTMLImageElement {
+  const images = new Map<string, HTMLImageElement>();
+  return (id) => {
+    let img = images.get(id);
+    if (!img) {
+      img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = `terra-curtain://${id}/`;
+      img.onload = onload;
+      img.onerror = () => images.delete(id);
+      images.set(id, img);
+    }
+    return img;
+  };
+}
+
+/** `cover`: a scene's own curtain, a title or a picture (D-039). */
+export type TableMode = "calibrate" | "testGrid" | "map" | "cover";
 
 export type TableScene = {
   cal: Calibration;
@@ -362,9 +380,29 @@ export type TableScene = {
   view: PlayerView;
   image: (id: string) => HTMLImageElement;
   fog: FogPainter;
-  /** Where the turn strip goes. */
+  /** Where the turn strip goes, and the part of the table the projector reaches. */
   area: Area;
+  /** Curtain pictures, for the cover mode. */
+  picture?: (id: string) => HTMLImageElement;
 };
+
+/** A scene's curtain over the part of the table the projector reaches: its picture fitted whole, or its title twice. */
+function drawCover(ctx: CanvasRenderingContext2D, scene: TableScene, X: (inches: number) => number): void {
+  const { area, view } = scene;
+  const rect = { x: X(area.x), y: X(area.y), w: X(area.width), h: X(area.height) };
+  const cover = view.cover;
+  if (cover && "picture" in cover) {
+    const img = scene.picture?.(cover.picture);
+    if (!img?.complete || !img.naturalWidth) return;
+    const k = Math.min(rect.w / img.naturalWidth, rect.h / img.naturalHeight);
+    const [w, h] = [img.naturalWidth * k, img.naturalHeight * k];
+    ctx.drawImage(img, rect.x + (rect.w - w) / 2, rect.y + (rect.h - h) / 2, w, h);
+  } else if (cover) {
+    // Once facing each long side (D-008), a third of the way in from each.
+    ctx.fillStyle = "#ffffff";
+    textBothSides(ctx, cover.title, rect, rect.h * 0.3, Math.min(X(1.1), rect.h / 6));
+  }
+}
 
 /** Discs over the map, then the turn strip along the edges (D-006: map, effects, markers, pings). */
 function drawFight(ctx: CanvasRenderingContext2D, scene: TableScene, X: (inches: number) => number): void {
@@ -396,6 +434,7 @@ export function drawTable(ctx: CanvasRenderingContext2D, scene: TableScene, scal
   ctx.setTransform(scale, 0, 0, scale, -layer.box.x * ppi * scale, -layer.box.y * ppi * scale);
   const { x: bx, y: by, width: bw, height: bh } = layer.box;
   ctx.clearRect(X(bx), X(by), X(bw), X(bh));
+  if (mode === "cover") return drawCover(ctx, scene, X);
   const map = view.map;
   if (mode === "map" && map) {
     const img = scene.image(map.id);
