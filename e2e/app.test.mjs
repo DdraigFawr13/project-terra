@@ -554,6 +554,13 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await dm.click(".group-row .eye");
     await dm.keyboard.press("n");
     await table.waitForFunction(async () => (await window.terra.getView()).strip?.chips[0]?.kind === "enemy");
+    // The Encounter list (D-038): the turn strip says whose turn it is, and a character's name opens its HP pad.
+    await dm.locator("#turnStrip", { hasText: "Zombie now" }).waitFor();
+    await dm.locator("#order button.who", { hasText: "Ash" }).click();
+    await pad(dm.locator(".quick-hp"), "1", "damage");
+    await dm.waitForFunction(async () => (await window.terra.getState()).party[0].hp === 21);
+    await dm.locator("#order", { hasText: "21/24" }).waitFor();
+    await dm.keyboard.press("Escape");
     const view = await table.evaluate(() => window.terra.getView());
     // 6 of 15 HP: bloodied, worked out from HP. Only the word reaches the table (D-013, D-028).
     assert.equal(view.strip.chips[0].condition, "bloodied");
@@ -564,6 +571,8 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     // on it, from the disc's HP pad, tells the table to put the letter on a tab.
     await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await dm.click(".quick-hp button.sheet");
+    // The strip stays pinned above an open sheet, so whose turn it is never goes out of sight.
+    assert.ok(await dm.locator("#turnStrip").isVisible());
     await mon.locator("button", { hasText: "Reveal" }).click();
     await table.waitForFunction(async () => (await window.terra.getView()).discs[0]?.symbol === "undead");
     await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
@@ -642,7 +651,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await dm.waitForFunction((x) => window.terra.getState().then((s) => s.map.discs[0].x !== x), before.x);
     await dm.keyboard.press("Control+z");
     await dm.waitForFunction((x) => window.terra.getState().then((s) => s.map.discs[0].x === x), before.x);
-    assert.equal((await dm.evaluate(() => window.terra.getState())).party[0].hp, 22);
+    assert.equal((await dm.evaluate(() => window.terra.getState())).party[0].hp, 21);
     // The Fight tab takes Table setup out of the page; its buttons must still follow the state (they once threw on every
     // change). The Party sheet is left open, to open again next time (D-034).
     assert.deepEqual(errors, []);

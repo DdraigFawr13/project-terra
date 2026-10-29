@@ -1,6 +1,18 @@
-// DM window, the Initiative and Groups windows (D-027, D-028): initiative and the colour groups. Characters and monster
-// details live in sheets (dm-party.ts, dm-monsters.ts). Both are rebuilt from each new state; focus survives the rebuild.
-import { conditionOf, DISC_COLOURS, isColour, takesTurns, type DiscColour, type Who } from "../core/fight.ts";
+// DM window, the Encounter list (D-038, from D-027 and D-028): the party and the colour groups in one list; in a fight,
+// the same rows in turn order with their rolls, and a pinned strip saying whose turn it is. Characters' and monsters'
+// details live in sheets (dm-party.ts, dm-monsters.ts). Rebuilt from each new state; focus survives the rebuild.
+import {
+  conditionFromHp,
+  conditionOf,
+  DISC_COLOURS,
+  isColour,
+  nextTurn,
+  takesTurns,
+  type Character,
+  type Condition,
+  type DiscColour,
+  type Who,
+} from "../core/fight.ts";
 import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { button, COLOUR_NAME, el, swatch, type Attrs } from "./dom.ts";
@@ -8,14 +20,15 @@ import { numpad } from "./numpad.ts";
 import { popover } from "./popover.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const WORD: Record<Condition, string> = { fine: "Fine", bloodied: "Bloodied", nearDeath: "Near death", down: "Down" };
 const roundEl = $<HTMLSpanElement>("round");
 const startBtn = $<HTMLButtonElement>("startFight");
 const endBtn = $<HTMLButtonElement>("endFight");
 const orderEl = $<HTMLOListElement>("order");
 const unrolledBox = $<HTMLDivElement>("unrolledBox");
 const unrolledEl = $<HTMLUListElement>("unrolled");
-const groupsEl = $<HTMLUListElement>("groups");
-const groupsEmpty = $<HTMLParagraphElement>("groupsEmpty");
+const emptyEl = $<HTMLParagraphElement>("encounterEmpty");
+const stripEl = $<HTMLParagraphElement>("turnStrip");
 const nextBtn = $<HTMLButtonElement>("nextTurn");
 const roundState = $<HTMLSpanElement>("roundState");
 
@@ -52,7 +65,13 @@ function rollBox(value: number | null, attrs: Attrs, who: string, onChange: (v: 
   return input;
 }
 
-export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { render: () => void; next: () => void } {
+type At = { x: number; y: number };
+
+export function initFight(
+  terra: DmApi,
+  openGroup: (c: DiscColour) => void,
+  openCharacter: (id: string, at: At) => void,
+): { render: () => void; next: () => void } {
   let state: TableState | null = null;
   const run = (c: Command) => void terra.apply(c);
 
@@ -60,25 +79,70 @@ export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { r
   const whoName = (s: TableState, who: Who): string =>
     isColour(who) ? s.map?.groups[who]?.name || COLOUR_NAME[who] : (s.party.find((p) => p.id === who)?.name ?? "?");
 
-  /** A label for an initiative row: the character's name, or the colour group's name and its letters. */
-  function whoLabel(s: TableState, who: Who): HTMLElement {
-    if (!isColour(who))
-      return el(
+  /** A character's row: the name (tap for the HP pad) and a thin HP bar with the numbers. */
+  function pcCells(pc: Character): HTMLElement[] {
+    const word = conditionFromHp(pc.hp, pc.hpMax);
+    const name = button(pc.name, { class: "who", "aria-label": `${pc.name}: HP pad` }, () => {
+      const r = name.getBoundingClientRect();
+      openCharacter(pc.id, { x: r.left, y: r.top + r.height / 2 });
+    });
+    return [
+      name,
+      el(
         "span",
-        { class: "who" },
-        el("span", { class: "swatch blank", "aria-hidden": "true" }),
-        s.party.find((p) => p.id === who)?.name ?? "?",
-      );
+        { class: "hp-line", title: `${pc.hp} of ${pc.hpMax} HP${pc.tempHp ? `, ${pc.tempHp} temporary` : ""}` },
+        el("span", { class: "hp-bar thin" }, el("i", { class: word, style: `width:${Math.round((pc.hp / pc.hpMax) * 100)}%` })),
+        el("small", {}, `${pc.hp}/${pc.hpMax}${pc.tempHp ? ` +${pc.tempHp}` : ""}`),
+      ),
+    ];
+  }
+
+  /** A group's row: its colour and name (tap for the sheet), each disc's letter with any condition, and show or hide. */
+  function groupCells(s: TableState, c: DiscColour): HTMLElement[] {
     const groups = s.map?.groups ?? {};
-    const discs = (s.map?.discs ?? []).filter((d) => d.colour === who && conditionOf(d, groups) !== "down");
-    const hidden = discs.length > 0 && discs.every((d) => !d.shown);
-    const letters = discs.map((d) => d.letter).join(" ");
-    return el(
-      "span",
-      { class: "who" },
-      swatch(who),
-      `${groups[who]?.name || COLOUR_NAME[who]} `,
-      el("small", {}, letters + (hidden ? " · hidden" : "")),
+    const mine = (s.map?.discs ?? []).filter((d) => d.colour === c);
+    const hidden = mine.filter((d) => !d.shown).length;
+    const letters = mine.map((d) => {
+      const word = conditionOf(d, groups);
+      return word === "fine" ? d.letter : `${d.letter} ${WORD[word].toLowerCase()}`;
+    });
+    const open = button("", { class: "group-open", "aria-label": `Open the ${COLOUR_NAME[c].toLowerCase()} group` }, () => openGroup(c));
+    open.append(
+      swatch(c),
+      el("span", {}, groups[c]?.name || COLOUR_NAME[c], el("small", {}, `${letters.join(" · ")}${hidden ? ` · ${hidden} hidden` : ""}`)),
+    );
+    return [
+      open,
+      button(
+        hidden ? "Hidden" : "Shown",
+        { class: "eye", "aria-pressed": String(!hidden), "aria-label": `Show or hide every ${COLOUR_NAME[c].toLowerCase()} disc` },
+        () => run({ type: "showDiscs", colour: c, letter: null, on: !!hidden }),
+        hidden ? "hide" : "reveal",
+      ),
+    ];
+  }
+
+  /** The cells for anyone in the list, a character or a colour group. */
+  function cellsOf(s: TableState, who: Who): HTMLElement[] {
+    if (isColour(who)) return groupCells(s, who);
+    const pc = s.party.find((p) => p.id === who);
+    return pc ? pcCells(pc) : [el("span", { class: "who" }, "?")];
+  }
+
+  /** The colours with discs on the map, in the usual order. */
+  const coloursOf = (s: TableState) => DISC_COLOURS.filter((c) => (s.map?.discs ?? []).some((d) => d.colour === c));
+
+  function renderStrip(s: TableState): void {
+    const f = s.fight;
+    stripEl.hidden = !f?.round || !f.current;
+    if (!f?.round || !f.current) return;
+    const discs = s.map?.discs ?? [];
+    const groups = s.map?.groups ?? {};
+    const next = nextTurn(f, (w) => takesTurns(w, discs, groups, s.party)).current;
+    stripEl.replaceChildren(
+      el("span", {}, `Round ${f.round}`),
+      el("b", {}, `${whoName(s, f.current)} now`),
+      ...(next && next !== f.current ? [el("span", {}, `${whoName(s, next)} next`)] : []),
     );
   }
 
@@ -86,11 +150,22 @@ export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { r
     const f = s.fight;
     startBtn.hidden = !!f;
     endBtn.hidden = !f;
-    roundEl.textContent = !f ? "" : f.round ? `Round ${f.round}` : "Enter the rolls, then Next turn";
+    // Once turns start, the pinned strip says the round.
+    roundEl.textContent = f && !f.round ? "Enter the rolls, then Next turn" : "";
     roundState.textContent = f?.round ? `Round ${f.round}` : "";
     nextBtn.disabled = !f || f.entries.length === 0;
+    renderStrip(s);
+    const colours = coloursOf(s);
+    emptyEl.hidden = s.party.length > 0 || colours.length > 0;
+    emptyEl.textContent = s.map
+      ? "Add the party in Setup, and place discs with Marker (M): a colour and a size, then tap the map. New discs start hidden."
+      : "Add the party in Setup, and place a map: discs sit on its squares.";
     if (!f) {
-      orderEl.replaceChildren();
+      // Out of a fight: the party, then the groups.
+      orderEl.replaceChildren(
+        ...s.party.map((pc) => el("li", { class: "entry" }, ...pcCells(pc))),
+        ...colours.map((c) => el("li", { class: "entry group-row" }, ...groupCells(s, c))),
+      );
       unrolledBox.hidden = true;
       return;
     }
@@ -104,13 +179,13 @@ export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { r
         return el(
           "li",
           {
-            class: `entry${current ? " current" : ""}${takesTurns(e.who, discs, groups, s.party) ? "" : " out"}`,
+            class: `entry${isColour(e.who) ? " group-row" : ""}${current ? " current" : ""}${takesTurns(e.who, discs, groups, s.party) ? "" : " out"}`,
             "aria-current": current ? "step" : undefined,
           },
-          whoLabel(s, e.who),
           rollBox(e.init, { "data-key": `init-${e.who}`, "aria-label": "Initiative" }, whoName(s, e.who), (init) =>
             run({ type: "initiative", who: e.who, init }),
           ),
+          ...cellsOf(s, e.who),
           // Arrows only for ties: they settle who goes first between equal rolls (D-027).
           ...(tieUp || tieDown
             ? [
@@ -141,50 +216,13 @@ export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { r
       ...waiting.map((who) =>
         el(
           "li",
-          { class: "entry" },
-          whoLabel(s, who),
+          { class: `entry${isColour(who) ? " group-row" : ""}` },
           rollBox(null, { "data-key": `init-${who}`, "aria-label": "Initiative roll", placeholder: "Roll" }, whoName(s, who), (init) =>
             init === null ? undefined : run({ type: "initiative", who, init }),
           ),
+          ...cellsOf(s, who),
         ),
       ),
-    );
-  }
-
-  function renderGroups(s: TableState): void {
-    const discs = s.map?.discs ?? [];
-    groupsEmpty.hidden = discs.length > 0;
-    groupsEmpty.textContent = s.map
-      ? "Pick Marker (M) below, a colour and a size, then tap the map. New discs start hidden."
-      : "Place a map first: discs sit on its squares.";
-    groupsEl.replaceChildren(
-      ...DISC_COLOURS.filter((c) => discs.some((d) => d.colour === c)).map((c) => {
-        const mine = discs.filter((d) => d.colour === c);
-        const hidden = mine.filter((d) => !d.shown).length;
-        const open = button("", { class: "group-open", "aria-label": `Open the ${COLOUR_NAME[c].toLowerCase()} group` }, () =>
-          openGroup(c),
-        );
-        open.append(
-          swatch(c),
-          el(
-            "span",
-            {},
-            s.map?.groups[c]?.name || COLOUR_NAME[c],
-            el("small", {}, `${mine.map((d) => d.letter).join(" ")}${hidden ? ` · ${hidden} hidden` : ""}`),
-          ),
-        );
-        return el(
-          "li",
-          { class: "entry group-row" },
-          open,
-          button(
-            hidden ? "Hidden" : "Shown",
-            { class: "eye", "aria-pressed": String(!hidden), "aria-label": `Show or hide every ${COLOUR_NAME[c].toLowerCase()} disc` },
-            () => run({ type: "showDiscs", colour: c, letter: null, on: !!hidden }),
-            hidden ? "hide" : "reveal",
-          ),
-        );
-      }),
     );
   }
 
@@ -193,10 +231,8 @@ export function initFight(terra: DmApi, openGroup: (c: DiscColour) => void): { r
     // Rebuilding replaces the inputs: keep focus on the same box, so typing or pen input carries on.
     const focused = (document.activeElement as HTMLElement | null)?.dataset?.key;
     renderFight(state);
-    renderGroups(state);
-    if (focused) document.querySelector<HTMLElement>(`#initiativePanel [data-key="${focused}"]`)?.focus();
+    if (focused) document.querySelector<HTMLElement>(`#encounterPanel [data-key="${focused}"]`)?.focus();
   }
-
   startBtn.addEventListener("click", () => run({ type: "startFight" }));
   endBtn.addEventListener("click", () => run({ type: "endFight" }));
   nextBtn.addEventListener("click", () => run({ type: "nextTurn" }));

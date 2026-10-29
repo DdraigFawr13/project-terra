@@ -408,6 +408,8 @@
           <button type="button" role="tab" data-tab="explore" aria-selected="false">Explore</button>
           <button type="button" role="tab" data-tab="fight" aria-selected="false">Fight</button>
         </div>
+        <!-- Whose turn it is, pinned during a fight so a sheet never hides it (D-038). -->
+        <p id="turnStrip" class="turn-strip" role="status" hidden></p>
         <div id="sideBody" class="side-body" role="tabpanel"></div>
         <section id="sheet" class="sheet" hidden>
           <div class="sheet-head">
@@ -481,22 +483,20 @@
         </section>
       </div>
 
-      <div id="initiativePanel" class="panel">
+      <!-- One Encounter list (D-038): the party and the groups; in a fight, the same rows in turn order with their rolls. -->
+      <div id="encounterPanel" class="panel">
         <div class="panel-head">
           <button id="startFight" type="button" class="primary">Start fight</button>
           <span id="round" class="round"></span>
         </div>
-        <ol id="order" class="entries" aria-label="Turn order"></ol>
+        <p id="encounterEmpty" class="empty" hidden></p>
+        <ol id="order" class="entries" aria-label="Encounter"></ol>
         <div id="unrolledBox" hidden>
           <h3>Not rolled yet</h3>
           <ul id="unrolled" class="entries" aria-label="Not rolled yet"></ul>
         </div>
         <button id="endFight" type="button" hidden>End fight</button>
-      </div>
-      <div id="groupsPanel" class="panel">
-        <p id="groupsEmpty" class="empty">Pick Marker (M) in Tools, a colour and a size, then tap the map. New discs start hidden.</p>
-        <ul id="groups" class="entries" aria-label="Enemy groups by colour"></ul>
-        <p class="hint">Open a group for its HP, notes and stat block. Tapping a disc on the map opens its HP pad.</p>
+        <p class="hint">Tap a name for its HP pad, or a group for its sheet. Tapping a disc on the map opens its HP pad.</p>
       </div>
       <div id="fogPanel" class="panel">
         <p id="fogHint" class="hint">Black: never seen. Grey with lines: seen before. Clear: in view now.</p>

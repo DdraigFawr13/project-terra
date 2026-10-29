@@ -1558,3 +1558,47 @@ button.pop-close {
   font-size: 12px;
   user-select: text;
 }
+/* ---- The Encounter list (D-038) ---- */
+/* A character's name is a button for its HP pad, but reads as a name. */
+button.who {
+  justify-content: flex-start;
+  min-height: var(--row);
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+/* A thin HP bar with the numbers under it, beside the name. */
+.hp-line {
+  flex: none;
+  width: 72px;
+  display: grid;
+  gap: 1px;
+  justify-items: end;
+}
+.hp-line small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.hp-bar.thin {
+  width: 100%;
+  height: 5px;
+  border-radius: 3px;
+}
+/* Whose turn it is, pinned at the top of the panel during a fight. */
+.turn-strip {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--current);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  color: var(--ink);
+}
+.turn-strip span {
+  color: var(--muted);
+}
