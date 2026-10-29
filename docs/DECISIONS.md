@@ -18,8 +18,8 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-003 Session 1 scope
 
-- **Status:** Accepted (2026-10-28); character cards added 2026-10-28 in the book library interview; save rollback and a problem report added by D-037; the one-panel DM window by D-038.
-- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain, since D-035 freehand drawing, since D-036 map scale, a corner magnifier, the HP ring, the patch tool and revealed tokens, since D-037 keeping the last 3 saves and a problem report, and since D-038 the one-panel DM window. Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
+- **Status:** Accepted (2026-10-28); character cards added 2026-10-28 in the book library interview; save rollback and a problem report added by D-037; the one-panel DM window by D-038; scenes by D-039.
+- **Decision:** Session 1 needs two windows, calibration, map import, a square grid, manual fog, an initiative tracker with simple markers and character cards, ping, autosave and the curtain, since D-035 freehand drawing, since D-036 map scale, a corner magnifier, the HP ring, the patch tool and revealed tokens, since D-037 keeping the last 3 saves and a problem report, since D-038 the one-panel DM window, and since D-039 scenes (step 7k; steps 7l and 7m too if they are done by then). Everything else waits until after session 1 (PLAN.md). Session 1 has no fixed date: it happens when this list is ready.
 - **Why:** 22 features were ranked "Now" against 1–3 months with games monthly or less. Both reviews flagged it, and Morgan cut the list in the review. In the book library interview Morgan first moved six library features into session 1, then kept only character cards after the review showed the cost.
 
 ## D-004 Projector rig and calibration
@@ -42,7 +42,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-007 Session 1 fog is revealed by hand
 
-- **Status:** Accepted (2026-10-28). Automatic line of sight cut by D-037; rooms come from map annotation.
+- **Status:** Accepted (2026-10-28). Automatic line of sight cut by D-037; rooms come from map annotation; sight from a tapped point (Look from here) added by D-040.
 - **Decision:** Fog is revealed with a brush and shapes, and by room where the map defines rooms. Explored areas stay dimmed. Automatic line of sight comes after session 1, and only for markers Morgan moves on the laptop.
 - **Why:** the app can't see physical minis, so automatic fog would mean mirroring every move on the laptop.
 
@@ -138,7 +138,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-023 UI design
 
-- **Status:** Accepted (2026-10-28), approved by Morgan in the UI design interview; control sizes changed by D-031, colours by D-033, the R and H shortcuts by D-038 ([round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)).
+- **Status:** Accepted (2026-10-28), approved by Morgan in the UI design interview; control sizes changed by D-031, colours by D-033, the R and H shortcuts by D-038, the per-scene curtain by D-039 ([round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)).
 - **Decision:**
   - DM window: the "Ember" look. Dark warm brown, a copper-red highlight (not amber, so it can't be mistaken for the yellow enemy disc), Alegreya SC for headings only, and Source Sans 3 for everything else. Both fonts are bundled (SIL OFL), so the app looks the same on any laptop and works offline.
   - Layout: D-012 with the "Classic" sizes (left about 290 px, right about 340 px). The side panels fold away with a button or Tab. Tools run along the bottom with icons, names and keys.
@@ -270,7 +270,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-034 Ping, pins and reopening (step 7)
 
-- **Status:** Accepted (2026-10-28), from the [step 7 form](https://claude.ai/artifact/UmVczUweJXm3EdVEXRJNm7). Builds PLAN.md step 7. Two behaviours change: sheets no longer start closed each run, and placing a map switches the test grid off.
+- **Status:** Accepted (2026-10-28), from the [step 7 form](https://claude.ai/artifact/UmVczUweJXm3EdVEXRJNm7). D-039 adds link pins, which a tap with Select opens. Builds PLAN.md step 7. Two behaviours change: sheets no longer start closed each run, and placing a map switches the test grid off.
 - **Decision:**
   1. Ping: a Ping tool (P). A tap pings the table: thin white rings, at most two at once, for about 2 seconds, around a fading dot. Pings are moments: never saved or undone, and not shown while the curtain is down. The DM sees the rings over the map too, faint under the curtain.
   2. Pins: holding still with Ping for half a second leaves a pin; a tap on a pin takes it away; Table → Clear pins removes them all; Ctrl+Z undoes all three. A pin is a white diamond with a ring. Under Ping, "Players see" or "Only me" sets who sees new pins; the DM's own pins are hollow copper on the DM's map and never reach the table window (D-002). Pins live on the map in its inches, like discs, at most 40. Save version 8; older saves load with no pins.
@@ -293,7 +293,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-036 Maps and monster tokens
 
-- **Status:** Accepted (2026-10-29), approved by Morgan in the maps and tokens interview ([round 1](https://claude.ai/artifact/XmKuvAKNAt1LjGoYDCV4MR), [round 2](https://claude.ai/artifact/Csn63Q1Sx2BtGEDHESXJLe), [final](https://claude.ai/artifact/FeT13w8okCXeqrcCSjvy4s)). Adds four pieces to session 1 (D-003); changes D-024, D-026, D-027 and D-028 as listed.
+- **Status:** Accepted (2026-10-29), approved by Morgan in the maps and tokens interview ([round 1](https://claude.ai/artifact/XmKuvAKNAt1LjGoYDCV4MR), [round 2](https://claude.ai/artifact/Csn63Q1Sx2BtGEDHESXJLe), [final](https://claude.ai/artifact/FeT13w8okCXeqrcCSjvy4s)). Adds four pieces to session 1 (D-003); changes D-024, D-026, D-027 and D-028 as listed. D-039 brings saved spots forward into scenes.
 - **Decision:**
   1. Before session 1, in order: (a) feet per square (5 or 10) asked at import and stored on each map, while 1 square stays 1 inch on the table, plus a magnifier under a corner while it is dragged; (b) an HP ring round each disc on the DM map only, green to amber to red; (c) a patch tool: swipe to fill a room number from its edges, or clone clean floor over it; (d) revealed tokens.
   2. Patched maps: the table gets its own patched copy, and the main process checks which window asks before serving a map, so the table can never load the numbered original. A test proves it.
@@ -305,7 +305,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-037 Plan audit: scenes and map annotation first, merges and cuts
 
-- **Status:** Accepted (2026-10-29). Morgan asked for an adversarial audit of the plan, then said "do what you recommend". Supersedes D-017; changes D-003, D-007 and D-025 item 8.
+- **Status:** Accepted (2026-10-29). Morgan asked for an adversarial audit of the plan, then said "do what you recommend". Supersedes D-017; changes D-003, D-007 and D-025 item 8. Item 3's order and item 7's light-radius shape changed by D-040. D-039 moves scenes (item 4) before session 1.
 - **Decision:**
   1. Before the rehearsal (step 7g): keep the last 3 saves so a bad state can be rolled back after a restart, and a Table → Problem report that copies the app version, displays and recent errors as text. Built: an earlier save is copied into `<app data>/earlier-saves/` when the app starts and at most every 10 minutes while things change, skipped when it matches the newest, so restarts can't push good saves out with copies of a bad one. Table → Earlier saves… lists them with time, map, discs, round and party size; going back first keeps the table as it is now as an earlier save, clears undo, and keeps the screens, calibration, curtain and letter flip as they are. The report holds screens, the table's surface, save size, notices and the last 50 problems (main-process problems and page console errors), never the game's contents; it is copied and shown in a pop-up.
   2. The rehearsal follows `docs/REHEARSAL.md`, with a pass line and evidence for each part. Anything that fails is hidden for session 1, not redesigned.
@@ -328,3 +328,27 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   6. Window headers grow to 13–14 px in sentence case. One end-to-end journey runs the DM window at 1280 × 680; the suite stays under 60 s (D-020).
   7. Built after step 7g and before the rehearsal, as three steps (PLAN.md 7h–7j). The rehearsal waits until they are done.
 - **Why:** At the laptop's 1280 × 680 the docked windows left the map about 30% of the screen and discs about 18 px across, the tool options were icons with names only in tooltips a pen never shows, and "Reveal" and "Hide" each meant three things. A sheet replacing the list would hide the turn order mid-fight, hence the pinned strip. The rehearsal should test the screen session 1 uses.
+
+## D-039 Scenes before session 1
+
+- **Status:** Accepted (2026-10-29), approved by Morgan in the scenes interview ([round 1](https://claude.ai/artifact/Y3uEnGfJziZzL4rDMKDhHg), [review](https://claude.ai/artifact/FwVL85QKKZwQoRzDg93s8s), [final](https://claude.ai/artifact/Vyme4FqB9tfjD2U6WNhQVR)): "Approved, start building". Changes D-003 (scenes join session 1), D-037 item 3 (scenes move before session 1), D-023 (the curtain per scene), D-034 item 2 (link pins) and D-036 item 5 (saved spots now).
+- **Decision:**
+  1. A scene holds a library map with its place, turn and lock on the table, fog, discs, groups, pins, drawings, a paused fight, saved spots, its curtain kind and the DM zoom. One library map can be in several scenes. The party, calibrations, Flip letters and the B curtain are shared. Old saves upgrade: the placed map becomes the first scene, named after the map (save version 13).
+  2. Switching scenes is one command that also drops the black curtain; it is not undoable. Pings and fading lines end. Each scene keeps its own undo history for the run. A fight stays with its scene, paused; several scenes may each hold one, and the turn strip shows only the current scene's.
+  3. The table window may load only the current scene's map and curtain picture; scene names, link targets, other scenes and reset copies never reach it (D-002). The player-view test covers several scenes. B and the Curtain button always mean black; a scene's curtain kind shows only on switching to it.
+  4. Step 7k (needed for session 1): scenes keep everything; a Scenes list in Setup (add from a library map, rename, reorder, copy, delete to a Removed list emptied by hand); the current scene's name at the top of the panel switches in one tap; earlier saves count their scenes. When removing library maps arrives (D-036 item 5), a map a scene uses can't be removed. Built in step 7k: waiting scenes reach the DM window without their fog, discs, groups, pins and drawings (`dmStateOf`), and each scene's DM zoom is kept for the run.
+  5. Step 7l: curtain kinds black, a chosen picture, or a title (player-facing text shown twice, D-008, separate from the DM-only name); saved spots (drag, Save spot, name; a tap slides the map there on the grid, even when locked); Mark ready and Reset (everything as it was at Mark ready). Saves stay one file: measure write time with 20 scenes on a production build and split only if it is slow. Built in step 7l (save version 14): pictures are kept in `<app data>/library/curtains/`, and the table may load only the picture its curtain shows now. Measured 2026-10-29 in the cloud container (the laptop's speed is not known): 20 used scenes with ready copies made an 8.3 MB save taking about 160 ms, 126 ms of it building the text and 19 ms writing; reusing unchanged scenes' text brought it to about 36 ms, so the save stays one file. An extreme case, 20 scenes each full of long lines: 42.5 MB, about 240 ms.
+  6. Step 7m: the world map is a scene with its own fog; link pins open a scene with a Select tap (Ping still removes; link pins start Only me); a party marker the DM drags, which players see and which stays between visits; a World map curtain kind showing the world map's player view.
+  7. Later: scenes grouped by adventure (Soon); editing a scene while another is on the table. The rehearsal gains a step: switch scenes with minis on the map. Table size is planned as 24 × 42 squares (a 2 × 3.5 ft board) until the rehearsal measures it.
+- **Why:** session 1 uses 2 or 3 places, and today taking a map off loses its fog, discs, pins and drawings. Eight pieces were marked Now; the review staged them so only step 7k holds session 1 back. A two-step switch could flash the next scene, and the table window could load any library map by id, so both close here. A picture under B would project art in a hurry, so B stays black.
+
+## D-040 Sight: Look from here, discs hidden in fog, walls that block light, sight and sound
+
+- **Status:** Accepted (2026-10-29). Morgan asked for research into Arkenforge with an independent audit ([report](https://claude.ai/artifact/Bq9i76akbah11aL3TyoZ3K)), then said "integrate this into the plan". Changes D-037 items 3 and 7 and PLAN.md's phase order.
+- **Decision:**
+  1. A new phase, Sight, comes right after map annotation and before the library (PLAN.md). In order: enemy discs hidden in never-seen fog, doors that open and close (moved from Battle drama), then Look from here.
+  2. Look from here replaces the light-radius fog shape. A tap where a mini stands uncovers what can be seen from that point, cut off by walls and closed doors and, on a dark map, by the light range (a torch, a lantern, darkvision). It adds one ordinary Uncover op per tap, so saving, undo and baking work as they do now; the sight shape is worked out in `src/core/`. Bright and dim light show the same. On a dark map the table shows the furthest anyone sees (one projector), and Morgan rules on stealth and cover (D-014). Light ranges are checked against the SRD 5.2 text before building.
+  3. Map annotation traces walls, doors and windows (a window blocks nothing by default), and each blocks light, sight and sound separately (Arkenforge's model). Wall files for book maps live in the private library (D-010); Claude may trace them from the map picture at prep. Tests and screenshots use made-up or SRD maps.
+  4. Discs hidden in fog: the player view (`playerViewOf`) leaves out discs in never-seen fog, so their positions never reach the table window (D-002). The DM map marks them hidden by fog. It only hides: a disc set Off table never shows. Whether the centre or any part of the disc counts is settled when the phase is planned.
+  5. Not planned: a marker per character with live sight (unlike D-039's world-map party marker, which only shows where the party is). Revisit after a session or two with Look from here. It would need a live sight layer outside the fog op list, a separately saved "seen before", a fourth drawn state for dim light, and a speed check on the laptop, about 3 steps (estimate), plus a drag for every mini that moves. Light sources on the map and a time-of-day tint go to Later, each after a projector photo. Mini detection, map art packs, 3D dice and video export from Arkenforge are not for Terra.
+- **Why:** Morgan wants lighting that follows where they place the minis. In `src/core/fog.ts` an Uncover sets seen and explored together and Dim what's in view covers the whole map, so live sight from markers can't reuse the op list, while one tap per look can. The tap also avoids mirroring every move, the reason D-037 cut automatic line of sight. Today `playerViewOf` (`src/core/table.ts`) filters discs only by their On table switch, so a disc left On table shows in black fog. Arkenforge users report that walls on imported maps are the fragile part, so annotation gets the blocking flags from the start.

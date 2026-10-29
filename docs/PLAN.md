@@ -1,6 +1,6 @@
 # Plan
 
-Approved by Morgan on 2026-10-28 after three planning rounds, a review and a final check. Step 3, UI design, was added at Morgan's request on 2026-10-28 (D-022). Character cards and the library phase were added in the book library interview on 2026-10-28 (D-026). The phases after session 1 were reordered, merged and cut in the plan audit on 2026-10-29 (D-037). The planning pages are linked in [HANDOFF.md](HANDOFF.md). Decisions are in [DECISIONS.md](DECISIONS.md).
+Approved by Morgan on 2026-10-28 after three planning rounds, a review and a final check. Step 3, UI design, was added at Morgan's request on 2026-10-28 (D-022). Character cards and the library phase were added in the book library interview on 2026-10-28 (D-026). The phases after session 1 were reordered, merged and cut in the plan audit on 2026-10-29 (D-037). The planning pages are linked in [HANDOFF.md](HANDOFF.md). Decisions are in [DECISIONS.md](DECISIONS.md). Sight was added after the Arkenforge research on 2026-10-29 (D-040).
 
 ## Goal for session 1
 
@@ -26,30 +26,35 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 7h. **One panel (D-038).** The docking goes: the map fills the window beside one panel with Setup, Explore and Fight tabs and a table thumbnail; floating tools; bigger headers; Tab folds the panel; its edge drags to resize. Morgan tests: screenshots at laptop size.
 7i. **Encounter list (D-038).** Initiative and Groups become one list; the party as a list with HP bars; sheets open in the panel under a pinned turn strip. Morgan tests: a mock round, from screenshots and then on the laptop.
 7j. **Words and setup (D-038).** Uncover (U) / Dim (G), On table / Off table, Show picture; full-window calibrate and import; the first-screen checklist. Morgan tests: calibrate on the laptop.
+7k. **Scenes (D-039).** Each scene keeps its map, fog, discs, groups, pins, drawings and paused fight; a Scenes list in Setup; one-tap switching that drops the curtain. Needed for session 1. Morgan tests: prepare three scenes, switch with minis on the table, leave a fight half done and come back, close and reopen the app.
+7l. **Curtains, spots and reset (D-039).** Black, picture or title curtain per scene; saved spots on big maps; Mark ready and Reset. Morgan tests: a title read from both long sides, a picture in the dark room, jumping between two spots, resetting a scene after a fight.
+7m. **World map (D-039).** Link pins, a party marker and the World map curtain. Morgan tests: travel on the world map, then open a battle map from a pin.
 8. **Rehearsal.** A full dry run of Thundertree at home, following [REHEARSAL.md](REHEARSAL.md): each part has a pass line and the photo that proves it. Anything that fails is hidden for session 1, not redesigned (D-037).
 
 ## After session 1, in order
 
-1. **Scenes.** A scene keeps a map with its fog, discs, pins, drawings and fight, so taking a map off no longer loses them. Prepare scenes ahead, switch between them at the table, choose the curtain per scene (D-023), saved spots on big maps, and a world map linking to battle maps. Today one map at a time is kept (D-037).
-2. **Map annotation.** Trace rooms, walls, doors and materials on an imported map. It brings one-tap room reveal (D-007, D-025), doors, room notes and the material tags living effects need (D-014). The generator later produces the same annotation.
-3. **Library.** Already built: library import, stat block and HP per disc, portraits (D-028, D-036). Still to build:
+1. **Scenes.** Moved before session 1 as steps 7k–7m (D-039). Left here: scenes grouped by adventure, and editing a scene while another is on the table.
+2. **Map annotation.** Trace rooms, walls, doors, windows and materials on an imported map. Each wall, door or window blocks light, sight and sound separately, so sight and sound need no second pass (D-040). It brings one-tap room reveal (D-007, D-025), doors, room notes and the material tags living effects need (D-014). The generator later produces the same annotation.
+3. **Sight (D-040).**
+   - Enemy discs in never-seen fog stay off the table: the player view leaves them out (D-002), and the DM map marks them hidden by fog. This only hides; it never shows a disc set Off table.
+   - Doors open and close on annotated maps.
+   - Look from here: tap where a mini stands, and the table uncovers what can be seen from there, cut off by walls and closed doors and, on a dark map, by the light range (torch, darkvision). One ordinary Uncover per tap. Replaces the light-radius fog shape.
+4. **Library.** Already built: library import, stat block and HP per disc, portraits (D-028, D-036). Still to build:
    - Map intake: corner snapping, PDF page import (pdf.js), library maps ready to place, map library tidy-up (D-036).
    - Book search: one search over creatures, spells and items.
    - Adding monsters: pick from the search, place a group by count, sized from the stat block in feet on the map's scale (D-036).
    - Treasure roller on the DMG tables with seeded dice (GAME-01).
    - Encounter builder, which also tests an encounter (merged with the old "encounter tester").
-4. **Battle drama.**
+5. **Battle drama.**
    - Measure: one tool for the ruler, a line with its length, a circle and spell templates.
    - Map marks: symbols (reusing the token symbols) and labels written twice (D-008, D-035).
    - Conditions: on discs and characters, with durations and concentration that count down on Next turn; down marks (D-036) are one of them.
-   - Light radius: a fog shape that reveals a circle sized in feet from a tapped point. Replaces automatic line of sight (D-037).
-   - Doors open and close on annotated maps.
-5. **Living effects.** Fire first, then ice, water, lightning and collapse, spreading each round on annotated materials (D-014). Weather is an optional ambient layer here.
-6. **Story tools.** Room notes, story tracker, Far Realm tracker, handouts and item cards, ambient sound.
-7. **Generator.** Ruined town and interiors first in the pencil style, then dungeon and cave, with annotation. Edit after generating. Moved below story tools: Morgan runs a published adventure whose maps come from the book (D-037).
-8. **Later.** Remote players, hex and gridless, camera tracking (the only route to automatic line of sight, since players have no discs), fantasy icons (D-023).
+6. **Living effects.** Fire first, then ice, water, lightning and collapse, spreading each round on annotated materials (D-014). Weather is an optional ambient layer here.
+7. **Story tools.** Room notes, story tracker, Far Realm tracker, handouts and item cards, ambient sound.
+8. **Generator.** Ruined town and interiors first in the pencil style, then dungeon and cave, with annotation. Edit after generating. Moved below story tools: Morgan runs a published adventure whose maps come from the book (D-037).
+9. **Later.** Remote players, hex and gridless, camera tracking (the only route to sight that follows the minis by itself), fantasy icons (D-023). From the Arkenforge research (D-040): light sources on the map and a time-of-day tint, each after a projector photo; a marker per character with live sight, only if Look from here feels too manual after a session or two.
 
-Cut in the plan audit (D-037): the dice roller (players roll real dice, D-013), automatic line of sight, the name and loot generators (Claude does them at prep; loot is the treasure roller), and the NPC conversation player (never defined; it can come back with a definition).
+Cut in the plan audit (D-037): the dice roller (players roll real dice, D-013), automatic line of sight (partly back as Look from here, D-040), the name and loot generators (Claude does them at prep; loot is the treasure roller), and the NPC conversation player (never defined; it can come back with a definition).
 
 ## How we work
 

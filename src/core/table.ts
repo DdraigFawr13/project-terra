@@ -44,7 +44,7 @@ import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
-const SAVE_VERSION = 12;
+const SAVE_VERSION = 14;
 /** Pins on one map at most: plenty for marks, and a stuck pen can't fill the save. */
 export const MAX_PINS = 40;
 
@@ -93,12 +93,48 @@ export type PlacedMap = {
   pins: Pin[];
   /** Lasting freehand lines (D-035). A newly placed map has none. */
   drawings: Drawing[];
+  /** Saved spots on a big map (D-039): where the map sat on the table, to slide it back there. A newly placed map has none. */
+  spots: Spot[];
 };
+
+/** A named place for the map on the table: its corner's position and turn, as `moveMap` and `turnMap` leave them. */
+type Spot = { id: number; name: string; x: number; y: number; turns: PlacedMap["turns"] };
+const MAX_SPOTS = 12;
+export const MAX_SPOT_NAME = 40;
+
+/** What a scene keeps besides its name (D-039). The current scene's lives in the state's own `map`, `fight` and `mapLocked`. */
+export type SceneContent = { map: PlacedMap | null; fight: Fight | null; mapLocked: boolean };
+/**
+ * A place prepared for the table (D-039). `parked` holds the content of every scene but the current one, which is the
+ * only scene with none. `name` is DM-only, like a map's, and empty until the DM names it (the list shows its map's name).
+ * A removed scene waits in the Removed list until the DM empties it.
+ */
+export type Scene = {
+  id: string;
+  name: string;
+  removed: boolean;
+  parked: SceneContent | null;
+  /** What the table shows when the DM switches to this scene, until the curtain is lifted (D-039). */
+  curtain: SceneCurtain;
+  /** A copy taken with Mark ready, for Reset to go back to (D-039). */
+  ready: SceneContent | null;
+};
+/** A scene's curtain: black, a title (player-facing text, shown twice, D-008), or a picture the DM chose. */
+type SceneCurtain = { kind: "black" } | { kind: "title"; text: string } | { kind: "picture"; id: string };
+export const MAX_TITLE = 80;
+/** Scenes at most, the Removed list included: a busy adventure has a few dozen places, and the save stays small. */
+const MAX_SCENES = 60;
+export const MAX_SCENE_NAME = 60;
 
 export type TableState = {
   version: typeof SAVE_VERSION;
   /** Blank the table while the DM sets up. Wins over everything else. */
   curtain: boolean;
+  /**
+   * The curtain shows the current scene's own curtain rather than black. Only a switch sets it; B, the Curtain button
+   * and lifting the curtain clear it, so B always means black (D-039).
+   */
+  cover: boolean;
   /** Show the calibration pattern while the DM drags the corners. */
   calibrating: boolean;
   /** Show the 1-inch grid: alone, or over the map to check it lines up. */
@@ -118,6 +154,11 @@ export type TableState = {
   lastCharacter: number;
   /** The placed map can't be moved, turned or taken off, so a stray drag mid-game can't shift it under the minis (D-029). */
   mapLocked: boolean;
+  /** Every scene in the DM's order (D-039), and which one is on the table. */
+  scenes: Scene[];
+  scene: string;
+  /** The highest scene id number given out, so a removed scene's id is never reused (and its undo steps never apply elsewhere). */
+  lastScene: number;
 };
 
 export type Command =
@@ -163,7 +204,27 @@ export type Command =
   /** A lasting line drawn with Draw, in map inches (D-035). Fading lines are moments, like pings, and never come here. */
   | { type: "draw"; ink: Ink; table: boolean; points: Point[] }
   | { type: "removeDrawing"; id: number }
-  | { type: "clearDrawings" };
+  | { type: "clearDrawings" }
+  /** A new, empty scene after the current one, switched to with the curtain down (D-039). */
+  | { type: "addScene"; name: string }
+  /** Put another scene on the table. The curtain drops in the same step, so the table never shows a frame of it early. */
+  | { type: "switchScene"; id: string }
+  | { type: "renameScene"; id: string; name: string }
+  | { type: "moveScene"; id: string; by: -1 | 1 }
+  /** A copy of a scene with everything in it, placed after it. */
+  | { type: "copyScene"; id: string }
+  /** Move a scene to the Removed list, or back. The current scene can't be removed. */
+  | { type: "removeScene"; id: string; on: boolean }
+  | { type: "emptyRemoved" }
+  | { type: "sceneCurtain"; id: string; curtain: SceneCurtain }
+  /** Keep a copy of a scene as it is now, for Reset. */
+  | { type: "markReady"; id: string }
+  /** Put the scene on the table back as it was at Mark ready. Undoable. */
+  | { type: "resetScene" }
+  /** Save where the map sits now as a named spot; go to one (even on a locked map, D-039); remove one. */
+  | { type: "saveSpot"; name: string }
+  | { type: "goToSpot"; id: number }
+  | { type: "removeSpot"; id: number };
 
 /**
  * Commands the DM can take back with Undo. Switches such as the curtain, calibration drags and character cards are not
@@ -195,14 +256,22 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
   "draw",
   "removeDrawing",
   "clearDrawings",
+  "resetScene",
+  "saveSpot",
+  "goToSpot",
+  "removeSpot",
 ]);
 
 export type TableView = "curtain" | "calibrate" | "map" | "testGrid" | "idle";
+
+const BLACK: SceneCurtain = { kind: "black" };
+const FIRST_SCENE: Scene = { id: "scene-1", name: "", removed: false, parked: null, curtain: BLACK, ready: null };
 
 export function defaultState(): TableState {
   return {
     version: SAVE_VERSION,
     curtain: false,
+    cover: false,
     calibrating: false,
     testGrid: true,
     playerDisplayId: null,
@@ -213,8 +282,40 @@ export function defaultState(): TableState {
     flipLetters: false,
     lastCharacter: 0,
     mapLocked: false,
+    scenes: [FIRST_SCENE],
+    scene: FIRST_SCENE.id,
+    lastScene: 1,
   };
 }
+
+/** A scene's content: the state's own for the current scene, else what is parked. */
+export function sceneContent(state: TableState, scene: Scene): SceneContent {
+  return scene.parked ?? { map: state.map, fight: state.fight, mapLocked: state.mapLocked };
+}
+
+/** What the scene list calls a scene: its name, else its map's, else "Empty scene". DM-only (D-039). */
+export function sceneTitle(state: TableState, scene: Scene): string {
+  return scene.name || sceneContent(state, scene).map?.name || "Empty scene";
+}
+
+/**
+ * The state as the DM window gets it: waiting scenes and Mark ready copies without their fog, discs, groups, pins,
+ * drawings and spots. The scene list only shows names, maps and fights, and every change copies the state (D-029).
+ */
+export function dmStateOf(state: TableState): TableState {
+  const light = (c: SceneContent): SceneContent => ({
+    ...c,
+    map: c.map && { ...c.map, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [] },
+  });
+  return {
+    ...state,
+    scenes: state.scenes.map((s) => ({ ...s, parked: s.parked && light(s.parked), ready: s.ready && light(s.ready) })),
+  };
+}
+
+/** The scenes in the list, in order, and those in the Removed list. */
+export const listedScenes = (state: TableState) => state.scenes.filter((s) => !s.removed);
+export const removedScenes = (state: TableState) => state.scenes.filter((s) => s.removed);
 
 export function viewOf(state: TableState): TableView {
   if (state.curtain) return "curtain";
@@ -256,7 +357,15 @@ export type PlayerView = {
   pins: Point[];
   /** Lasting lines the players may see, in table inches (D-035). */
   drawings: { ink: Ink; points: Point[] }[];
+  /** Under the curtain after a switch: the scene's title or picture, never its name (D-039). Null is black. */
+  cover: { title: string } | { picture: string } | null;
 };
+
+/** What the curtain shows now: the scene's own after a switch, else black. */
+export function coverOf(state: TableState): PlayerView["cover"] {
+  const c = state.curtain && state.cover ? state.scenes.find((s) => s.id === state.scene)?.curtain : undefined;
+  return c?.kind === "title" ? { title: c.text } : c?.kind === "picture" ? { picture: c.id } : null;
+}
 
 /** The player view for the surface the table window is on now. */
 export function playerViewOf(state: TableState, surfaceKey: string): PlayerView {
@@ -276,6 +385,7 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
     grid: state.testGrid,
     pins: (m?.pins ?? []).filter((p) => p.table).map((p) => mapToTable(m!, p)),
     drawings: (m?.drawings ?? []).filter((d) => d.table).map((d) => ({ ink: d.ink, points: d.points.map((p) => mapToTable(m!, p)) })),
+    cover: coverOf(state),
   };
 }
 
@@ -284,6 +394,9 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
 /** Surface keys as `playerPlacement` makes them. Anything else (such as "__proto__") is dropped. */
 const SURFACE_KEY = /^(window|display:-?\d{1,20})$/;
 const MAP_ID = /^map-[a-z0-9-]{1,60}$/;
+const SCENE_ID = /^scene-\d{1,3}$/;
+const isSceneId = (v: unknown): v is string => typeof v === "string" && SCENE_ID.test(v);
+const sceneName = (v: unknown): string | null => (typeof v === "string" && v.length <= MAX_SCENE_NAME ? v : null);
 const REACH_IN = 500;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -313,15 +426,43 @@ export function parsePlacedMap(raw: unknown): PlacedMap | null {
   const pins = raw.pins === undefined ? [] : parsePins(raw.pins);
   // And with no drawings before freehand drawing.
   const drawings = raw.drawings === undefined ? [] : parseDrawings(raw.drawings);
+  // And with no spots before scenes.
+  const spots = raw.spots === undefined ? [] : parseSpots(raw.spots);
   const feetPerSquare = parseFeetPerSquare(raw.feetPerSquare);
   const b = raw.bounds;
   const bounds = { x: inches(b.x), y: inches(b.y), width: inches(b.width, 1), height: inches(b.height, 1) };
   if (typeof id !== "string" || !MAP_ID.test(id) || typeof name !== "string" || name.length > 120) return null;
   if (bounds.x === null || bounds.y === null || bounds.width === null || bounds.height === null) return null;
   if (inches(x) === null || inches(y) === null || !(turns === 0 || turns === 1 || turns === 2 || turns === 3) || !fog) return null;
-  if (!discs || !groups || !pins || !drawings || !feetPerSquare) return null;
+  if (!discs || !groups || !pins || !drawings || !spots || !feetPerSquare) return null;
   const at = { x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"] };
-  return { id, name, bounds: bounds as Bounds, feetPerSquare, ...at, fog, discs, groups, pins, drawings };
+  return { id, name, bounds: bounds as Bounds, feetPerSquare, ...at, fog, discs, groups, pins, drawings, spots };
+}
+
+const isTurns = (v: unknown): v is PlacedMap["turns"] => v === 0 || v === 1 || v === 2 || v === 3;
+const spotName = (v: unknown): string | null => (typeof v === "string" && v.length <= MAX_SPOT_NAME ? v : null);
+
+/** Saved spots: each id once, at most MAX_SPOTS, each in reach. */
+function parseSpots(raw: unknown): Spot[] | null {
+  if (!Array.isArray(raw) || raw.length > MAX_SPOTS) return null;
+  const spots: Spot[] = [];
+  for (const s of raw) {
+    const r = isObject(s) ? s : {};
+    const [id, x, y, name] = [inches(r.id, 1, 99_999), inches(r.x), inches(r.y), spotName(r.name)];
+    if (id === null || x === null || y === null || name === null || !isTurns(r.turns) || spots.some((q) => q.id === id)) return null;
+    spots.push({ id, name, x, y, turns: (r.turns + 0) as PlacedMap["turns"] });
+  }
+  return spots;
+}
+
+const PICTURE_ID = /^pic-[a-f0-9]{8,32}$/;
+/** A scene curtain from a command or a save; null if any part is wrong. */
+function parseSceneCurtain(raw: unknown): SceneCurtain | null {
+  if (!isObject(raw)) return null;
+  if (raw.kind === "black") return BLACK;
+  if (raw.kind === "title") return typeof raw.text === "string" && raw.text.length <= MAX_TITLE ? { kind: "title", text: raw.text } : null;
+  if (raw.kind === "picture") return typeof raw.id === "string" && PICTURE_ID.test(raw.id) ? { kind: "picture", id: raw.id } : null;
+  return null;
 }
 
 /** A line's points: 2 to MAX_LINE_POINTS, each in reach, rounded to hundredths of an inch. */
@@ -491,7 +632,40 @@ export function parseCommand(raw: unknown): Command | null {
       return id === null ? null : { type: "removeDrawing", id };
     }
     case "clearDrawings":
-      return { type: "clearDrawings" };
+    case "emptyRemoved":
+      return { type: raw.type };
+    case "addScene": {
+      const name = sceneName(raw.name);
+      return name === null ? null : { type: "addScene", name };
+    }
+    case "switchScene":
+    case "copyScene":
+      return isSceneId(raw.id) ? { type: raw.type, id: raw.id } : null;
+    case "renameScene": {
+      const name = sceneName(raw.name);
+      return isSceneId(raw.id) && name !== null ? { type: "renameScene", id: raw.id, name } : null;
+    }
+    case "moveScene":
+      return isSceneId(raw.id) && (raw.by === -1 || raw.by === 1) ? { type: "moveScene", id: raw.id, by: raw.by } : null;
+    case "removeScene":
+      return isSceneId(raw.id) && typeof raw.on === "boolean" ? { type: "removeScene", id: raw.id, on: raw.on } : null;
+    case "sceneCurtain": {
+      const curtain = parseSceneCurtain(raw.curtain);
+      return isSceneId(raw.id) && curtain ? { type: "sceneCurtain", id: raw.id, curtain } : null;
+    }
+    case "markReady":
+      return isSceneId(raw.id) ? { type: "markReady", id: raw.id } : null;
+    case "resetScene":
+      return { type: "resetScene" };
+    case "saveSpot": {
+      const name = spotName(raw.name);
+      return name === null ? null : { type: "saveSpot", name };
+    }
+    case "goToSpot":
+    case "removeSpot": {
+      const id = inches(raw.id, 1, 99_999);
+      return id === null ? null : { type: raw.type, id };
+    }
     default:
       return null;
   }
@@ -518,11 +692,36 @@ function withFight(state: TableState, change: (f: Fight) => Fight): TableState {
   return state.fight ? { ...state, fight: change(state.fight) } : state;
 }
 
+/** Change one scene in the list; an unknown id changes nothing. */
+function withScene(state: TableState, id: string, change: (s: Scene) => Scene): TableState {
+  return state.scenes.some((s) => s.id === id) ? { ...state, scenes: state.scenes.map((s) => (s.id === id ? change(s) : s)) } : state;
+}
+
+/** A new scene id, or null when the list is full. */
+function newScene(state: TableState): { id: string; lastScene: number } | null {
+  const n = state.lastScene + 1;
+  return state.scenes.length >= MAX_SCENES || n > 999 ? null : { id: `scene-${n}`, lastScene: n };
+}
+
+/** Make `id` the current scene: park the one on the table now and bring the other's content out. */
+function switchTo(state: TableState, id: string): TableState {
+  const target = state.scenes.find((s) => s.id === id);
+  if (!target?.parked || target.removed) return state;
+  const here = sceneContent(
+    state,
+    state.scenes.find((s) => s.id === state.scene)!,
+  );
+  const scenes = state.scenes.map((s) => (s.id === state.scene ? { ...s, parked: here } : s.id === id ? { ...s, parked: null } : s));
+  // A character removed while this scene's fight was paused leaves its turn order now (D-027).
+  return dropMissingCharacters({ ...state, ...target.parked, scenes, scene: id, curtain: true, cover: true });
+}
+
 /** The one place the table state changes. */
 export function apply(state: TableState, c: Command): TableState {
   switch (c.type) {
     case "curtain":
-      return { ...state, curtain: c.on };
+      // B and the Curtain button always mean black: they end a scene's own curtain (D-039).
+      return { ...state, curtain: c.on, cover: false };
     case "calibrating":
       return { ...state, calibrating: c.on };
     case "testGrid":
@@ -623,6 +822,70 @@ export function apply(state: TableState, c: Command): TableState {
         : state;
     case "clearDrawings":
       return state.map?.drawings.length ? { ...state, map: { ...state.map, drawings: [] } } : state;
+    case "addScene": {
+      const made = newScene(state);
+      if (!made) return state;
+      const at = state.scenes.findIndex((s) => s.id === state.scene) + 1;
+      const empty: SceneContent = { map: null, fight: null, mapLocked: false };
+      const scene: Scene = { id: made.id, name: c.name, removed: false, parked: empty, curtain: BLACK, ready: null };
+      const scenes = state.scenes.toSpliced(at, 0, scene);
+      return switchTo({ ...state, scenes, lastScene: made.lastScene }, made.id);
+    }
+    case "switchScene":
+      return switchTo(state, c.id);
+    case "renameScene":
+      return state.scenes.some((s) => s.id === c.id)
+        ? { ...state, scenes: state.scenes.map((s) => (s.id === c.id ? { ...s, name: c.name } : s)) }
+        : state;
+    case "moveScene": {
+      // Past the neighbour in the list; scenes in the Removed list keep their places.
+      const listed = listedScenes(state);
+      const i = listed.findIndex((s) => s.id === c.id);
+      const other = listed[i + c.by];
+      if (i < 0 || !other) return state;
+      const [a, b] = [state.scenes.indexOf(listed[i]!), state.scenes.indexOf(other)];
+      const scenes = [...state.scenes];
+      [scenes[a], scenes[b]] = [scenes[b]!, scenes[a]!];
+      return { ...state, scenes };
+    }
+    case "copyScene": {
+      const source = state.scenes.find((s) => s.id === c.id);
+      const made = newScene(state);
+      if (!source || source.removed || !made) return state;
+      const name = `${sceneTitle(state, source)} copy`.slice(0, MAX_SCENE_NAME);
+      const copy = { ...source, id: made.id, name, parked: sceneContent(state, source) };
+      return { ...state, scenes: state.scenes.toSpliced(state.scenes.indexOf(source) + 1, 0, copy), lastScene: made.lastScene };
+    }
+    case "removeScene":
+      return c.id !== state.scene && state.scenes.some((s) => s.id === c.id && s.removed !== c.on)
+        ? { ...state, scenes: state.scenes.map((s) => (s.id === c.id ? { ...s, removed: c.on } : s)) }
+        : state;
+    case "emptyRemoved":
+      return state.scenes.some((s) => s.removed) ? { ...state, scenes: listedScenes(state) } : state;
+    case "sceneCurtain":
+      return withScene(state, c.id, (s) => ({ ...s, curtain: c.curtain }));
+    case "markReady":
+      return withScene(state, c.id, (s) => ({ ...s, ready: sceneContent(state, s) }));
+    case "resetScene": {
+      const ready = state.scenes.find((s) => s.id === state.scene)?.ready;
+      // A character removed since Mark ready leaves the turn order, as after an undo (D-027).
+      return ready ? dropMissingCharacters({ ...state, ...ready }) : state;
+    }
+    case "saveSpot": {
+      const m = state.map;
+      if (!m || m.spots.length >= MAX_SPOTS) return state;
+      const spot = { id: Math.max(0, ...m.spots.map((s) => s.id)) + 1, name: c.name, x: m.x, y: m.y, turns: m.turns };
+      return { ...state, map: { ...m, spots: [...m.spots, spot] } };
+    }
+    case "goToSpot": {
+      // A spot is a deliberate move, so it works on a locked map; it always lands on whole inches (D-039).
+      const spot = state.map?.spots.find((s) => s.id === c.id);
+      return spot && state.map ? { ...state, map: { ...state.map, x: spot.x, y: spot.y, turns: spot.turns } } : state;
+    }
+    case "removeSpot":
+      return state.map?.spots.some((s) => s.id === c.id)
+        ? { ...state, map: { ...state.map, spots: state.map.spots.filter((s) => s.id !== c.id) } }
+        : state;
   }
 }
 
@@ -637,6 +900,33 @@ export function dropMissingCharacters(state: TableState): TableState {
 
 export type ParsedSave = { ok: true; state: TableState } | { ok: false; reason: string };
 
+/** A parked scene's content from a save, through the same parsers as the current one; null if any part is wrong. */
+function parseContent(raw: unknown): SceneContent | null {
+  if (!isObject(raw) || typeof raw.mapLocked !== "boolean") return null;
+  const map = raw.map === null ? null : parsePlacedMap(raw.map);
+  const fight = raw.fight === null ? null : parseFight(raw.fight);
+  if ((raw.map !== null && !map) || (raw.fight !== null && !fight)) return null;
+  return { map, fight, mapLocked: raw.mapLocked };
+}
+
+/** The saved scene list: each id once, and exactly one scene with no parked content, the current one. */
+function parseScenes(raw: unknown, current: unknown): Scene[] | null {
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > MAX_SCENES) return null;
+  const scenes: Scene[] = [];
+  for (const s of raw) {
+    if (!isObject(s) || !isSceneId(s.id) || typeof s.removed !== "boolean" || scenes.some((q) => q.id === s.id)) return null;
+    const name = sceneName(s.name);
+    const parked = s.parked === null ? null : parseContent(s.parked);
+    // Scenes saved before curtains and Mark ready (save version 13) have neither.
+    const curtain = s.curtain === undefined ? BLACK : parseSceneCurtain(s.curtain);
+    const ready = s.ready === undefined || s.ready === null ? null : parseContent(s.ready);
+    if (name === null || (s.parked !== null && !parked) || !curtain || (s.ready != null && !ready)) return null;
+    scenes.push({ id: s.id, name, removed: s.removed, parked, curtain, ready });
+  }
+  const here = scenes.filter((s) => !s.parked);
+  return here.length === 1 && here[0]!.id === current && !here[0]!.removed ? scenes : null;
+}
+
 /** Read a saved state. Older versions upgrade here; anything unreadable is reported, never guessed (GAME-05). */
 export function parseSave(text: string): ParsedSave {
   let raw: unknown;
@@ -647,7 +937,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.
@@ -679,10 +969,33 @@ export function parseSave(text: string): ParsedSave {
     Number.isInteger(raw.lastCharacter) && (raw.lastCharacter as number) >= 0 && (raw.lastCharacter as number) <= 999
       ? (raw.lastCharacter as number) + 0
       : 0;
-  return { ok: true, state: { ...state, party, fight, lastCharacter } };
+  // Saves before scenes (D-039) hold one map: it becomes the first scene. Scenes hold prepared places, so a bad list
+  // keeps the whole file aside rather than dropping them.
+  const scenes = raw.scenes === undefined ? state.scenes : parseScenes(raw.scenes, raw.scene);
+  if (!scenes) return { ok: false, reason: "the scenes can't be read" };
+  const numbers = scenes.map((s) => Number(s.id.slice(6)));
+  const saved = Number.isInteger(raw.lastScene) && (raw.lastScene as number) <= 999 ? (raw.lastScene as number) + 0 : 0;
+  const lastScene = Math.max(saved, ...numbers);
+  const scene = scenes.find((s) => !s.parked)!.id;
+  // A scene's own curtain shows only while the curtain is down after a switch.
+  const cover = state.curtain && raw.cover === true;
+  return { ok: true, state: { ...state, party, fight, lastCharacter, scenes, scene, lastScene, cover } };
 }
 
-/** Compact JSON: with fog, an indented save is about three times bigger and slower to write after every change. */
+/** Each scene's JSON, kept while the scene is unchanged: scenes are never edited in place, only replaced. */
+const sceneJson = new WeakMap<Scene, string>();
+
+/**
+ * Compact JSON: with fog, an indented save is about three times bigger and slower to write after every change. Waiting
+ * scenes and Mark ready copies rarely change, so their text is reused: with 20 used scenes, building the whole text
+ * each time took about 130 ms of a 160 ms save (measured in the cloud container, 2026-10-29; D-039).
+ */
 export function serialize(state: TableState): string {
-  return JSON.stringify(state) + "\n";
+  const { scenes, ...rest } = state;
+  const parts = scenes.map((s) => {
+    let json = sceneJson.get(s);
+    if (json === undefined) sceneJson.set(s, (json = JSON.stringify(s)));
+    return json;
+  });
+  return `${JSON.stringify(rest).slice(0, -1)},"scenes":[${parts.join(",")}]}\n`;
 }

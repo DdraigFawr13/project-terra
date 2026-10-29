@@ -151,6 +151,8 @@ export function initMaps(
   let zoom = 1;
   let centre: Point | null = null;
   let viewOf: string | null = null;
+  /** Each scene's zoom and centre (D-039), so switching back finds the view as the DM left it. This run only. */
+  const views = new Map<string, { zoom: number; centre: Point | null }>();
   const MAX_ZOOM = 8;
 
   const patch = initPatch(terra, accent, () => render());
@@ -167,7 +169,7 @@ export function initMaps(
         b.type = "button";
         b.textContent = `Place “${m.name}”${feetNote(m.feetPerSquare)}`;
         b.addEventListener("click", () =>
-          run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [] } }),
+          run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [] } }),
         );
         li.append(b);
         return li;
@@ -316,7 +318,10 @@ export function initMaps(
       const png = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
       const entry = await terra.saveMap(nameInput.value, png, plan.bounds, parseFeetPerSquare(Number(markFeet.value)) ?? 5);
       importing = null;
-      await run({ type: "placeMap", map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [] } });
+      await run({
+        type: "placeMap",
+        map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [] },
+      });
       refreshLibrary();
     } catch (e) {
       im.busy = false;
@@ -381,7 +386,13 @@ export function initMaps(
 
   /** Inches → canvas pixels for the DM's view: the fit view, zoomed about the chosen centre. A new map starts fitted. */
   function viewport(map: PlacedMap, w: number, h: number) {
-    if (viewOf !== map.id) [viewOf, zoom, centre] = [map.id, 1, null];
+    // Keyed by scene and map: a new map in the same scene starts fitted.
+    const key = `${state?.scene}/${map.id}`;
+    if (viewOf !== key) {
+      if (viewOf) views.set(viewOf, { zoom, centre });
+      const v = views.get(key);
+      [viewOf, zoom, centre] = [key, v?.zoom ?? 1, v?.centre ?? null];
+    }
     const fit = mapViewport(map, outlineNow(), w, h);
     if (zoom === 1) return fit;
     const s = fit.s * zoom;

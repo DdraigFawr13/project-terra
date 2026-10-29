@@ -39,7 +39,7 @@ export type GenMap = {
 
 const TORCH = { brightFt: 20, dimFt: 20 };
 
-/** A map of `width` × `height` inches (whole numbers). The default fits a 36 × 24 inch table. */
+/** A map of `width` × `height` inches (whole numbers). The default fits Morgan's 42 × 24 inch board. */
 export function generate(terrain: Terrain, seed: number, width = 36, height = 24): GenMap {
   const r = rng(seed);
   const base = { version: 1 as const, terrain, seed, width, height, feetPerSquare: 5 as const };

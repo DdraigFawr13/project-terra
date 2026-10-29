@@ -14,6 +14,7 @@ import {
   FONT,
   mapImages,
   onPortraitLoad,
+  pictureImages,
   PING_MS,
   SKETCH_MS,
   sketchAlpha,
@@ -43,6 +44,7 @@ let player: PlayerView | null = null;
 
 const fog = new FogPainter();
 const image = mapImages(draw);
+const picture = pictureImages(draw);
 onPortraitLoad(draw);
 terra.onMapPatched(image.reload);
 
@@ -66,7 +68,7 @@ function drawLayer(cal: Calibration, mode: TableMode, calibrated: boolean): void
   pingCanvas.height = layerCanvas.height;
   pingCanvas.style.cssText = layerCanvas.style.cssText;
   pingCanvas.hidden = !pingLayer;
-  if (player) drawTable(lctx, { cal, layer, mode, calibrated, view: player, image, fog, area: visibleRect(cal, surface) }, 1);
+  if (player) drawTable(lctx, { cal, layer, mode, calibrated, view: player, image, fog, area: visibleRect(cal, surface), picture }, 1);
 }
 
 /**
@@ -116,9 +118,11 @@ function draw(): void {
   overlayCanvas.width = screenCanvas.width;
   overlayCanvas.height = screenCanvas.height;
   octx.setTransform(s.scale, 0, 0, s.scale, 0, 0);
-  if (view === "testGrid" || view === "calibrate" || view === "map") {
+  // Under the curtain, a scene's own title or picture (D-039); with none, the curtain stays black.
+  const mode = view === "curtain" ? (player?.cover ? "cover" : null) : view === "idle" ? null : view;
+  if (mode) {
     const cal = calibration ?? defaultCalibration(s);
-    drawLayer(cal, view, !!calibration);
+    drawLayer(cal, mode, !!calibration);
     if (view === "calibrate") drawCornerMarks(cal, s);
   } else if (view === "idle") {
     sctx.fillStyle = "rgba(255,255,255,0.35)";
