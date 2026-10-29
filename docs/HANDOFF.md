@@ -8,18 +8,18 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7f are all merged, the
 
 ## Just done
 
+- 2026-10-29 Step 7h (D-038) on branch `ccr-ff2bff74-l8atlf`: `dock.ts` and `float-win.ts` removed; `panel.ts` holds the panel (tabs, edge drag and arrow keys, width kept under `terra.panel.v1`, Tab folds it, hold the thumbnail to enlarge) and the sheets (`sheetWin`, one at a time, reopened per D-034). `dm.html`: map window (head row, tools column, stage) beside the panel; sections parked in a hidden holder until `dm.ts` puts them in tabs (Groups in Explore and Fight). Start/End fight switch tabs. The fight e2e journey runs at 1280 × 680. Next: 7i Encounter list and turn strip.
 - 2026-10-29 Step 7g, rehearsal safety (D-037): `src/core/saves.ts` (earlier save names, pruning to 3, every 10 min, `describeSave`, `problemReport`); main keeps an earlier save at start (skipped when identical to the newest) and every 10 minutes in `<app data>/earlier-saves/`, `saves:list`/`saves:restore` (keeps the rig, clears undo, keeps the current state first), `report:copy` (clipboard); a problem log of main problems and page console errors. Table → Earlier saves… and Problem report. Tests: 50 unit, e2e restart journey extended (no new launch).
-- 2026-10-29 Usability audit ([page with screenshots](https://claude.ai/artifact/R1TJm1AfCyvqSuktZjiSyD)), and its small fixes on branch `ccr-ff2bff74-l8atlf`: tool buttons show a short name under the icon (colours two to a row; at 760 px tall or less disc sizes drop the size word); the projector's edge on the DM map is pale with a "Table" tag; the Marker preview hides over a placed disc; one hint in a monster sheet for missing HP or symbol (why Reveal is grey), condition word no longer shown twice; locked-map buttons say why; the screen picker names the laptop "This laptop, in a window".
+- 2026-10-29 Layout interview approved (D-038; pages below). Usability audit ([page with screenshots](https://claude.ai/artifact/R1TJm1AfCyvqSuktZjiSyD)), and its small fixes on branch `ccr-ff2bff74-l8atlf`: tool buttons show a short name under the icon (colours two to a row; at 760 px tall or less disc sizes drop the size word); the projector's edge on the DM map is pale with a "Table" tag; the Marker preview hides over a placed disc; one hint in a monster sheet for missing HP or symbol (why Reveal is grey), condition word no longer shown twice; locked-map buttons say why; the screen picker names the laptop "This laptop, in a window".
 - 2026-10-29 Plan audit (D-037): after session 1 now starts with scenes and map annotation; library, battle drama and story tools merged and trimmed; automatic line of sight, dice roller, name and loot generators and NPC conversation player cut; generator moved below story tools. New step 7g and a rehearsal script, [REHEARSAL.md](REHEARSAL.md). D-017 superseded.
 - Earlier: [archive](archive/handoff-2026-10.md).
 
 ## Next
 
-0. Planning round with Morgan on the usability audit's larger items (they change D-031/D-032): map-first layout with one side panel, Groups and Initiative merged into one Encounter list, one word per idea (fog Uncover/Dim, discs On/Off table, Show picture), full-window calibrate and import, layout locked by default.
-1. Step 7g: [PR #26](https://github.com/DdraigFawr13/project-terra/pull/26), approved; merge when CI is green. Known: the fight journey's "fading line saves nothing" check failed 1 in 40 local runs (main 0 in 14), cause not found; one early run failed tests 1–2 and didn't recur.
+1. Steps 7i–7j (D-038, PLAN.md): the Encounter list with the pinned turn strip, then words and full-window setup. Each its own PR with a walkthrough page. The rehearsal waits for them.
 2. Step 8, rehearsal, when the laptop and projector arrive: follow [REHEARSAL.md](REHEARSAL.md). Confirm the built-in screen shows as "This laptop, in a window" and the display scale (14" 1080p usually defaults to 150%, a DM window of about 1280 × 680). On the laptop, re-import `data/monsters/mm2024.json` from the private library so the portraits arrive.
 3. Morgan's photos decide (VER-07): letters, symbols and portraits readable from the players' seats (whether 1-inch portraits are worth switching on); HP ring, patched Thundertree, ping, pins and lines on the projector; close the app mid-fight and reopen it.
-4. Still open from the audit (checked in REHEARSAL.md part 4): calibration keyed to the Windows display id; unplugging the projector drops the table window over the DM window; no Windows CI run of the app.
+4. Still open: calibration keyed to the Windows display id; unplugging the projector drops the table window over the DM window; no Windows CI run of the app (REHEARSAL.md part 4). From step 7g: the fight journey's "fading line saves nothing" check failed 1 in 40 local runs (main 0 in 14), cause not found (VER-04).
 5. After session 1 (PLAN.md, D-037): scenes, then map annotation, then the library.
 
 - **Book library** (private repo `project-terra-library`; attach with add_repo; D-010, D-026): 503 MM creatures (6 page-checked, 4 with portraits), 35 Phandelver creatures, 391 PHB spells, 39 DMG treasure tables, 17 magic items, MM habitat lists, Lost Mine maps. How to re-read the book PDFs (Drive files, PDF page = book page + 3 for the MM) is in that repo's README, never here: this repo is public. Never use 5e.tools; book content never goes in this repo, its CI or PR text.
@@ -46,15 +46,15 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7f are all merged, the
 - Maps and tokens: [round 1](https://claude.ai/artifact/XmKuvAKNAt1LjGoYDCV4MR), [round 2](https://claude.ai/artifact/Csn63Q1Sx2BtGEDHESXJLe), [final](https://claude.ai/artifact/FeT13w8okCXeqrcCSjvy4s); walkthroughs [7c](https://claude.ai/artifact/GuZPyDEcUYn3a39Pi4c3yS), [7d](https://claude.ai/artifact/TQtL6Ppu1RbrFmRSWD9JP4), [7e](https://claude.ai/artifact/Eh33N18ox92qNRVneknqAP), [7f symbols](https://claude.ai/artifact/7eBVJoSdZwqBzqnRfs8EuE), [7f portraits](https://claude.ai/artifact/XHcP3dV3A3jozaXnnHXvkc), [7g](https://claude.ai/artifact/HCoeyogKMsC5aEeFT2g1HR)
 - Colour round: [round 1](https://claude.ai/artifact/BCikF4kJUnR1eN1kHRQBvN), [round 2](https://claude.ai/artifact/QsR6UJcgnXaj39py6Dqjj2), [final](https://claude.ai/artifact/FPq4WeyfgBsefRwU1Vyuap)
 - UI review: [round 1](https://claude.ai/artifact/N2LH9mtnUHNT5QydAdB8Zz), [round 2 and draft](https://claude.ai/artifact/To2kRT3RWFcb16mti3cDov)
+- Layout (D-038): [audit](https://claude.ai/artifact/R1TJm1AfCyvqSuktZjiSyD), [round 1](https://claude.ai/artifact/BLvKT9sMLPEecrEdGC5dKX), [review and final](https://claude.ai/artifact/GwwNfsNY3ssddwUbF5tr98)
 - UI design: [round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)
 
 ## Decisions since the last plan update
 
+- 2026-10-29 D-038 DM window: the map first, one panel with tabs, Encounter list, Uncover/Dim and On/Off table; steps 7h–7j before the rehearsal.
 - 2026-10-29 D-037 plan audit: scenes and map annotation first, merges and cuts; supersedes D-017.
 - 2026-10-29 D-036 maps and monster tokens: feet per square, magnifier, HP ring, patch tool, revealed tokens before session 1; the rest after.
 - 2026-10-28 D-035 freehand drawing before session 1; symbols, shapes, labels after.
 - 2026-10-28 D-034 ping, pins, reopening sheets, audit leftovers.
 - 2026-10-28 D-032 DM window redesign; D-033 looks (three dark, two light, 7:1 contrast).
 - 2026-10-28 D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep; D-010 changed: book data goes in the private repo `project-terra-library`, never here.
-- 2026-10-28 D-021 calibration; D-022 UI design step; D-023 UI design; D-024 map import, undo, library; D-025 fog.
-- 2026-10-28 D-026 book library; D-003 adds character cards, no fixed date; D-013 HP on discs after session 1; D-027 initiative, markers and cards.
