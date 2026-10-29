@@ -490,7 +490,8 @@ if (!app.requestSingleInstanceLock()) {
     // table now, so it can't load a scene the players haven't reached (D-039).
     session.fromPartition(TABLE_PARTITION).protocol.handle("terra-map", (req) => {
       const id = new URL(req.url).hostname;
-      return serveMap(id === state.map?.id ? tableMapFile(app.getPath("userData"), id) : null);
+      // The map the table shows now: the current scene's, or the world map under its curtain (D-039).
+      return serveMap(id === playerViewOf(state, "window").map?.id ? tableMapFile(app.getPath("userData"), id) : null);
     });
     session.fromPartition(TABLE_PARTITION).protocol.handle("terra-portrait", (req) => servePortrait(req.url));
     // Curtain pictures (D-039): the DM's window may load any of them; the table only the one its curtain shows now.

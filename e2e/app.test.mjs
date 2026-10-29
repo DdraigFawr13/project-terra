@@ -11,6 +11,18 @@ import { _electron as electron } from "playwright";
 /** The DM window's size on the laptop: 1920 x 1080 at Windows' 150%. */
 const LAPTOP = [1280, 680];
 
+/**
+ * Wait until `fn`, run in the page, resolves truthy. Playwright's waitForFunction counts a promise as truthy at once, so
+ * an async check (one reading the state over the bridge) never waited there (LESSONS). Polls every 50 ms for 10 s.
+ */
+async function until(page, fn, arg) {
+  const end = Date.now() + 10_000;
+  while (!(await page.evaluate(fn, arg))) {
+    if (Date.now() > end) throw new Error(`timed out waiting for ${String(fn).slice(0, 120)}`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
 /** The Party sheet, from the Fight menu (D-032). */
 async function openParty(dm) {
   await dm.click(".menu-btn[data-menu='fight']");
@@ -95,7 +107,7 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     await dm.focus("#calPreview");
     await dm.keyboard.press("Shift+ArrowRight");
     // Wait for the nudge to land: the corner sits right of where the drag left it.
-    await dm.waitForFunction(async () => {
+    await until(dm, async () => {
       const [st, s] = [await window.terra.getStatus(), await window.terra.getState()];
       const c = s.calibrations[st.surfaceKey]?.corners[2];
       return c && Math.abs(c.y - 0.75) < 0.01 && c.x > 0.751;
@@ -164,12 +176,12 @@ test("DM controls what the table shows, and it survives a restart", async () => 
       await dm.click(`#menu >> text=${summary}`);
     };
     await goBack("no map, 0 characters");
-    await dm.waitForFunction(async () => (await window.terra.getState()).party.length === 0);
+    await until(dm, async () => (await window.terra.getState()).party.length === 0);
     // Going back keeps the rig as it is (D-037), and the table it left became an earlier save, so it can be taken back.
     await table.waitForFunction(() => document.body.dataset.view === "curtain");
     assert.equal(await table.getAttribute("body", "data-calibrated"), "true");
     await goBack("no map, 1 character");
-    await dm.waitForFunction(async () => (await window.terra.getState()).party.length === 1);
+    await until(dm, async () => (await window.terra.getState()).party.length === 1);
     assert.ok(fs.readdirSync(path.join(userData, "earlier-saves")).length <= 3);
 
     // The problem report is copied for Morgan to paste to Claude, and shown.
@@ -310,7 +322,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
         for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 60) n++;
         return n;
       }, id);
-    await table.waitForFunction(async () => (await window.terra.getView()).grid === false);
+    await until(table, async () => (await window.terra.getView()).grid === false);
     assert.equal(await lit(table, "layer"), 0);
     // The fog tools' keys (D-038): G picks Dim, U picks Uncover.
     await dm.evaluate(() => document.activeElement.blur());
@@ -324,7 +336,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.mouse.down();
     await dm.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2 + 30, { steps: 3 });
     await dm.mouse.up();
-    await table.waitForFunction(async () => (await window.terra.getView()).map?.fog.length === 1);
+    await until(table, async () => (await window.terra.getView()).map?.fog.length === 1);
     await table.waitForFunction(() => {
       const c = document.getElementById("layer");
       const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
@@ -332,7 +344,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     });
     assert.ok((await lit(dm, "tablePreview")) > 0);
     await dm.keyboard.press("Control+z");
-    await table.waitForFunction(async () => (await window.terra.getView()).map?.fog.length === 0);
+    await until(table, async () => (await window.terra.getView()).map?.fog.length === 0);
     await table.waitForFunction(() => {
       const c = document.getElementById("layer");
       return !c
@@ -359,7 +371,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await pen("mouseMoved", 0);
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await pen("mouseReleased", 20);
-    await table.waitForFunction(async () => (await window.terra.getView()).map?.fog[0]?.kind === "brush");
+    await until(table, async () => (await window.terra.getView()).map?.fog[0]?.kind === "brush");
     await dm.keyboard.press("Control+z");
     await dm.click("button[data-tool='select']");
 
@@ -377,19 +389,19 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.click("#lockMap");
     await dm.waitForSelector("#turnMap:enabled");
     await dragAcross();
-    await table.waitForFunction(async () => (await window.terra.getView()).map?.x > 0);
+    await until(table, async () => (await window.terra.getView()).map?.x > 0);
     await dm.evaluate(() => document.activeElement.blur());
     await dm.keyboard.press("Control+z");
-    await table.waitForFunction(async () => (await window.terra.getView()).map?.x === 0);
+    await until(table, async () => (await window.terra.getView()).map?.x === 0);
 
     // Zoom (D-030): zooming keeps the square under the pointer where it is, so a tap there lands on the same square.
     await dm.click("button[data-tool='marker']");
     const placeAt = async (x, y) => {
       await dm.mouse.click(x, y);
-      await dm.waitForFunction(async () => (await window.terra.getState()).map.discs.length === 1);
+      await until(dm, async () => (await window.terra.getState()).map.discs.length === 1);
       const d = (await dm.evaluate(() => window.terra.getState())).map.discs[0];
       await dm.keyboard.press("Control+z");
-      await dm.waitForFunction(async () => (await window.terra.getState()).map.discs.length === 0);
+      await until(dm, async () => (await window.terra.getState()).map.discs.length === 0);
       return [d.x, d.y];
     };
     // A point well inside a square: a few pixels either way still places the same disc.
@@ -443,7 +455,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     // Back to the board from the name above the tabs: everything is where it was, still behind the curtain.
     await dm.click("#sceneBtn");
     await dm.click(".scene-pick button:has-text('board')");
-    await dm.waitForFunction(async () => (await window.terra.getState()).scene === "scene-1");
+    await until(dm, async () => (await window.terra.getState()).scene === "scene-1");
     s = await dm.evaluate(() => window.terra.getState());
     assert.deepEqual([s.map.id, s.curtain, s.scenes[1].parked.map], [id, true, null]);
     assert.equal(await loads(`terra-map://${id}/table?d`), true);
@@ -454,7 +466,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     const pic = await dm.evaluate((bytes) => window.terra.savePicture(new Uint8Array(bytes)), [...checkerboardPng()]);
     await dm.evaluate((id) => window.terra.apply({ type: "sceneCurtain", id: "scene-2", curtain: { kind: "picture", id } }), pic);
     await dm.evaluate(() => window.terra.apply({ type: "switchScene", id: "scene-2" }));
-    await table.waitForFunction(async () => (await window.terra.getView()).cover?.picture?.startsWith("pic-"));
+    await until(table, async () => (await window.terra.getView()).cover?.picture?.startsWith("pic-"));
     assert.equal(await loads(`terra-curtain://${pic}/?a`), true);
     await table.waitForFunction(() => {
       const c = document.getElementById("layer");
@@ -468,7 +480,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     });
     await dm.keyboard.press("b");
     await dm.keyboard.press("b");
-    await table.waitForFunction(async () => (await window.terra.getView()).cover === null);
+    await until(table, async () => (await window.terra.getView()).cover === null);
     assert.equal(await loads(`terra-curtain://${pic}/?b`), false);
 
     // Saved spots: back on the board, save where the map is, move it, and the spot slides it back though it is locked.
@@ -481,10 +493,28 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
       await window.terra.apply({ type: "moveMap", dx: 6, dy: 0 });
       await window.terra.apply({ type: "lockMap", on: true });
     });
-    await dm.waitForFunction(async () => (await window.terra.getState()).map.x === 6);
+    await until(dm, async () => (await window.terra.getState()).map.x === 6);
     await dm.click("#spotsMap");
     await dm.click(".pop button.who:has-text('Gate')");
-    await dm.waitForFunction(async () => (await window.terra.getState()).map.x === 0);
+    await until(dm, async () => (await window.terra.getState()).map.x === 0);
+
+    // The world map (D-039): with the board as the Road's curtain, the table shows the board as its players know it,
+    // party marker and all, and may load its picture only while it does.
+    await dm.evaluate(async () => {
+      await window.terra.apply({ type: "party", at: { x: 1, y: 1 } });
+      await window.terra.apply({ type: "sceneCurtain", id: "scene-2", curtain: { kind: "scene", id: "scene-1" } });
+      await window.terra.apply({ type: "switchScene", id: "scene-2" });
+    });
+    await until(table, async () => !!(await window.terra.getView()).party);
+    const world = await table.evaluate(() => window.terra.getView());
+    assert.deepEqual([world.view, world.map.id, world.strip], ["map", id, null]);
+    assert.equal(await loads(`terra-map://${id}/table?e`), true);
+    // B lifts the curtain, then drops plain black.
+    await dm.keyboard.press("b");
+    await dm.keyboard.press("b");
+    await until(table, async () => (await window.terra.getView()).view === "curtain");
+    assert.equal(await loads(`terra-map://${id}/table?f`), false);
+    await dm.evaluate(() => window.terra.apply({ type: "switchScene", id: "scene-1" }));
     await dm.evaluate(() => window.terra.apply({ type: "curtain", on: false }));
   } finally {
     await app.close();
@@ -551,7 +581,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     };
     await pad(party, "3", "temp");
     await pad(party, "5", "damage");
-    await dm.waitForFunction(async () => {
+    await until(dm, async () => {
       const p = (await window.terra.getState()).party[0];
       return p?.hp === 22 && p.tempHp === 0;
     });
@@ -579,7 +609,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: palm });
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await pen("mouseReleased");
-    await dm.waitForFunction(async () => (await window.terra.getState()).map.discs.length === 1);
+    await until(dm, async () => (await window.terra.getState()).map.discs.length === 1);
     assert.deepEqual((await table.evaluate(() => window.terra.getView())).discs, []);
 
     // A tap on the disc with Select opens its HP pad beside it (D-032); Sheet opens the monster sheet. Book: import a
@@ -606,7 +636,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     );
     await mon.locator("button", { hasText: "Book" }).click();
     await pad(mon, "9", "damage");
-    await dm.waitForFunction(async () => (await window.terra.getState()).map.discs[0].hp === 6);
+    await until(dm, async () => (await window.terra.getState()).map.discs[0].hp === 6);
 
     // Rolls; the hidden disc's colour is in the order but not on the strip until it is shown. Back from the sheet to the
     // Fight tab's lists (D-038).
@@ -627,21 +657,21 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     const rollPad = dm.locator(".roll-pad");
     for (const k of "15") await rollPad.locator(`.k.digit[aria-label='${k}']`).click();
     await rollPad.locator(".k.act", { hasText: "Set" }).click();
-    await dm.waitForFunction(async () => (await window.terra.getState()).fight.entries[0]?.init === 15);
+    await until(dm, async () => (await window.terra.getState()).fight.entries[0]?.init === 15);
     await dm.fill('[data-key="init-yellow"]', "9");
     await dm.press('[data-key="init-yellow"]', "Enter");
-    await dm.waitForFunction(async () => (await window.terra.getState()).fight.entries.length === 2);
+    await until(dm, async () => (await window.terra.getState()).fight.entries.length === 2);
     await dm.evaluate(() => document.activeElement.blur());
     await dm.keyboard.press("n");
-    await table.waitForFunction(async () => (await window.terra.getView()).strip?.round === 1);
+    await until(table, async () => (await window.terra.getView()).strip?.round === 1);
     await dm.click(".group-row .eye");
     await dm.keyboard.press("n");
-    await table.waitForFunction(async () => (await window.terra.getView()).strip?.chips[0]?.kind === "enemy");
+    await until(table, async () => (await window.terra.getView()).strip?.chips[0]?.kind === "enemy");
     // The Encounter list (D-038): the turn strip says whose turn it is, and a character's name opens its HP pad.
     await dm.locator("#turnStrip", { hasText: "Zombie now" }).waitFor();
     await dm.locator("#order button.who", { hasText: "Ash" }).click();
     await pad(dm.locator(".quick-hp"), "1", "damage");
-    await dm.waitForFunction(async () => (await window.terra.getState()).party[0].hp === 21);
+    await until(dm, async () => (await window.terra.getState()).party[0].hp === 21);
     await dm.locator("#order", { hasText: "21/24" }).waitFor();
     await dm.keyboard.press("Escape");
     const view = await table.evaluate(() => window.terra.getView());
@@ -657,10 +687,10 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     // The strip stays pinned above an open sheet, so whose turn it is never goes out of sight.
     assert.ok(await dm.locator("#turnStrip").isVisible());
     await mon.locator("button", { hasText: "Show picture" }).click();
-    await table.waitForFunction(async () => (await window.terra.getView()).discs[0]?.symbol === "undead");
+    await until(table, async () => (await window.terra.getView()).discs[0]?.symbol === "undead");
     await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await dm.click(".quick-hp button.mini");
-    await table.waitForFunction(async () => (await window.terra.getView()).discs[0]?.mini === true);
+    await until(table, async () => (await window.terra.getView()).discs[0]?.mini === true);
     assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("Zombie"));
     // Portraits (D-036): the test zombie carries a generated picture. A 1-inch token shows the symbol until the DM asks
     // for the portrait there too; then the table loads it by the key it was given, and no other key finds anything.
@@ -669,7 +699,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
       const g = (await window.terra.getState()).map.groups.yellow;
       await window.terra.apply({ type: "group", colour: "yellow", info: { ...g, smallPortrait: true } });
     });
-    await table.waitForFunction(async () => !!(await window.terra.getView()).discs[0]?.portrait);
+    await until(table, async () => !!(await window.terra.getView()).discs[0]?.portrait);
     const key = (await table.evaluate(() => window.terra.getView())).discs[0].portrait;
     const loads = (src) =>
       table.evaluate(
@@ -700,11 +730,11 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     assert.ok(Number.isFinite(at.x) && Number.isFinite(at.y));
     await dm.mouse.move(spot.x, spot.y);
     await dm.mouse.down();
-    await dm.waitForFunction(async () => (await window.terra.getState()).map.pins.length === 1);
+    await until(dm, async () => (await window.terra.getState()).map.pins.length === 1);
     await dm.mouse.up();
-    await table.waitForFunction(async () => (await window.terra.getView()).pins.length === 1);
+    await until(table, async () => (await window.terra.getView()).pins.length === 1);
     await dm.mouse.click(spot.x, spot.y);
-    await table.waitForFunction(async () => (await window.terra.getView()).pins.length === 0);
+    await until(table, async () => (await window.terra.getView()).pins.length === 0);
     // Draw (D-035): a lasting line reaches the table and a tap on it rubs it out; a fading line goes to the table only as a moment.
     await dm.keyboard.press("d");
     const stroke = async () => {
@@ -714,9 +744,9 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
       await dm.mouse.up();
     };
     await stroke();
-    await table.waitForFunction(async () => (await window.terra.getView()).drawings.length === 1);
+    await until(table, async () => (await window.terra.getView()).drawings.length === 1);
     await dm.mouse.click(spot.x + 60, spot.y + 20);
-    await table.waitForFunction(async () => (await window.terra.getView()).drawings.length === 0);
+    await until(table, async () => (await window.terra.getView()).drawings.length === 0);
     await dm.click("button[data-ink-fade=true]");
     const sketched = table.evaluate(() => new Promise((resolve) => window.terra.onSketch(resolve)));
     await stroke();

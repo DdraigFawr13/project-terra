@@ -76,6 +76,34 @@ export function drawPing(ctx: CanvasRenderingContext2D, x: number, y: number, in
 }
 
 /**
+ * The party marker at (x, y) (D-039): a white banner on a pole over a ringed base, about an inch tall, so it reads as
+ * "the party" from either side of the table and never as a pin or a disc.
+ */
+export function drawParty(ctx: CanvasRenderingContext2D, x: number, y: number, inch: number): void {
+  const u = inch;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.lineJoin = "round";
+  ctx.lineWidth = u * 0.06;
+  ctx.strokeStyle = "rgba(0,0,0,0.75)";
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.ellipse(0, u * 0.42, u * 0.3, u * 0.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillRect(-u * 0.035, -u * 0.5, u * 0.07, u * 0.92);
+  ctx.strokeRect(-u * 0.035, -u * 0.5, u * 0.07, u * 0.92);
+  ctx.beginPath();
+  ctx.moveTo(u * 0.035, -u * 0.5);
+  ctx.lineTo(u * 0.48, -u * 0.32);
+  ctx.lineTo(u * 0.035, -u * 0.12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
  * A pin at (x, y), `inch` units to the inch: a white diamond with a dark edge and a ring, so it shows on light and dark
  * map. `own`: the DM's own pin, drawn hollow in copper on the DM's map only (D-034).
  */
@@ -417,6 +445,7 @@ function drawFight(ctx: CanvasRenderingContext2D, scene: TableScene, X: (inches:
     );
   for (const d of view.discs) drawDisc(ctx, d, X(d.x), X(d.y), X(d.size), view.flipLetters ? Math.PI : 0);
   for (const p of view.pins) drawPin(ctx, X(p.x), X(p.y), X(1));
+  if (view.party) drawParty(ctx, X(view.party.x), X(view.party.y), X(1));
   if (view.strip) {
     drawStrip(ctx, view.strip, { x: X(area.x), y: X(area.y), width: X(area.width), height: X(area.height) }, X(0.42));
   }

@@ -16,7 +16,11 @@ import type { DmApi } from "../main/dm-preload.ts";
 import { button, el } from "./dom.ts";
 import { popover } from "./popover.ts";
 
-export function initScenes(terra: DmApi, sceneBtn: HTMLButtonElement, spotsBtn: HTMLButtonElement): { section: HTMLElement } {
+export function initScenes(
+  terra: DmApi,
+  sceneBtn: HTMLButtonElement,
+  spotsBtn: HTMLButtonElement,
+): { section: HTMLElement; pinMenu: (id: number, at: { x: number; y: number }) => void } {
   let state: TableState | null = null;
   const run = (c: Command) => void terra.apply(c);
   const list = el("ol", { id: "sceneList", class: "entries", "aria-label": "Scenes" });
@@ -80,7 +84,7 @@ export function initScenes(terra: DmApi, sceneBtn: HTMLButtonElement, spotsBtn: 
         button("Copy", {}, pick({ type: "copyScene", id: scene.id }), "copy"),
         button("Move up", { disabled: first }, pick({ type: "moveScene", id: scene.id, by: -1 }), "up"),
         button("Move down", { disabled: last }, pick({ type: "moveScene", id: scene.id, by: 1 }), "down"),
-        button(`Curtain: ${scene.curtain.kind}…`, {}, () => curtainForm(scene, from), "curtain"),
+        button(`Curtain: ${curtainWord(scene)}…`, {}, () => curtainForm(scene, from), "curtain"),
         button(
           "Mark ready",
           { title: "Keep a copy of this scene as it is now, to reset to later" },
@@ -101,7 +105,18 @@ export function initScenes(terra: DmApi, sceneBtn: HTMLButtonElement, spotsBtn: 
     ]);
   }
 
-  /** What the table shows when the DM switches to this scene (D-039): black, a title, or a picture. B is always black. */
+  /** A scene's curtain in a word or two, for its menu. */
+  function curtainWord(scene: Scene): string {
+    const c = scene.curtain;
+    if (c.kind !== "scene") return c.kind;
+    const other = state?.scenes.find((s) => s.id === c.id);
+    return other && state ? `show ${sceneTitle(state, other)}` : "black";
+  }
+
+  /**
+   * What the table shows when the DM switches to this scene (D-039): black, a title, a picture, or another scene as
+   * its players know it (the world map). B is always black.
+   */
   function curtainForm(scene: Scene, from: HTMLElement): void {
     const text = el("input", { id: "curtainTitle", type: "text", maxlength: String(MAX_TITLE), placeholder: "Such as The forest road" });
     text.value = scene.curtain.kind === "title" ? scene.curtain.text : "";
@@ -118,6 +133,15 @@ export function initScenes(terra: DmApi, sceneBtn: HTMLButtonElement, spotsBtn: 
       el("button", { type: "submit", class: "primary" }, "Use this title"),
       button("Choose a picture…", {}, () => file.click(), "picture"),
       button("Black", { "aria-pressed": String(scene.curtain.kind === "black") }, () => set({ kind: "black" })),
+      // Another scene as its players last saw it, such as the world map (D-039).
+      ...(state ? listedScenes(state).filter((sc) => sc.id !== scene.id && sceneContent(state!, sc).map) : []).map((sc) =>
+        button(
+          `Show ${state ? sceneTitle(state, sc) : ""}`,
+          { "aria-pressed": String(scene.curtain.kind === "scene" && scene.curtain.id === sc.id), class: "scene-choice" },
+          () => set({ kind: "scene", id: sc.id }),
+          "map",
+        ),
+      ),
       file,
       status,
     );
@@ -285,7 +309,45 @@ export function initScenes(terra: DmApi, sceneBtn: HTMLButtonElement, spotsBtn: 
     ]);
   });
 
+  /** A tap with Select on a pin (D-039): open the scene it links to, or link it to one. A tap with Ping still removes it. */
+  function pinMenu(id: number, at: { x: number; y: number }): void {
+    const s = state;
+    const pin = s?.map?.pins.find((p) => p.id === id);
+    if (!s || !pin) return;
+    const target = pin.link ? s.scenes.find((sc) => sc.id === pin.link) : undefined;
+    const others = listedScenes(s).filter((sc) => sc.id !== s.scene);
+    const link = (scene: string | null) => () => {
+      run({ type: "linkPin", id, scene });
+      pop.close();
+    };
+    const body: HTMLElement[] = [];
+    if (target && !target.removed)
+      body.push(
+        button(
+          `Open ${sceneTitle(s, target)}`,
+          { class: "primary" },
+          () => {
+            run({ type: "switchScene", id: target.id });
+            pop.close();
+          },
+          "scenes",
+        ),
+      );
+    else if (target) body.push(el("p", { class: "hint" }, `It opens ${sceneTitle(s, target)}, which is in the Removed list.`));
+    body.push(
+      el("p", { class: "hint" }, pin.link ? "Or link it to another scene:" : "Link this pin to a scene, so a tap here opens it:"),
+      ...others.filter((sc) => sc.id !== pin.link).map((sc) => button(sceneTitle(s, sc), {}, link(sc.id))),
+    );
+    if (pin.link) body.push(button("Remove the link", {}, link(null), "close"));
+    if (!others.length) body.push(el("p", { class: "hint" }, "Add another scene first."));
+    body.push(el("p", { class: "hint" }, "A linked pin starts as yours only. A tap with Ping removes the pin."));
+    const pop = popover(at, [
+      el("header", { class: "pop-head" }, el("b", {}, "Pin")),
+      el("div", { class: "pop-body scene-pick" }, ...body),
+    ]);
+  }
+
   terra.onState(render);
   void terra.getState().then(render);
-  return { section };
+  return { section, pinMenu };
 }
