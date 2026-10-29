@@ -403,6 +403,9 @@ function curtainScene(state: TableState): TableState | null {
   return { ...state, ...other.parked, fight: null, curtain: false, cover: false, calibrating: false, testGrid: false };
 }
 
+/** The state the table shows now: the current scene's, or the scene shown as its curtain. */
+export const onTable = (state: TableState): TableState => curtainScene(state) ?? state;
+
 /** The player view for the surface the table window is on now. */
 export function playerViewOf(state: TableState, surfaceKey: string): PlayerView {
   const shown = curtainScene(state);

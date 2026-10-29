@@ -10,6 +10,7 @@ import {
   apply,
   coverOf,
   defaultState,
+  onTable,
   dmStateOf,
   dropMissingCharacters,
   parseCommand,
@@ -340,7 +341,8 @@ protocol.registerSchemesAsPrivileged([
 function servePortrait(url: string): Response {
   const u = new URL(url);
   const colour = u.hostname;
-  const map = state.map;
+  // The map the table shows: under a world-map curtain, the world's groups (D-039).
+  const map = onTable(state).map;
   if (!map || !isColour(colour)) return new Response("Not found", { status: 404 });
   // A 2-inch disc always shows its group's portrait once revealed, so this is the key the table can have been given.
   const disc = { colour, letter: "A", x: 0, y: 0, size: 2, shown: true, condition: "fine", hp: null, hpMax: null, mini: false } as const;
