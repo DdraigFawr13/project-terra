@@ -38,9 +38,10 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 
 ### The DM window
 
-- **Layouts:** Prep, Explore and Fight at the top switch between arrangements of windows; each remembers how you arrange it, and View > Reset this layout puts it back.
-- **Windows:** the map, Tools, Table setup, Initiative, Groups, "On the table now" and the Party and monster sheets. Drag a window by its bar to another edge, beside or into another window, or anywhere else to float it; drag the dividers to resize. Fold a window to its bar; pin a floating one to keep it on top in every layout. The window you last touched has a copper outline. Tab folds the side windows away.
-- **Menus:** Table (setup, calibrate, test grid, flip letters, lock, import), Fight (start or end, Party) and View (layouts, windows, fold, reset). Curtain and Next turn stay on the bar; the status bar at the bottom shows the table screen, the round, the zoom and any problem.
+- **The map and one panel (D-038):** the map fills the window, with its tools on its left edge. The panel on the right shows a thumbnail of what the table shows (hold it to see it big), then three tabs: **Setup** (table screen, calibration, the Party sheet), **Explore** (fog for the whole map, groups) and **Fight** (initiative, groups). Start fight switches to Fight, End fight back to Explore.
+- **Sheets:** the Party and monster sheets open in the panel in place of the tab's lists; **Back** returns to the lists. One sheet shows at a time, and the one open when the app closes opens again.
+- **Panel size:** drag the panel's edge to make it wider or narrower (or focus the edge and use the arrow keys); the width is remembered. Tab folds the panel away so the map has the whole window.
+- **Menus:** Table (setup, calibrate, test grid, flip letters, lock, import, earlier saves, problem report), Fight (start or end, Party) and View (the panel's tabs, fold, appearance). Curtain and Next turn stay on the bar; the status bar at the bottom shows the table screen, the round, the zoom and any problem.
 - **HP from the disc:** tap a disc with Select for a small pad beside it: the amount, Damage or Heal, or Sheet for the whole group. With the pen, a tap on an initiative box opens a number pad too.
 
 ## Develop

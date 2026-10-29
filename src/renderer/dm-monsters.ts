@@ -20,7 +20,7 @@ import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { discKey } from "./dm-map.ts";
 import { button, COLOUR_NAME, el, field, NUMBER, stat, swatch, wholeOrNull } from "./dom.ts";
-import { floatWin, forgetSheet, wasOpen, type FloatWin } from "./float-win.ts";
+import { sheetWin, forgetSheet, wasOpen, type Sheet } from "./panel.ts";
 import { numpad, type Numpad } from "./numpad.ts";
 
 /** The symbol choice in Edit: none keeps plain letter discs even after Reveal is pressed. */
@@ -53,7 +53,7 @@ type Draft = {
   discMax: Record<string, string>;
 };
 type Panel = {
-  win: FloatWin;
+  win: Sheet;
   pad: Numpad;
   view: View;
   /** The map this panel's view and draft belong to; another map starts the panel afresh. */
@@ -81,7 +81,7 @@ export function initMonsters(
   function panel(c: DiscColour): Panel {
     let p = panels.get(c);
     if (p) return p;
-    const win = floatWin(`monster-${c}`);
+    const win = sheetWin(`monster-${c}`);
     const pad = numpad(
       [
         { label: "− Damage", kind: "damage", className: "damage" },

@@ -1,5 +1,5 @@
-// DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004). Its windows dock
-// around the map (D-031); one shows a live picture of the table, drawn by the table's own drawing code (D-025).
+// DM window: chooses the table screen, switches what the table shows, and calibrates it (D-004). The map comes first,
+// beside one panel (D-038) whose thumbnail is a live picture of the table, drawn by the table's own drawing code (D-025).
 import { DARK_LOOKS, LIGHT_LOOKS, LOOK_NAME, lookOf, parseAppearance, type Appearance, type Look } from "../core/appearance.ts";
 import { defaultCalibration, layerFor, moveCorner, nudgeCorner, visibleRect, type Calibration } from "../core/calibration.ts";
 import { describeDisplay } from "../core/displays.ts";
@@ -10,11 +10,10 @@ import { initMaps } from "./dm-map.ts";
 import { initMonsters } from "./dm-monsters.ts";
 import { initParty } from "./dm-party.ts";
 import { initQuickHp } from "./quick-hp.ts";
-import { el } from "./dom.ts";
+import { button, el } from "./dom.ts";
 import { popover } from "./popover.ts";
 import type { DiscColour } from "../core/fight.ts";
-import { initDock, type Home, type Preset } from "./dock.ts";
-import { useDock } from "./float-win.ts";
+import { initPanel, type Tab } from "./panel.ts";
 import { FogPainter } from "./fog-draw.ts";
 import { icon, type IconName } from "./icons.ts";
 import { drawTable, mapImages, onPortraitLoad } from "./table-draw.ts";
@@ -297,7 +296,7 @@ calibrateBtn.addEventListener("click", () =>
   terra.apply({ type: "calibrating", on: calibrateBtn.getAttribute("aria-pressed") !== "true" }),
 );
 const toggleCurtain = () => terra.apply({ type: "curtain", on: curtainBtn.getAttribute("aria-pressed") !== "true" });
-/** Tab, or View > Fold: every docked window folds away except the map and its tools, so the map has the room. */
+/** Tab, or View > Fold the panel: the panel folds away, so the map has the whole window. */
 function togglePanels(): void {
   document.body.dataset.panels = document.body.dataset.panels === "folded" ? "open" : "folded";
   renderCalibration();
@@ -334,74 +333,41 @@ const selection = {
   tap: (colour: DiscColour, letter: string, at: { x: number; y: number }) => quick.show(colour, letter, at),
 };
 
-// Windows around the map (D-031, D-032), each with where it starts in the Prep, Explore and Fight layouts. Windows that
-// share an area stack in the order they are added here. A change of layout redraws what depends on sizes.
+// The panel's tabs (D-038). A section can be in more than one tab: Groups is in Explore and Fight.
 let afterLayout = () => {};
-const dock = initDock(() => afterLayout());
-useDock(dock);
-const label = (text: string) => Object.assign(document.createElement("span"), { textContent: text });
-const at = (area: "left" | "mapside" | "center" | "right" | "bottom", weight?: number): Home => ({ area, with: null, weight });
-const everywhere = (h: Home) => ({ prep: h, explore: h, fight: h });
-dock.add({
-  id: "map",
-  title: $("mapTitle"),
-  actions: $("mapActions"),
-  content: $("mapPanel"),
-  sheet: false,
-  closable: false,
-  homes: everywhere(at("center")),
-  fallback: at("center"),
-});
-dock.add({
-  id: "tools",
-  title: label("Tools"),
-  content: $("toolsPanel"),
-  sheet: false,
-  homes: everywhere(at("mapside")),
-  fallback: at("mapside"),
-});
-dock.add({
-  id: "setup",
-  title: label("Table setup"),
-  content: $("setupPanel"),
-  sheet: false,
-  homes: { prep: at("left"), explore: null, fight: null },
-  fallback: { area: "right", with: "table" },
-});
-dock.add({
-  id: "initiative",
-  title: label("Initiative"),
-  content: $("initiativePanel"),
-  sheet: false,
-  homes: { prep: null, explore: null, fight: at("left") },
-  fallback: at("left"),
-});
-dock.add({
-  id: "table",
-  title: label("On the table now"),
-  content: $("tablePanel"),
-  sheet: false,
-  homes: { prep: at("right"), explore: at("right", 2), fight: at("right") },
-  fallback: at("right"),
-});
-dock.add({
-  id: "groups",
-  title: label("Groups"),
-  content: $("groupsPanel"),
-  sheet: false,
-  homes: { prep: at("left"), explore: at("right"), fight: at("left") },
-  fallback: at("left"),
-});
+const section = (title: string, ...kids: HTMLElement[]) => el("section", { class: "side-sec" }, el("h3", {}, title), ...kids);
+const groupsSec = section("Groups", $("groupsPanel"));
+const partySec = section(
+  "Party",
+  el("p", { class: "hint" }, "Names, AC, HP and passives, typed in once and kept between sessions."),
+  button("Party sheet", {}, () => party.show()),
+);
+const panel = initPanel(
+  {
+    setup: [$("setupPanel"), partySec],
+    explore: [section("Fog", $("fogPanel")), groupsSec],
+    fight: [section("Initiative", $("initiativePanel")), groupsSec],
+  },
+  () => afterLayout(),
+);
 const maps = initMaps(terra, ACCENT, fog, image, selection);
 afterLayout = () => {
   maps.render();
   drawTablePreview();
   renderCalibration();
 };
-// Windows and the map change size when a divider moves or a window docks: draw them again at their new size.
+// The map and the panel change size when the panel's edge moves or it folds: draw them again at their new size.
 new ResizeObserver(() => afterLayout()).observe($("mapCanvas"));
-new ResizeObserver(() => drawTablePreview()).observe($("tablePanel"));
+new ResizeObserver(() => drawTablePreview()).observe($("preview"));
 new ResizeObserver(() => renderCalibration()).observe($("setupPanel"));
+
+// Start fight switches the panel to Fight, End fight back to Explore (D-038).
+let fighting: boolean | null = null;
+void terra.getState().then((s) => (fighting ??= !!s.fight));
+terra.onState((s) => {
+  if (fighting !== null && !!s.fight !== fighting) panel.show(s.fight ? "fight" : "explore");
+  fighting = !!s.fight;
+});
 
 const monsters = initMonsters(terra, selection);
 const quick = initQuickHp(terra, monsters.show);
@@ -410,11 +376,7 @@ const party = initParty(terra);
 const flipBtn = $<HTMLButtonElement>("flipLetters");
 flipBtn.addEventListener("click", () => terra.apply({ type: "flipLetters", on: flipBtn.getAttribute("aria-pressed") !== "true" }));
 
-// ---- Layout presets and menus (D-032) ----
-
-const PRESET_NAME: Record<Preset, string> = { prep: "Prep", explore: "Explore", fight: "Fight" };
-for (const b of document.querySelectorAll<HTMLButtonElement>("[data-preset]"))
-  b.addEventListener("click", () => dock.usePreset(b.dataset.preset as Preset));
+// ---- Menus (D-032) ----
 
 type Item = { text: string; act: () => void; checked?: boolean; disabled?: boolean; id?: string } | { label: string } | "-";
 const pressed = (id: string) => $(id).getAttribute("aria-pressed") === "true";
@@ -422,11 +384,11 @@ const pressed = (id: string) => $(id).getAttribute("aria-pressed") === "true";
 function menuItems(name: string): Item[] {
   if (name === "table")
     return [
-      { text: "Table setup", act: () => dock.open("setup") },
+      { text: "Table setup", act: () => panel.show("setup") },
       {
         text: "Calibrate…",
         act: () => {
-          dock.open("setup");
+          panel.show("setup");
           if (!pressed("calibrate")) calibrateBtn.click();
         },
       },
@@ -440,7 +402,6 @@ function menuItems(name: string): Item[] {
       {
         text: "Import map…",
         act: () => {
-          dock.open("map");
           $<HTMLInputElement>("mapFile").click();
         },
       },
@@ -462,7 +423,7 @@ function menuItems(name: string): Item[] {
         : {
             text: "Start fight",
             act: () => {
-              dock.open("initiative");
+              panel.show("fight");
               $("startFight").click();
             },
           },
@@ -485,16 +446,11 @@ function menuItems(name: string): Item[] {
     ];
   }
   return [
-    ...(Object.keys(PRESET_NAME) as Preset[]).map((p) => ({
-      text: `${PRESET_NAME[p]} layout`,
-      checked: dock.preset() === p,
-      act: () => dock.usePreset(p),
-    })),
+    { text: "Setup", checked: panel.tab() === "setup", act: () => panel.show("setup") },
+    { text: "Explore", checked: panel.tab() === "explore", act: () => panel.show("explore") },
+    { text: "Fight", checked: panel.tab() === "fight", act: () => panel.show("fight") },
     "-",
-    ...dock.list().map((w) => ({ text: w.name, checked: w.open, disabled: !w.closable, act: () => dock.toggle(w.id) })),
-    "-",
-    { text: "Fold the windows (Tab)", checked: document.body.dataset.panels === "folded", act: togglePanels },
-    { text: "Reset this layout", act: () => dock.reset() },
+    { text: "Fold the panel (Tab)", checked: document.body.dataset.panels === "folded", act: togglePanels },
     "-",
     // Opens in place of this menu, so the View menu stays short enough for the laptop screen.
     {

@@ -4,7 +4,7 @@ import { conditionFromHp, MAX_PARTY, parseCharacterFields, type Character, type 
 import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { button, el, field, NUMBER, stat, wholeOrNull } from "./dom.ts";
-import { floatWin } from "./float-win.ts";
+import { sheetWin } from "./panel.ts";
 import { numpad } from "./numpad.ts";
 
 const KEYS = ["name", "ac", "hpMax", "speed", "passive", "insight", "investigation", "spellDc", "notes"] as const;
@@ -19,7 +19,7 @@ export function initParty(terra: DmApi): { show: () => void } {
   /** Remove asks first: a card is outside undo, so a slip would lose it for good (D-027, D-034). */
   let confirmRemove = false;
   const run = (c: Command) => void terra.apply(c);
-  const win = floatWin("party");
+  const win = sheetWin("party");
   win.title.append(el("b", {}, "Party"));
   const pad = numpad(
     [

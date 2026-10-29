@@ -8,13 +8,16 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { _electron as electron } from "playwright";
 
+/** The DM window's size on the laptop: 1920 x 1080 at Windows' 150%. */
+const LAPTOP = [1280, 680];
+
 /** The Party sheet, from the Fight menu (D-032). */
 async function openParty(dm) {
   await dm.click(".menu-btn[data-menu='fight']");
   await dm.click("#partyBtn");
 }
 
-async function launch(userData) {
+async function launch(userData, [width, height] = [1920, 1080]) {
   const app = await electron.launch({ args: ["."], env: { ...process.env, TERRA_USER_DATA: userData } });
   // Wait until both windows exist, then tell them apart by title.
   while (app.windows().length < 2) await app.waitForEvent("window");
@@ -25,10 +28,14 @@ async function launch(userData) {
     }
     throw new Error(`no window titled ${t}`);
   };
-  // Every journey runs with the DM window at 1920 x 1080, the target laptop's screen.
-  await app.evaluate(({ BrowserWindow }) => {
-    for (const w of BrowserWindow.getAllWindows()) if (w.getTitle().includes("(DM)")) w.setContentSize(1920, 1080);
-  });
+  // The DM window at 1920 x 1080 unless a journey asks for another size: the fight runs at 1280 x 680, the laptop's
+  // screen at Windows' 150% (D-038).
+  await app.evaluate(
+    ({ BrowserWindow }, [w, h]) => {
+      for (const b of BrowserWindow.getAllWindows()) if (b.getTitle().includes("(DM)")) b.setContentSize(w, h);
+    },
+    [width, height],
+  );
   const dm = await byTitle("(DM)");
   // Errors in the DM page: a panel that throws can stop the others from showing a new state, and nothing else says so.
   const errors = [];
@@ -435,7 +442,7 @@ const srdZombie = {
 
 test("a fight: party and monster windows, discs placed with the pen, HP by number pad, a stat block, and nothing DM-only on the table", async () => {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "terra-e2e-"));
-  let { app, dm, table, errors } = await launch(userData);
+  let { app, dm, table, errors } = await launch(userData, LAPTOP);
   try {
     await dm.setInputFiles("#mapFile", { name: "board.png", mimeType: "image/png", buffer: checkerboardPng() });
     await dm.fill("#markW", "2");
@@ -444,7 +451,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await table.waitForFunction(() => document.body.dataset.view === "map");
 
     // The Fight layout (D-032), then a character in the Party sheet, from the Fight menu; damage takes temp HP first.
-    await dm.click("[data-preset='fight']");
+    await dm.click("[data-tab='fight']");
     await dm.locator("#startFight").waitFor();
     await openParty(dm);
     const party = dm.locator("[data-float='party']");
@@ -518,7 +525,9 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await pad(mon, "9", "damage");
     await dm.waitForFunction(async () => (await window.terra.getState()).map.discs[0].hp === 6);
 
-    // Rolls; the hidden disc's colour is in the order but not on the strip until it is shown.
+    // Rolls; the hidden disc's colour is in the order but not on the strip until it is shown. Back from the sheet to the
+    // Fight tab's lists (D-038).
+    await dm.click(".sheet-back");
     await dm.click("#startFight");
     // With the pen, a roll box opens a number pad instead of the on-screen keyboard (D-032).
     const roll = await dm.locator('[data-key="init-pc-1"]').boundingBox();
@@ -553,6 +562,8 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     for (const secret of ["Zombie", "SRD52", "board", "hp", "ac", "passive", "init", "notes"]) assert.ok(!shown.includes(secret), secret);
     // Reveal (D-036): linking the zombie chose its symbol; one tap shows it on the table, still without its name. Mini
     // on it, from the disc's HP pad, tells the table to put the letter on a tab.
+    await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await dm.click(".quick-hp button.sheet");
     await mon.locator("button", { hasText: "Reveal" }).click();
     await table.waitForFunction(async () => (await window.terra.getView()).discs[0]?.symbol === "undead");
     await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
@@ -623,7 +634,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
 
     // Drag the disc two squares; Ctrl+Z puts it back and doesn't take back the character's HP.
     const before = (await dm.evaluate(() => window.terra.getState())).map.discs[0];
-    await mon.locator(".dock-bar button[aria-label='Close']").click();
+    await dm.click(".sheet-back");
     await dm.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await dm.mouse.down();
     await dm.mouse.move(box.x + box.width / 2 + box.width / 6, box.y + box.height / 2, { steps: 4 });
@@ -632,8 +643,10 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await dm.keyboard.press("Control+z");
     await dm.waitForFunction((x) => window.terra.getState().then((s) => s.map.discs[0].x === x), before.x);
     assert.equal((await dm.evaluate(() => window.terra.getState())).party[0].hp, 22);
-    // The Fight layout closes Table setup; its buttons must still follow the state (they once threw on every change).
+    // The Fight tab takes Table setup out of the page; its buttons must still follow the state (they once threw on every
+    // change). The Party sheet is left open, to open again next time (D-034).
     assert.deepEqual(errors, []);
+    await openParty(dm);
   } finally {
     await app.close();
   }
