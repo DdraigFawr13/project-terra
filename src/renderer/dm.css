@@ -1666,3 +1666,57 @@ button.pop-close {
 .disc-edit label input {
   width: 100%;
 }
+/* Table-menu dialogs (D-037): earlier saves and the problem report, over the whole window. */
+.dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 16px;
+  border: 1px solid var(--frame);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.dialog::backdrop {
+  background: var(--shade);
+}
+.dialog[open] {
+  display: grid;
+  gap: 10px;
+}
+.dialog h2 {
+  margin: 0;
+}
+.dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font:
+    12px/1.4 ui-monospace,
+    Consolas,
+    monospace;
+}
+.dialog .row {
+  justify-content: flex-end;
+}
+.saves {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.saves li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--raised);
+}
+.saves li span {
+  display: grid;
+}
+.saves small {
+  color: var(--muted);
+}

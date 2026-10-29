@@ -142,6 +142,40 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     assert.equal(await table.getAttribute("body", "data-calibrated"), "true");
     assert.match(await dm.textContent("#calState"), /^Calibrated for/);
     assert.equal(await dm.getAttribute("html", "data-look"), "linen");
+
+    // Earlier saves (D-037): this run kept the save it started from. A character added since goes away when the DM
+    // goes back to it; the curtain, a switch for this room, stays down; what was replaced is kept as an earlier save.
+    const backups = () => fs.readdirSync(userData).filter((f) => f.startsWith("table-state.backup-"));
+    assert.equal(backups().length, 1);
+    await dm.evaluate(() =>
+      window.terra.apply({
+        type: "addCharacter",
+        character: {
+          name: "Ash",
+          ac: 16,
+          hp: 24,
+          hpMax: 24,
+          tempHp: 0,
+          speed: 30,
+          passive: 13,
+          insight: null,
+          investigation: null,
+          spellDc: null,
+          notes: "",
+        },
+      }),
+    );
+    await dm.waitForFunction(async () => (await window.terra.getState()).party.length === 1);
+    await dm.click(".menu-btn[data-menu='table']");
+    await dm.click("#menu >> text=Go back to an earlier save…");
+    await dm.locator(".saves li", { hasText: "0 characters" }).locator("button").click();
+    await dm.waitForFunction(async () => (await window.terra.getState()).party.length === 0);
+    assert.equal(await dm.getAttribute("#curtain", "aria-pressed"), "true");
+    assert.equal(backups().length, 2);
+    // The problem report, for the DM to paste to Claude.
+    await dm.click(".menu-btn[data-menu='table']");
+    await dm.click("#menu >> text=Problem report…");
+    assert.match(await dm.inputValue(".dialog textarea"), /^Project Terra problem report[\s\S]*Earlier saves: \d{4}-/);
   } finally {
     await app.close();
   }

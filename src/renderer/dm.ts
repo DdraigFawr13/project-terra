@@ -5,6 +5,7 @@ import { defaultCalibration, layerFor, moveCorner, nudgeCorner, visibleRect, typ
 import { describeDisplay } from "../core/displays.ts";
 import { playerViewOf, viewOf, type TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
+import { initDialogs } from "./dm-dialogs.ts";
 import { initFight } from "./dm-fight.ts";
 import { initMaps } from "./dm-map.ts";
 import { initMonsters } from "./dm-monsters.ts";
@@ -405,6 +406,7 @@ const monsters = initMonsters(terra, selection);
 const quick = initQuickHp(terra, monsters.show);
 const fight = initFight(terra, monsters.show);
 const party = initParty(terra);
+const dialogs = initDialogs(terra);
 const flipBtn = $<HTMLButtonElement>("flipLetters");
 flipBtn.addEventListener("click", () => terra.apply({ type: "flipLetters", on: flipBtn.getAttribute("aria-pressed") !== "true" }));
 
@@ -442,6 +444,10 @@ function menuItems(name: string): Item[] {
           $<HTMLInputElement>("mapFile").click();
         },
       },
+      "-",
+      // When something goes wrong (D-037).
+      { text: "Go back to an earlier save…", act: () => void dialogs.earlierSaves() },
+      { text: "Problem report…", act: () => void dialogs.problemReport() },
     ];
   if (name === "fight")
     return [
@@ -528,7 +534,8 @@ document.addEventListener("pointerdown", (e) => {
 });
 window.addEventListener("keydown", (e) => {
   const t = e.target as HTMLElement;
-  if (t.closest("input, textarea, select, [contenteditable]")) return;
+  // An open dialog takes the keys: N mustn't move the turn on behind it. Esc closes it by itself.
+  if (t.closest("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z") {
     e.preventDefault();
     maps.undo();
