@@ -22,6 +22,12 @@ Setup steps are in [README.md](../README.md).
 - Pass: letters, symbols and portraits read from each player's seat; the turn strip reads from both long sides; the HP ring changes on the DM map only; nothing DM-only on the table.
 - Evidence: a photo from each long side with a mini on one token.
 
+## 3b. Scenes (step 7k, D-039)
+
+- Mid-fight, add a second scene with another map, switch to it with the minis still standing on the first map, then switch back.
+- Pass: the curtain drops on each switch and nothing of the next scene shows before you lift it; clearing and replacing the minis takes under a minute; back on the first scene, the fight carries on from the same round with the same fog and discs.
+- Evidence: a note of how long the minis took, and a photo of the table after switching back.
+
 ## 4. Things going wrong
 
 - Close the app mid-round and reopen it. Then roll back to an older save (step 7g).
