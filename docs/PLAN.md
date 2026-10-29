@@ -1,6 +1,6 @@
 # Plan
 
-Approved by Morgan on 2026-10-28 after three planning rounds, a review and a final check. Step 3, UI design, was added at Morgan's request on 2026-10-28 (D-022). Character cards and the library phase were added in the book library interview on 2026-10-28 (D-026). The planning pages are linked in [HANDOFF.md](HANDOFF.md). Decisions are in [DECISIONS.md](DECISIONS.md).
+Approved by Morgan on 2026-10-28 after three planning rounds, a review and a final check. Step 3, UI design, was added at Morgan's request on 2026-10-28 (D-022). Character cards and the library phase were added in the book library interview on 2026-10-28 (D-026). The phases after session 1 were reordered, merged and cut in the plan audit on 2026-10-29 (D-037). The planning pages are linked in [HANDOFF.md](HANDOFF.md). Decisions are in [DECISIONS.md](DECISIONS.md).
 
 ## Goal for session 1
 
@@ -12,26 +12,41 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 
 1. **Two windows.** The app opens the DM window on the laptop and a fullscreen table window on the projector. With only the laptop screen, the table window opens as a normal window for testing. Morgan tests: double-click, and the table window lands on the projector or a TV.
 2. **Calibration.** Drag four corners until a projected square matches a ruler (corner-pin warp for the angled projector). Saved, and redone in under a minute. Morgan tests: a photo of a ruler on the projected grid.
-3. **UI design.** Decide how the DM window and the table look and feel, through a planning interview with mockups (D-022). Settled layout and table rules (D-008, D-012, D-013) stay. Morgan tests: picks from mockups on the phone, then a styled DM window and table test screen in screenshots.
-4. **Map import.** Load an image or photo, mark one square, and the map snaps to 1-inch squares. Morgan tests: the Thundertree map photographed from the book.
-5. **Fog.** Brush and shapes to reveal; explored areas stay dimmed. The table preview sits at the top of the DM window's right panel. Morgan tests: reveal a building and check the table matches the preview.
-6. **Initiative, markers and character cards.** Coloured discs with letters, and a turn strip on both long edges showing order, current turn and enemy condition in words. Character cards hold each player's name, AC, HP, passive Perception and speed, typed in by Morgan (D-026). Morgan tests: enter the party, then a mock round with dice.
-7. **Ping, autosave, curtain.** Tap to pulse, long press to pin. The app reopens exactly where it was after a crash. Morgan tests: close the app mid-fight and reopen it. (The curtain was built in step 3; saving after every change, save-failure recovery and crash reload in D-029.)
+3. **UI design.** Decide how the DM window and the table look and feel, through a planning interview with mockups (D-022). Built as movable, dockable windows with five looks (D-031–D-033). Morgan tests: picks from mockups on the phone, then a styled DM window and table test screen in screenshots.
+4. **Map import.** Load an image or photo, drag four corners onto a rectangle of known size, and the map comes out straightened in 1-inch squares (D-024). Morgan tests: the Thundertree map photographed from the book.
+5. **Fog.** Brush and shapes to reveal; explored areas stay dimmed. The table preview shows what the table shows. Morgan tests: reveal a building and check the table matches the preview.
+6. **Initiative, discs and sheets.** Coloured discs with letters; a turn strip on both long edges showing order, current turn and enemy condition in words; a Party sheet and a monster sheet per colour, with HP changed by a number pad and the stat block from the private library (D-027, D-028). Morgan tests: enter the party, then a mock round with dice.
+7. **Ping and pins (D-034).** Tap to ping, hold to pin; the app reopens where it was after a crash (autosave and the curtain were built earlier, D-029). Morgan tests: close the app mid-fight and reopen it.
 7b. **Freehand drawing (D-035).** Lasting or fading lines that the players or only the DM see. Morgan tests: mark a trap and a path on the projected map, then rub one out.
 7c. **Map scale and magnifier (D-036).** Feet per square stored with each map; a magnifier under the dragged corner. Morgan tests: import the Thundertree photo; it comes out 28 × 19 inches at 10 ft a square.
 7d. **HP ring (D-036).** DM map only. Morgan tests: damage a monster; the ring drops, the table shows nothing new.
 7e. **Patch tool (D-036).** Fill or clone over room numbers on the table's own copy. Morgan tests: paint out Thundertree's numbers; the DM still sees them, the table doesn't.
 7f. **Revealed tokens (D-036).** Symbol or portrait in the coloured ring after Reveal; letter badge, or a tab when a mini stands on it. Morgan tests: a photo of the projected table with a mini on one token.
-8. **Rehearsal.** A full dry run of Thundertree at home, then fixes.
+7g. **Rehearsal safety (D-037).** The last 3 saves are kept, so a bad state can be rolled back after a restart (undo lasts one run). Table → Problem report copies the app version, the display list and recent errors as text for Morgan to paste to Claude. Morgan tests: restore an older save; paste a report.
+8. **Rehearsal.** A full dry run of Thundertree at home, following [REHEARSAL.md](REHEARSAL.md): each part has a pass line and the photo that proves it. Anything that fails is hidden for session 1, not redesigned (D-037).
 
 ## After session 1, in order
 
-1. **Library.** Import the library file from the private repo, monster search, stat block and HP on a disc, spell lookup, treasure roller (D-026). Map follow-ups from D-036: corner snapping, PDF page import, library maps ready to place, map library tidy-up, down marks, place a group by count, size from the stat block. Room notes, story tracker, Far Realm tracker, encounter builder and item handouts follow it.
-2. **Battle drama.** Symbols, shapes (a line with its length, a circle) and labels (D-035), conditions, light sources, doors, automatic line of sight where Morgan moves markers, spell templates, ruler, weather, the dice roller, scene switching.
-3. **Generator.** Ruined town and interiors first in the pencil style, then dungeon and cave. Edit after generating.
-4. **Living effects.** Fire first, then ice, water, lightning and collapse, spreading each round.
-5. **Story tools.** NPC conversation player, world map linked to battle maps, handouts, item cards, names, loot, ambient sound.
-6. **Later.** Remote players, hex and gridless, encounter tester, camera tracking, fantasy icons (D-023).
+1. **Scenes.** A scene keeps a map with its fog, discs, pins, drawings and fight, so taking a map off no longer loses them. Prepare scenes ahead, switch between them at the table, choose the curtain per scene (D-023), saved spots on big maps, and a world map linking to battle maps. Today one map at a time is kept (D-037).
+2. **Map annotation.** Trace rooms, walls, doors and materials on an imported map. It brings one-tap room reveal (D-007, D-025), doors, room notes and the material tags living effects need (D-014). The generator later produces the same annotation.
+3. **Library.** Already built: library import, stat block and HP per disc, portraits (D-028, D-036). Still to build:
+   - Map intake: corner snapping, PDF page import (pdf.js), library maps ready to place, map library tidy-up (D-036).
+   - Book search: one search over creatures, spells and items.
+   - Adding monsters: pick from the search, place a group by count, sized from the stat block in feet on the map's scale (D-036).
+   - Treasure roller on the DMG tables with seeded dice (GAME-01).
+   - Encounter builder, which also tests an encounter (merged with the old "encounter tester").
+4. **Battle drama.**
+   - Measure: one tool for the ruler, a line with its length, a circle and spell templates.
+   - Map marks: symbols (reusing the token symbols) and labels written twice (D-008, D-035).
+   - Conditions: on discs and characters, with durations and concentration that count down on Next turn; down marks (D-036) are one of them.
+   - Light radius: a fog shape that reveals a circle sized in feet from a tapped point. Replaces automatic line of sight (D-037).
+   - Doors open and close on annotated maps.
+5. **Living effects.** Fire first, then ice, water, lightning and collapse, spreading each round on annotated materials (D-014). Weather is an optional ambient layer here.
+6. **Story tools.** Room notes, story tracker, Far Realm tracker, handouts and item cards, ambient sound.
+7. **Generator.** Ruined town and interiors first in the pencil style, then dungeon and cave, with annotation. Edit after generating. Moved below story tools: Morgan runs a published adventure whose maps come from the book (D-037).
+8. **Later.** Remote players, hex and gridless, camera tracking (the only route to automatic line of sight, since players have no discs), fantasy icons (D-023).
+
+Cut in the plan audit (D-037): the dice roller (players roll real dice, D-013), automatic line of sight, the name and loot generators (Claude does them at prep; loot is the treasure roller), and the NPC conversation player (never defined; it can come back with a definition).
 
 ## How we work
 
