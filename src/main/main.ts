@@ -10,6 +10,7 @@ import {
   apply,
   coverOf,
   defaultState,
+  onTable,
   dmStateOf,
   dropMissingCharacters,
   parseCommand,
@@ -340,7 +341,8 @@ protocol.registerSchemesAsPrivileged([
 function servePortrait(url: string): Response {
   const u = new URL(url);
   const colour = u.hostname;
-  const map = state.map;
+  // The map the table shows: under a world-map curtain, the world's groups (D-039).
+  const map = onTable(state).map;
   if (!map || !isColour(colour)) return new Response("Not found", { status: 404 });
   // A 2-inch disc always shows its group's portrait once revealed, so this is the key the table can have been given.
   const disc = { colour, letter: "A", x: 0, y: 0, size: 2, shown: true, condition: "fine", hp: null, hpMax: null, mini: false } as const;
@@ -490,7 +492,8 @@ if (!app.requestSingleInstanceLock()) {
     // table now, so it can't load a scene the players haven't reached (D-039).
     session.fromPartition(TABLE_PARTITION).protocol.handle("terra-map", (req) => {
       const id = new URL(req.url).hostname;
-      return serveMap(id === state.map?.id ? tableMapFile(app.getPath("userData"), id) : null);
+      // The map the table shows now: the current scene's, or the world map under its curtain (D-039).
+      return serveMap(id === playerViewOf(state, "window").map?.id ? tableMapFile(app.getPath("userData"), id) : null);
     });
     session.fromPartition(TABLE_PARTITION).protocol.handle("terra-portrait", (req) => servePortrait(req.url));
     // Curtain pictures (D-039): the DM's window may load any of them; the table only the one its curtain shows now.

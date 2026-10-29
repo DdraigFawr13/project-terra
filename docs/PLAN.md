@@ -1,6 +1,6 @@
 # Plan
 
-Approved by Morgan on 2026-10-28 after three planning rounds, a review and a final check. Step 3, UI design, was added at Morgan's request on 2026-10-28 (D-022). Character cards and the library phase were added in the book library interview on 2026-10-28 (D-026). The phases after session 1 were reordered, merged and cut in the plan audit on 2026-10-29 (D-037). The planning pages are linked in [HANDOFF.md](HANDOFF.md). Decisions are in [DECISIONS.md](DECISIONS.md). Sight was added after the Arkenforge research on 2026-10-29 (D-040). The dice roller (DM only), line of sight and the NPC conversation player came back on 2026-10-29 (D-042).
+Approved by Morgan on 2026-10-28 after three planning rounds, a review and a final check. Step 3, UI design, was added at Morgan's request on 2026-10-28 (D-022). Character cards and the library phase were added in the book library interview on 2026-10-28 (D-026). The phases after session 1 were reordered, merged and cut in the plan audit on 2026-10-29 (D-037). The planning pages are linked in [HANDOFF.md](HANDOFF.md). Decisions are in [DECISIONS.md](DECISIONS.md). Sight was added after the Arkenforge research on 2026-10-29 (D-040). The dice roller (DM only), line of sight and the NPC conversation player came back on 2026-10-29 (D-043).
 
 ## Goal for session 1
 
@@ -39,7 +39,7 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
    - Enemy discs in never-seen fog stay off the table: the player view leaves them out (D-002), and the DM map marks them hidden by fog. This only hides; it never shows a disc set Off table.
    - Doors open and close on annotated maps.
    - Look from here: tap where a mini stands, and the table uncovers what can be seen from there, cut off by walls and closed doors and, on a dark map, by the light range (torch, darkvision). One ordinary Uncover per tap. Replaces the light-radius fog shape.
-   - Line of sight (D-042): a marker per character that Morgan moves on the laptop, and the table uncovers what it sees as it moves. About 3 steps (estimate); its shape is settled in the Sight interview.
+   - Line of sight (D-043): a marker per character that Morgan moves on the laptop, and the table uncovers what it sees as it moves. About 3 steps (estimate); its shape is settled in the Sight interview.
 4. **Library.** Already built: library import, stat block and HP per disc, portraits (D-028, D-036). Still to build:
    - Map intake: corner snapping, PDF page import (pdf.js), library maps ready to place, map library tidy-up (D-036).
    - Book search: one search over creatures, spells and items.
@@ -50,13 +50,13 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
    - Measure: one tool for the ruler, a line with its length, a circle and spell templates.
    - Map marks: symbols (reusing the token symbols) and labels written twice (D-008, D-035).
    - Conditions: on discs and characters, with durations and concentration that count down on Next turn; down marks (D-036) are one of them.
-   - Dice roller for the DM only (D-042): rolls never reach the table; seeded dice (GAME-01). Plain first, animated later.
+   - Dice roller for the DM only (D-043): rolls never reach the table; seeded dice (GAME-01). Plain first, animated later.
 6. **Living effects.** Fire first, then ice, water, lightning and collapse, spreading each round on annotated materials (D-014). Weather is an optional ambient layer here.
 7. **Story tools.** Room notes, story tracker, Far Realm tracker, handouts and item cards, ambient sound.
 8. **Generator.** Ruined town and interiors first in the pencil style, then dungeon and cave, with annotation. Edit after generating. Moved below story tools: Morgan runs a published adventure whose maps come from the book (D-037). A test-only concept (seeded maps, detection, lighting) exists; its findings feed this design (D-041).
-9. **Later.** Remote players, hex and gridless, camera tracking (the only route to sight that follows the minis by itself), fantasy icons (D-023). From the Arkenforge research (D-040): light sources on the map and a time-of-day tint, each after a projector photo. NPC conversation player (D-042): show an NPC's picture on the table and play audio recorded for them at prep; Next shows the next NPC and plays their clip.
+9. **Later.** Remote players, hex and gridless, camera tracking (the only route to sight that follows the minis by itself), fantasy icons (D-023). From the Arkenforge research (D-040): light sources on the map and a time-of-day tint, each after a projector photo. NPC conversation player (D-043): show an NPC's picture on the table and play audio recorded for them at prep; Next shows the next NPC and plays their clip.
 
-Cut in the plan audit (D-037): the name and loot generators (Claude does them at prep; loot is the treasure roller). The dice roller, line of sight and the NPC conversation player came back with D-042.
+Cut in the plan audit (D-037): the name and loot generators (Claude does them at prep; loot is the treasure roller). The dice roller, line of sight and the NPC conversation player came back with D-043.
 
 ## How we work
 

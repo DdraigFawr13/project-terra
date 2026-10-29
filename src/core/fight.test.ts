@@ -27,6 +27,7 @@ const map: PlacedMap = {
   pins: [],
   drawings: [],
   spots: [],
+  party: null,
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
@@ -60,12 +61,13 @@ test("discs snap to squares, take the next letter, start hidden, and reach the t
     [
       { type: "showDiscs", colour: "yellow", letter: null, on: true },
       { type: "condition", colour: "yellow", letter: "B", condition: "down" },
+      // Turned about the map's middle (D-042).
       { type: "turnMap" },
     ],
     s,
   );
   assert.deepEqual(playerViewOf(shown, "window").discs, [
-    { colour: "yellow", letter: "A", x: 0.5, y: 7.5, size: 1, symbol: null, portrait: null, mini: false },
+    { colour: "yellow", letter: "A", x: 15.5, y: 2.5, size: 1, symbol: null, portrait: null, mini: false },
   ]);
   // A removed letter is given out again.
   const again = run(

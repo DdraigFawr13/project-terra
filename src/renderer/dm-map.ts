@@ -3,14 +3,15 @@
 // stores the result in the personal library (D-010). Fog (step 5, D-025) is painted here with Uncover and Dim (the tools `reveal` and `hide`, D-038), and
 // enemy discs (step 6, D-027) are placed with Marker and dragged with Select. Ping (step 7, D-034) pings the table with
 // a tap and leaves a pin with a long press. Draw (D-035) draws freehand lines, lasting or fading.
-import { defaultCalibration, screenOutline } from "../core/calibration.ts";
+import { defaultCalibration, screenOutline, visibleRect } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
 import { conditionOf, hpFraction, tokenLook, nextLetter, snapDisc, type Condition, type Disc, type DiscColour } from "../core/fight.ts";
 import { MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
-import { mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
+import { fillTable, mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
 import {
   MAX_LINE_POINTS,
   parseFeetPerSquare,
+  sceneTitle,
   type Command,
   type Ink,
   type PlacedMap,
@@ -21,7 +22,7 @@ import type { DmApi, TableStatus } from "../main/dm-preload.ts";
 import { fillFog, type FogPainter } from "./fog-draw.ts";
 import { initPatch } from "./dm-patch.ts";
 import { icon } from "./icons.ts";
-import { drawDisc, drawLine, drawPin, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
+import { drawDisc, drawLine, drawParty, drawPin, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const emptyMap = $<HTMLElement>("emptyMap");
@@ -114,8 +115,17 @@ export function initMaps(
     set: (key: string | null, open?: boolean) => void;
     /** A tap on a disc: its HP pad opens beside it (D-032). `at` is in window coordinates. */
     tap: (colour: DiscColour, letter: string, at: Point) => void;
+    /** A tap with Select on a pin: link it to a scene, or open the scene it links to (D-039). */
+    pin: (id: number, at: Point) => void;
   },
-): { undo: () => void; render: () => void; cancel: () => boolean; shortcut: (key: string) => boolean } {
+): {
+  undo: () => void;
+  render: () => void;
+  cancel: () => boolean;
+  shortcut: (key: string) => boolean;
+  /** The next tap on the map puts the party marker there (D-039). */
+  placeParty: () => void;
+} {
   let state: TableState | null = null;
   let status: TableStatus | null = null;
   let importing: Importing | null = null;
@@ -128,6 +138,10 @@ export function initMaps(
   let discDrag: DiscDrag | null = null;
   let placing: Placing | null = null;
   let pressing: Pressing | null = null;
+  /** Select on a pin (a tap opens its link) or on the party marker (a drag moves it), D-039. Canvas and map points. */
+  let grabbed: { pointer: number; pen: boolean; pin: number | null; from: Point; at: Point; moved: boolean } | null = null;
+  /** The next tap puts the party marker down. */
+  let partyNext = false;
   /** Whether a new pin is one the players see. */
   let pinTable = true;
   let line: Line | null = null;
@@ -169,7 +183,10 @@ export function initMaps(
         b.type = "button";
         b.textContent = `Place “${m.name}”${feetNote(m.feetPerSquare)}`;
         b.addEventListener("click", () =>
-          run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [] } }),
+          run({
+            type: "placeMap",
+            map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null },
+          }),
         );
         li.append(b);
         return li;
@@ -292,10 +309,31 @@ export function initMaps(
     render();
   }
 
-  async function finishImport(): Promise<void> {
+  /**
+   * `fill`: a picture with no squares, such as a region map. The whole picture is used, sized and turned to fill what
+   * the projector reaches without stretching, and placed in the middle of it (D-042).
+   */
+  async function finishImport(fill = false): Promise<void> {
     const im = importing;
-    if (!im || im.busy) return;
+    if (!im || im.busy || !status) return;
     const { bitmap } = im;
+    const cal = state?.calibrations[status.surfaceKey] ?? defaultCalibration(status.surface);
+    const fit = fill ? fillTable(bitmap, visibleRect(cal, status.surface)) : null;
+    if (fill && !fit) {
+      importStatus.textContent = "Calibrate the table first: the projected area is too small to fill.";
+      return;
+    }
+    if (fit) {
+      const [w, h] = [bitmap.width, bitmap.height];
+      im.corners = [
+        { x: 0, y: 0 },
+        { x: w, y: 0 },
+        { x: w, y: h },
+        { x: 0, y: h },
+      ];
+      markW.value = String(fit.widthIn);
+      markH.value = String(fit.heightIn);
+    }
     const marking = parseMarking({ corners: im.corners, widthIn: Number(markW.value), heightIn: Number(markH.value) }, bitmap);
     if (!marking) {
       importStatus.textContent = isConvex(im.corners)
@@ -320,7 +358,19 @@ export function initMaps(
       importing = null;
       await run({
         type: "placeMap",
-        map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [] },
+        map: {
+          ...entry,
+          x: fit?.x ?? 0,
+          y: fit?.y ?? 0,
+          turns: fit?.turns ?? 0,
+          fog: [],
+          discs: [],
+          groups: {},
+          pins: [],
+          drawings: [],
+          spots: [],
+          party: null,
+        },
       });
       refreshLibrary();
     } catch (e) {
@@ -572,6 +622,25 @@ export function initMaps(
     for (const p of map.pins) {
       const c = px(p);
       drawPin(ctx, c.x, c.y, Math.max(s, 26), !p.table, accent);
+      // A link pin names its scene beside it, on the DM's map only (D-039).
+      const target = p.link ? state?.scenes.find((sc) => sc.id === p.link) : undefined;
+      if (target && state) {
+        ctx.font = `600 13px "Segoe UI", system-ui, sans-serif`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(0,0,0,0.8)";
+        ctx.fillStyle = "#f0d3a8";
+        const label = `→ ${sceneTitle(state, target)}`;
+        ctx.strokeText(label, c.x + Math.max(s, 26) * 0.55, c.y);
+        ctx.fillText(label, c.x + Math.max(s, 26) * 0.55, c.y);
+      }
+    }
+    // The party marker, where a drag is taking it.
+    const party = grabbed && grabbed.pin === null ? grabbed.at : map.party;
+    if (party) {
+      const c = px(party);
+      drawParty(ctx, c.x, c.y, Math.max(s, 26));
     }
     // Where a tap with Marker will put the next disc: under the finger, or under the hovering pen or mouse.
     // Not over a disc already there: on the one just placed it would show the next letter on top of its own.
@@ -599,6 +668,17 @@ export function initMaps(
       if (dist <= reach && (!best || dist < best.dist)) best = { d, dist };
     }
     return best?.d ?? null;
+  }
+
+  /** Whether a pointer is on the party marker, within a finger's reach. */
+  function partyAt(e: PointerEvent): boolean {
+    const map = state?.map;
+    if (!map?.party) return false;
+    const r = mapCanvas.getBoundingClientRect();
+    const { s, ox, oy } = viewport(map, r.width, r.height);
+    const p = canvasPoint(e);
+    const t = mapToTable(map, map.party);
+    return Math.hypot(ox + t.x * s - p.x, oy + t.y * s - p.y) <= Math.max(s, 26) * 0.5 + GRAB_PX;
   }
 
   /** The pin under a pointer, within a finger's reach, or null. */
@@ -693,8 +773,10 @@ export function initMaps(
 
   /** Esc or a second finger: drop the stroke, drag or placement before it reaches the table. */
   function cancel(): boolean {
-    if (!stroke && !drag && !discDrag && !placing && !pan && !pressing && !line) return false;
+    if (!stroke && !drag && !discDrag && !placing && !pan && !pressing && !line && !grabbed && !partyNext) return false;
     line = null;
+    grabbed = null;
+    partyNext = false;
     if (pressing) clearTimeout(pressing.timer);
     pressing = null;
     stroke = null;
@@ -706,8 +788,8 @@ export function initMaps(
     return true;
   }
   /** Whether a gesture is under way, and whether the pen is making it (then touches are a resting palm). */
-  const busy = () => !!(stroke || drag || discDrag || placing || pan || pressing || line);
-  const penBusy = () => !!(stroke?.pen || drag?.pen || discDrag?.pen || placing?.pen || pressing?.pen || line?.pen);
+  const busy = () => !!(stroke || drag || discDrag || placing || pan || pressing || line || grabbed);
+  const penBusy = () => !!(stroke?.pen || drag?.pen || discDrag?.pen || placing?.pen || pressing?.pen || line?.pen || grabbed?.pen);
 
   mapCanvas.addEventListener("pointerdown", (e) => {
     if (!state?.map) return;
@@ -737,6 +819,11 @@ export function initMaps(
     if (busy()) return;
     mapCanvas.setPointerCapture(e.pointerId);
     const pen = e.pointerType === "pen";
+    if (partyNext) {
+      partyNext = false;
+      void run({ type: "party", at: mapInchesAt(e) });
+      return;
+    }
     if (tool === "select" || tool === "marker") {
       const hit = discAt(e, tool === "select" ? GRAB_PX : 0);
       if (hit) {
@@ -747,6 +834,12 @@ export function initMaps(
       }
     }
     if (tool === "select") {
+      // The party marker drags; a pin taps (D-039). Both before the map, which a drag would move or pan.
+      const pin = partyAt(e) ? null : pinAt(e);
+      if (pin !== null || partyAt(e)) {
+        grabbed = { pointer: e.pointerId, pen, pin, from: canvasPoint(e), at: state.map.party ?? mapInchesAt(e)!, moved: false };
+        return;
+      }
       // A locked map stays put: a drag that misses every disc pans the zoomed view instead.
       if (!state.mapLocked) drag = { pointer: e.pointerId, pen, start: inchesAt(e), dx: 0, dy: 0 };
       else pan = { pointer: e.pointerId, last: canvasPoint(e) };
@@ -818,6 +911,16 @@ export function initMaps(
     if (pressing?.pointer === e.pointerId) {
       const p = canvasPoint(e);
       if (!pressing.done && Math.hypot(p.x - pressing.from.x, p.y - pressing.from.y) > SLIP_PX) cancel();
+      return;
+    }
+    if (grabbed?.pointer === e.pointerId) {
+      const p = canvasPoint(e);
+      if (Math.hypot(p.x - grabbed.from.x, p.y - grabbed.from.y) > SLIP_PX) grabbed.moved = true;
+      // A pin doesn't move; a slip off it is no tap. The party marker follows the pointer.
+      if (grabbed.pin !== null) {
+        if (grabbed.moved) grabbed = null;
+      } else if (grabbed.moved) grabbed.at = mapInchesAt(e)!;
+      render();
       return;
     }
     if (drag?.pointer === e.pointerId) {
@@ -919,6 +1022,17 @@ export function initMaps(
       return;
     }
     if (discDrag?.pointer === e.pointerId) return endDisc(keep);
+    if (grabbed?.pointer === e.pointerId) {
+      const g = grabbed;
+      grabbed = null;
+      if (keep && g.pin === null && g.moved) void run({ type: "party", at: g.at });
+      else if (keep && g.pin !== null) {
+        const r = mapCanvas.getBoundingClientRect();
+        selection.pin(g.pin, { x: r.left + g.from.x, y: r.top + g.from.y });
+      }
+      render();
+      return;
+    }
     if (placing?.pointer === e.pointerId) return endPlacing(keep);
     if (line?.pointer === e.pointerId) return endLine(e, keep);
     if (pressing?.pointer === e.pointerId) {
@@ -1087,6 +1201,7 @@ export function initMaps(
     render();
   });
   $<HTMLButtonElement>("importOk").addEventListener("click", () => void finishImport());
+  $<HTMLButtonElement>("importFill").addEventListener("click", () => void finishImport(true));
   undoBtn.addEventListener("click", undo);
   window.addEventListener("resize", render);
 
@@ -1109,7 +1224,10 @@ export function initMaps(
   });
   terra.canUndo().then((can) => (undoBtn.disabled = !can));
   refreshLibrary();
-  return { undo, render, cancel, shortcut };
+  const placeParty = () => {
+    partyNext = true;
+  };
+  return { undo, render, cancel, shortcut, placeParty };
 }
 
 /** Distance from `p` to the segment from `a` to `b`. */
