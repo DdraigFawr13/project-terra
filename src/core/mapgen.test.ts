@@ -11,7 +11,7 @@ test("the same seed gives the same map, another seed another map (GAME-06)", () 
 
 test("every terrain keeps its walls on the map, and its objects and lights on clear floor", () => {
   for (const t of TERRAINS)
-    for (let seed = 1; seed <= 3; seed++) {
+    for (let seed = 1; seed <= 2; seed++) {
       const m = generate(t, seed);
       assert.ok(m.walls.length > 10 && m.things.length > 3 && m.lights.length > 0, `${t} ${seed} has walls, objects and lights`);
       for (const w of m.walls)

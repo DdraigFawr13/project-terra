@@ -125,15 +125,15 @@ export function drawMap(m: GenMap, ppi: number, style: DrawStyle = "hatch"): Pix
         edge.slice(1).forEach((p, i) => {
           if (i % 2 === 0) line(edge[i] as Point, p, 0.03, PENCIL - 15);
         });
-    } else if (m.terrain === "ruins") {
-      // Floorboards inside a ruined building.
+    } else if (m.terrain === "ruins" || m.terrain === "town") {
+      // Floorboards inside a building.
       const [lt, , rb] = a.outline as [Point, Point, Point, Point];
       for (let y = lt.y + 0.5; y < rb.y; y += 0.5) line({ x: lt.x, y }, { x: rb.x, y }, 0.02, GRID - 8);
     }
   }
-  if (m.terrain === "ruins")
+  if (m.terrain === "ruins" || m.terrain === "town")
     // Grass ticks on open ground.
-    for (let i = 0; i < m.width * m.height * 1.5; i++) {
+    for (let i = 0; i < m.width * m.height * (m.terrain === "town" ? 0.6 : 1.5); i++) {
       const at = { x: r.range(0, m.width), y: r.range(0, m.height) };
       if (m.areas.some((a) => insidePolygon(at, a.outline))) continue;
       line(at, { x: at.x - 0.06, y: at.y - 0.12 }, 0.02, PENCIL + 5);
@@ -163,7 +163,10 @@ export function drawMap(m: GenMap, ppi: number, style: DrawStyle = "hatch"): Pix
   }
   for (const t of m.things) {
     if (t.kind === "pillar" || t.kind === "tree") disc(t.at, t.r, INK + 10);
-    else if (t.kind === "statue") {
+    else if (t.kind === "well") {
+      disc(t.at, t.r, INK);
+      disc(t.at, t.r * 0.6, FILL + 15);
+    } else if (t.kind === "statue") {
       disc(t.at, t.r, INK);
       disc(t.at, t.r * 0.55, FILL + 10);
     } else if (t.kind === "crate") {

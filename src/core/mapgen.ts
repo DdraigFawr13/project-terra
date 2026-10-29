@@ -5,7 +5,7 @@
 import type { Point } from "./homography.ts";
 import { rng, type Rng } from "./rng.ts";
 
-export const TERRAINS = ["dungeon", "cave", "ruins"] as const;
+export const TERRAINS = ["dungeon", "cave", "ruins", "town"] as const;
 export type Terrain = (typeof TERRAINS)[number];
 type Material = "stone" | "wood" | "earth" | "water";
 
@@ -13,11 +13,11 @@ export type Segment = { a: Point; b: Point };
 export type Wall = Segment & { material: Material };
 /** A door across a gap in a wall. A closed door blocks light; an open one, or a broken one, doesn't. */
 export type Door = Segment & { open: boolean };
-type ThingKind = "pillar" | "statue" | "crate" | "boulder" | "stalagmite" | "rubble" | "tree";
+type ThingKind = "pillar" | "statue" | "crate" | "boulder" | "stalagmite" | "rubble" | "tree" | "well";
 /** A solid object: a disc of radius `r` inches. Trees also have a canopy, drawn but not blocking. */
 export type Thing = { kind: ThingKind; at: Point; r: number; blocksLight: boolean; canopy?: number };
 /** Bright light to `brightFt`, then dim light for `dimFt` more (feet, counted on the map's scale). */
-export type Light = { kind: "torch" | "campfire" | "fungus"; at: Point; brightFt: number; dimFt: number };
+export type Light = { kind: "torch" | "campfire" | "fungus" | "lantern" | "hearth"; at: Point; brightFt: number; dimFt: number };
 type Area = { kind: "room" | "water" | "road"; outline: Point[]; material: Material };
 /** Solid rock (0) or open floor (1), sampled at cell centres. A smooth ground is read between samples (caves). */
 export type Ground = { cell: number; cols: number; rows: number; smooth: boolean; v: number[] };
@@ -47,6 +47,7 @@ export function generate(terrain: Terrain, seed: number, width = 36, height = 24
   const many = (n: number) => Math.max(1, Math.round((n * width * height) / (36 * 24)));
   if (terrain === "dungeon") return { ...base, ...dungeon(r, width, height, many) };
   if (terrain === "cave") return { ...base, ...cave(r, width, height, many) };
+  if (terrain === "town") return { ...base, ...town(r, width, height, many) };
   return { ...base, ...ruins(r, width, height, many) };
 }
 
@@ -127,6 +128,28 @@ function cellWalls(open: (c: number, r: number) => boolean, cols: number, rows: 
     );
   return walls;
 }
+
+/** Walls along a straight line from `from` to `to`, cut into one-inch units; units where `keep` is false are gaps. */
+function wallRun(from: Point, to: Point, keep: readonly boolean[], material: Material): Wall[] {
+  const n = keep.length;
+  const p = (t: number) => ({ x: from.x + ((to.x - from.x) * t) / n, y: from.y + ((to.y - from.y) * t) / n });
+  const walls: Wall[] = [];
+  let start = -1;
+  for (let i = 0; i <= n; i++) {
+    if (i < n && keep[i] && start < 0) start = i;
+    if ((i === n || !keep[i]) && start >= 0) {
+      walls.push({ a: p(start), b: p(i), material });
+      start = -1;
+    }
+  }
+  return walls;
+}
+
+/** The door across unit `i` of the line from `from` to `to`, `n` units long. */
+const doorAt = (from: Point, to: Point, n: number, i: number, open: boolean): Door => {
+  const p = (t: number) => ({ x: from.x + ((to.x - from.x) * t) / n, y: from.y + ((to.y - from.y) * t) / n });
+  return { a: p(i), b: p(i + 1), open };
+};
 
 type Rect = { x: number; y: number; w: number; h: number };
 const outline = (b: Rect): Point[] => [
@@ -486,22 +509,13 @@ function ruins(r: Rng, width: number, height: number, many: Many): Body {
       if (side === doorSide) {
         const d = r.int(1, n - 2);
         keep[d] = false;
-        const p = (t: number) => ({ x: from.x + ((to.x - from.x) * t) / n, y: from.y + ((to.y - from.y) * t) / n });
-        if (r.chance(0.5)) doors.push({ a: p(d), b: p(d + 1), open: false });
+        if (r.chance(0.5)) doors.push(doorAt(from, to, n, d, false));
       } else if (r.chance(0.6)) {
         const len = r.int(1, 2);
         const start = r.int(1, n - 1 - len);
         for (let i = start; i < start + len; i++) keep[i] = false;
       }
-      let start = -1;
-      for (let i = 0; i <= n; i++) {
-        if (i < n && keep[i] && start < 0) start = i;
-        if ((i === n || !keep[i]) && start >= 0) {
-          const p = (t: number) => ({ x: from.x + ((to.x - from.x) * t) / n, y: from.y + ((to.y - from.y) * t) / n });
-          walls.push({ a: p(start), b: p(i), material: "stone" });
-          start = -1;
-        }
-      }
+      walls.push(...wallRun(from, to, keep, "stone"));
     }
     for (let tries = 0, made = 0, want = r.int(1, 3); tries < 60 && made < want; tries++) {
       const at = { x: r.range(b.x + 1, b.x + b.w - 1), y: r.range(b.y + 1, b.y + b.h - 1) };
@@ -540,6 +554,128 @@ function ruins(r: Rng, width: number, height: number, many: Many): Body {
     if (!inBuilding(at, 1) && clearOf(at, 0.5, things, 1.5)) {
       lights.push({ kind: "campfire", at, ...TORCH });
       break;
+    }
+  }
+  return { ground, areas, walls, doors, things, lights };
+}
+
+// Town at night: two streets crossing at a market square with a well and stalls, houses packed along the streets
+// with one-square alleys between them, each house walled all round with its door on the street, the bigger ones split
+// into two rooms. Lanterns light the streets; some houses have a hearth.
+function town(r: Rng, width: number, height: number, many: Many): Body {
+  const ground: Ground = { cell: 1, cols: width, rows: height, smooth: false, v: new Array(width * height).fill(1) };
+  const street = 3;
+  const hy = r.int(Math.floor(height * 0.35), Math.ceil(height * 0.55) - street);
+  const vx = r.int(Math.floor(width * 0.3), Math.ceil(width * 0.6) - street);
+  const across: Rect = { x: 0, y: hy, w: width, h: street };
+  const down: Rect = { x: vx, y: 0, w: street, h: height };
+  const square: Rect = { x: vx - 3, y: hy - 3, w: street + 6, h: street + 6 };
+  const open = [across, down, square];
+  const areas: Area[] = [
+    { kind: "road", outline: outline(across), material: "stone" },
+    // Ordered so the outline's two halves are the street's long edges, which are drawn dashed.
+    {
+      kind: "road",
+      outline: [
+        { x: vx, y: 0 },
+        { x: vx, y: height },
+        { x: vx + street, y: height },
+        { x: vx + street, y: 0 },
+      ],
+      material: "stone",
+    },
+    { kind: "road", outline: outline(square), material: "stone" },
+  ];
+
+  const houses: Rect[] = [];
+  for (let tries = 0; tries < 3000 && houses.length < many(16); tries++) {
+    const w = r.int(4, 7);
+    const h = r.int(4, 6);
+    const b = { x: r.int(1, width - w - 1), y: r.int(1, height - h - 1), w, h };
+    if (open.every((o) => !overlaps(b, o, 0.5)) && houses.every((o) => !overlaps(b, o, 0.5))) houses.push(b);
+  }
+
+  const walls: Wall[] = [];
+  const doors: Door[] = [];
+  const things: Thing[] = [];
+  const lights: Light[] = [];
+  const gapTo = (b: Rect, o: Rect, side: number) =>
+    [b.y - (o.y + o.h), o.x - (b.x + b.w), o.y - (b.y + b.h), b.x - (o.x + o.w)][side] as number;
+  for (const b of houses) {
+    // The door goes in the side nearest a street.
+    const facing = (side: number) =>
+      Math.min(
+        ...open.map((o) => {
+          const along = side % 2 === 0 ? o.x < b.x + b.w && b.x < o.x + o.w : o.y < b.y + b.h && b.y < o.y + o.h;
+          const gap = gapTo(b, o, side);
+          return along && gap >= 0 ? gap : Infinity;
+        }),
+      );
+    const doorSide = [0, 1, 2, 3].reduce((best, side) => (facing(side) < facing(best) ? side : best), 0);
+    const corners = outline(b);
+    for (let side = 0; side < 4; side++) {
+      const from = corners[side] as Point;
+      const to = corners[(side + 1) % 4] as Point;
+      const n = Math.round(Math.hypot(to.x - from.x, to.y - from.y));
+      const keep = new Array<boolean>(n).fill(true);
+      if (side === doorSide) {
+        const d = r.int(1, n - 2);
+        keep[d] = false;
+        doors.push(doorAt(from, to, n, d, r.chance(0.2)));
+      }
+      walls.push(...wallRun(from, to, keep, "wood"));
+    }
+    // A house 6 or more squares wide is split into two rooms, with a door between them.
+    let split = 0;
+    if (b.w >= 6) {
+      split = b.x + Math.floor(b.w / 2);
+      const from = { x: split, y: b.y };
+      const to = { x: split, y: b.y + b.h };
+      const keep = new Array<boolean>(b.h).fill(true);
+      const d = r.int(1, b.h - 2);
+      keep[d] = false;
+      doors.push(doorAt(from, to, b.h, d, r.chance(0.5)));
+      walls.push(...wallRun(from, to, keep, "wood"));
+      areas.push({ kind: "room", outline: outline({ ...b, w: split - b.x }), material: "wood" });
+      areas.push({ kind: "room", outline: outline({ ...b, x: split, w: b.x + b.w - split }), material: "wood" });
+    } else areas.push({ kind: "room", outline: outline(b), material: "wood" });
+    // A table in a corner away from the doors, and maybe a hearth on the back wall.
+    const table = { x: b.x + 1.5, y: b.y + 1.5 };
+    if (r.chance(0.6) && Math.abs(table.x - split) > 1.2 && doors.every((d) => Math.hypot(d.a.x - table.x, d.a.y - table.y) > 1.6))
+      things.push({ kind: "crate", at: table, r: 0.4, blocksLight: true });
+    if (r.chance(0.45)) lights.push({ kind: "hearth", at: { x: b.x + b.w - 0.6, y: b.y + b.h / 2 }, brightFt: 10, dimFt: 10 });
+  }
+
+  // The square: a well in the middle and market stalls round it.
+  const mid = { x: vx + street / 2, y: hy + street / 2 };
+  things.push({ kind: "well", at: mid, r: 0.6, blocksLight: true });
+  for (let i = 0, want = r.int(3, 5); i < want; i++) {
+    const a = r.range(0, Math.PI * 2);
+    const at = { x: mid.x + Math.cos(a) * 3.2, y: mid.y + Math.sin(a) * 3.2 };
+    if (clearOf(at, 0.4, things, 0.6)) things.push({ kind: "crate", at, r: 0.4, blocksLight: true });
+  }
+  // Lanterns at the square's corners and every 9 inches along the streets, on the street's edge.
+  for (const [dx, dy] of [
+    [-2.6, -2.6],
+    [2.6, -2.6],
+    [-2.6, 2.6],
+    [2.6, 2.6],
+  ] as const)
+    lights.push({ kind: "lantern", at: { x: mid.x + dx, y: mid.y + dy }, ...TORCH });
+  for (let x = 4.5; x < width; x += 9)
+    if (x < square.x - 1 || x > square.x + square.w + 1) lights.push({ kind: "lantern", at: { x, y: hy + 0.3 }, ...TORCH });
+  for (let y = 4.5; y < height; y += 9)
+    if (y < square.y - 1 || y > square.y + square.h + 1) lights.push({ kind: "lantern", at: { x: vx + 0.3, y }, ...TORCH });
+
+  // A few trees where there's room.
+  const near = (p: Point, gap: number) =>
+    [...open, ...houses].some((b) => p.x > b.x - gap && p.x < b.x + b.w + gap && p.y > b.y - gap && p.y < b.y + b.h + gap);
+  for (let tries = 0, made = 0, want = many(r.int(3, 6)); tries < 400 && made < want; tries++) {
+    const at = { x: r.range(1, width - 1), y: r.range(1, height - 1) };
+    const size = r.range(0.3, 0.4);
+    if (!near(at, 1) && clearOf(at, size, things, 1.6)) {
+      things.push({ kind: "tree", at, r: size, blocksLight: true, canopy: r.range(1, 1.4) });
+      made++;
     }
   }
   return { ground, areas, walls, doors, things, lights };

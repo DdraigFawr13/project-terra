@@ -5,7 +5,8 @@ import type { Point } from "./homography.ts";
 import type { Pixels } from "./map.ts";
 import { segDist, simplify, type Segment } from "./mapgen.ts";
 
-export type Found = { walls: Segment[]; things: { at: Point; r: number }[] };
+/** Closed doors are found as their own list; light and sight treat them as walls. */
+export type Found = { walls: Segment[]; doors: Segment[]; things: { at: Point; r: number }[] };
 
 /** Darker than this (0–255 luminance) is ink: a wall or an object. */
 const DARK = 100;
@@ -70,7 +71,85 @@ export function detect(px: Pixels, ppi: number): Found {
     const length = ps.slice(1).reduce((s, p, k) => s + Math.hypot(p.x - (ps[k] as Point).x, p.y - (ps[k] as Point).y), 0);
     return length < 0.25 ? [] : ps.slice(1).map((b, k) => ({ a: ps[k] as Point, b }));
   });
-  return { walls, things };
+  return { walls, doors: findDoors(walls, ink, firm, width, height, ppi), things };
+}
+
+/** Closed doors: mapdraw.ts draws one as a pencil rectangle across a gap in a wall, so look from each wall end or
+ * junction for a wall 0.6–1.5 inches away with thin (not firm) ink along both sides of the line between, paper down
+ * its middle and paper beyond it. An open door is drawn swung out of its gap, so the gap stays open. */
+function findDoors(walls: readonly Segment[], ink: Uint8Array, firm: Uint8Array, width: number, height: number, ppi: number): Segment[] {
+  const key = (p: Point) => `${Math.round(p.x * ppi)},${Math.round(p.y * ppi)}`;
+  const ends = [...new Map(walls.flatMap((w) => [w.a, w.b]).map((p) => [key(p), p])).values()];
+  const pixel = (p: Point) => {
+    const x = Math.floor(p.x * ppi);
+    const y = Math.floor(p.y * ppi);
+    return x >= 0 && y >= 0 && x < width && y < height ? y * width + x : -1;
+  };
+  const paper = (p: Point) => {
+    const i = pixel(p);
+    return i >= 0 && !ink[i];
+  };
+  const pencil = (p: Point) =>
+    [-1, 0, 1].some((dy) =>
+      [-1, 0, 1].some((dx) => {
+        const i = pixel({ x: p.x + dx / ppi, y: p.y + dy / ppi });
+        return i >= 0 && ink[i] === 1;
+      }),
+    );
+  /** How well a door from a to b fits the drawing, 0 to 1. */
+  const fit = (a: Point, b: Point) => {
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    const [ux, uy] = [(b.x - a.x) / d, (b.y - a.y) / d];
+    const along = (t: number, off: number) => ({ x: a.x + ux * d * t - uy * off, y: a.y + uy * d * t + ux * off });
+    const share = (test: (t: number) => boolean) => {
+      let n = 0;
+      for (let k = 2; k <= 8; k++) if (test(k / 10)) n++;
+      return n / 7;
+    };
+    const sides = Math.min(
+      share((t) => pencil(along(t, 0.13))),
+      share((t) => pencil(along(t, -0.13))),
+    );
+    const middle = share((t) => paper(along(t, 0)));
+    const beyond = Math.min(
+      share((t) => paper(along(t, 0.32))),
+      share((t) => paper(along(t, -0.32))),
+    );
+    return sides >= 0.7 && middle >= 0.8 && beyond >= 0.7 ? sides : 0;
+  };
+  const doors: Segment[] = [];
+  for (const a of ends) {
+    // Where to look: other wall ends and junctions (a wall straight on past the gap is parallel to the ray, so rays
+    // miss it), and the first wall each of 72 rays meets.
+    const targets = ends.filter((b) => b !== a);
+    for (let k = 0; k < 72; k++) {
+      const [dx, dy] = [Math.cos((k / 72) * Math.PI * 2), Math.sin((k / 72) * Math.PI * 2)];
+      let t = Infinity;
+      for (const w of walls) {
+        const ex = w.b.x - w.a.x;
+        const ey = w.b.y - w.a.y;
+        const den = dx * ey - dy * ex;
+        if (Math.abs(den) < 1e-9) continue;
+        const ax = w.a.x - a.x;
+        const ay = w.a.y - a.y;
+        const s = (ax * ey - ay * ex) / den;
+        const u = (ax * dy - ay * dx) / den;
+        if (s > 0.3 && s < t && u >= 0 && u <= 1) t = s;
+      }
+      if (Number.isFinite(t)) targets.push({ x: a.x + dx * t, y: a.y + dy * t });
+    }
+    let best: { b: Point; score: number; d: number } | null = null;
+    for (const b of targets) {
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      if (d < 0.6 || d > 1.5) continue;
+      const score = fit(a, b);
+      if (score > 0 && (!best || score > best.score || (score === best.score && d < best.d))) best = { b, score, d };
+    }
+    if (!best) continue;
+    const mid = { x: (a.x + best.b.x) / 2, y: (a.y + best.b.y) / 2 };
+    if (doors.every((o) => Math.hypot((o.a.x + o.b.x) / 2 - mid.x, (o.a.y + o.b.y) / 2 - mid.y) > 0.4)) doors.push({ a, b: best.b });
+  }
+  return doors;
 }
 
 /** Chamfer (3-4) distance in pixels from each pixel to the nearest pixel whose mask value is `target`. */

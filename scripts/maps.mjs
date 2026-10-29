@@ -42,7 +42,7 @@ function png({ width, height, data }) {
   return Buffer.concat([sig, chunk("IHDR", header), chunk("IDAT", zlib.deflateSync(raw)), chunk("IEND", Buffer.alloc(0))]);
 }
 
-/** The drawn map, faded, with the found walls in red and found objects in blue. */
+/** The drawn map, faded, with the found walls in red, closed doors in green and objects in blue. */
 function overlay(base, found) {
   const { width, height } = base;
   const data = new Uint8ClampedArray(base.data);
@@ -63,6 +63,13 @@ function overlay(base, found) {
       ])
         dot((w.a.x + ((w.b.x - w.a.x) * k) / n) * ppi + ox, (w.a.y + ((w.b.y - w.a.y) * k) / n) * ppi + oy, [210, 30, 30]);
   }
+  for (const d of found.doors)
+    for (let k = 0; k <= 40; k++)
+      for (const o of [-2, -1, 0, 1, 2]) {
+        const [ux, uy] = [d.b.x - d.a.x, d.b.y - d.a.y];
+        const len = Math.hypot(ux, uy);
+        dot((d.a.x + (ux * k) / 40) * ppi - (uy / len) * o, (d.a.y + (uy * k) / 40) * ppi + (ux / len) * o, [20, 150, 60]);
+      }
   for (const t of found.things)
     for (let a = 0; a < 360; a += 2)
       for (const o of [0, 1])
@@ -100,7 +107,11 @@ for (const terrain of TERRAINS) {
         ppi,
         map.feetPerSquare,
         map.lights,
-        blockers({ walls: found.walls, doors: [], things: found.things.map((t) => ({ ...t, blocksLight: true })) }),
+        blockers({
+          walls: found.walls,
+          doors: found.doors.map((d) => ({ ...d, open: false })),
+          things: found.things.map((t) => ({ ...t, blocksLight: true })),
+        }),
       ),
     ),
     map.lights,
@@ -115,10 +126,14 @@ for (const terrain of TERRAINS) {
   fs.writeFileSync(path.join(out, `${name}.json`), JSON.stringify(annotation, null, 1));
   const w = scoreWalls(map.walls, found.walls);
   const t = scoreThings(map.things, found.things);
+  const mid = (d) => ({ at: { x: (d.a.x + d.b.x) / 2, y: (d.a.y + d.b.y) / 2 } });
+  const closed = map.doors.filter((d) => !d.open);
+  const dr = scoreThings(closed.map(mid), found.doors.map(mid));
   const pct = (v) => `${Math.round(v * 100)}%`;
   console.log(
     `${name}: ${map.walls.length} walls, ${map.doors.length} doors, ${map.things.length} objects, ${map.lights.length} lights.` +
-      ` Walls found ${pct(w.recall)}, precision ${pct(w.precision)}; objects found ${pct(t.recall)}, precision ${pct(t.precision)}.` +
+      ` Walls found ${pct(w.recall)}, precision ${pct(w.precision)}; objects found ${pct(t.recall)}, precision ${pct(t.precision)};` +
+      ` closed doors ${closed.length}, found ${pct(dr.recall)}, precision ${pct(dr.precision)}.` +
       ` Draw ${Math.round(t1 - t0)} ms, detect ${Math.round(t2 - t1)} ms, light ${Math.round(t3 - t2)} ms.`,
   );
 }
