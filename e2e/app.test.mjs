@@ -44,7 +44,8 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     await dm.waitForSelector("#display option", { state: "attached" });
     assert.match(await dm.textContent("#status"), /No second screen found/);
     await table.waitForFunction(() => document.body.dataset.view === "testGrid");
-    // The table window can read the player view and nothing else, and can't be navigated away (D-002).
+    // The table window can read the player view and nothing else (no way to the library either), and can't be navigated
+    // away (D-002).
     assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), [
       "getView",
       "onMapPatched",
@@ -521,14 +522,6 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     // The map's id is random hex, which can hold "ac" by chance; it is checked to be the library id elsewhere.
     const shown = JSON.stringify({ ...view, map: view.map && { ...view.map, id: "" } });
     for (const secret of ["Zombie", "SRD52", "board", "hp", "ac", "passive", "init", "notes"]) assert.ok(!shown.includes(secret), secret);
-    // The table window's bridge has no way to the library.
-    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), [
-      "getView",
-      "onMapPatched",
-      "onPing",
-      "onSketch",
-      "onView",
-    ]);
     // Reveal (D-036): linking the zombie chose its symbol; one tap shows it on the table, still without its name. Mini
     // on it, from the disc's HP pad, tells the table to put the letter on a tab.
     await mon.locator("button", { hasText: "Reveal" }).click();
