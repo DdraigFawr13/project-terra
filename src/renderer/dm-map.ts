@@ -2,17 +2,17 @@
 // squares, and place, move and turn it on the table. Straightening runs here, in the DM window; the main process only
 // stores the result in the personal library (D-010). Fog (step 5, D-025) is painted here with Reveal and Hide, and
 // enemy discs (step 6, D-027) are placed with Marker and dragged with Select. Ping (step 7, D-034) pings the table with
-// a tap and leaves a pin with a long press.
+// a tap and leaves a pin with a long press. Draw (D-035) draws freehand lines, lasting or fading.
 import { defaultCalibration, screenOutline } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
 import { conditionOf, nextLetter, snapDisc, type Disc, type DiscColour } from "../core/fight.ts";
 import { MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
 import { mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
-import type { Command, PlacedMap, TableState } from "../core/table.ts";
+import { MAX_LINE_POINTS, type Command, type Ink, type PlacedMap, type TableState } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
 import { fillFog, type FogPainter } from "./fog-draw.ts";
 import { icon } from "./icons.ts";
-import { drawDisc, drawPin, PING_MS } from "./table-draw.ts";
+import { drawDisc, drawLine, drawPin, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const emptyMap = $<HTMLElement>("emptyMap");
@@ -40,6 +40,10 @@ const fogOpts = $<HTMLDivElement>("fogOpts");
 const markerOpts = $<HTMLDivElement>("markerOpts");
 const pingOpts = $<HTMLDivElement>("pingOpts");
 const pinKindBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-pin-table]")];
+const drawOpts = $<HTMLDivElement>("drawOpts");
+const inkTableBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-ink-table]")];
+const inkFadeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-ink-fade]")];
+const inkBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-ink]")];
 const selectHint = $<HTMLElement>("selectHint");
 const colourBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-colour]")];
 const discSizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-disc-size]")];
@@ -53,7 +57,7 @@ const zoomLevel = $<HTMLElement>("zoomLevel");
 const FOLDED = "#ff6b5a";
 
 type Importing = { bitmap: ImageBitmap; corners: Quad; selected: number; busy: boolean };
-type Tool = "select" | FogMode | "marker" | "ping";
+type Tool = "select" | FogMode | "marker" | "ping" | "draw";
 type DrawWith = "brush" | "outline" | "box";
 const DRAW_ORDER: DrawWith[] = ["brush", "outline", "box"];
 /** Ghost colours while painting: warm light to reveal, copper to hide. */
@@ -69,6 +73,10 @@ type Pressing = { pointer: number; pen: boolean; from: Point; at: Point; pin: nu
 const LONG_PRESS_MS = 500;
 /** A press that wanders further than this, in canvas pixels, is a slip, not a tap. */
 const SLIP_PX = 14;
+/** A line being drawn, in map inches; or, with the pen's eraser, rubbing lines out (D-035). */
+type Line = { pointer: number; pen: boolean; from: Point; points: Point[]; eraser: boolean };
+/** A line within this many canvas pixels of a tap or the eraser is hit. */
+const LINE_HIT_PX = 12;
 /** Fingers find a disc within this many pixels of its edge, however small the map draws it (D-027). */
 const GRAB_PX = 22;
 /** Discs are drawn at least this wide on the DM's map so their letters stay readable. */
@@ -103,6 +111,13 @@ export function initMaps(
   let pressing: Pressing | null = null;
   /** Whether a new pin is one the players see. */
   let pinTable = true;
+  let line: Line | null = null;
+  let ink: Ink = "white";
+  let inkTable = true;
+  let inkFade = false;
+  /** Fading lines the DM drew, in map inches, shown here as on the table until they fade. */
+  let fading: { ink: Ink; table: boolean; points: Point[]; start: number }[] = [];
+  let fadeTimer = 0;
   let colour: DiscColour = "yellow";
   let discSize = 1;
   /** Where the mouse or a hovering pen is over the map, in map inches, to show the brush ring. Fingers have no hover. */
@@ -131,7 +146,7 @@ export function initMaps(
         b.type = "button";
         b.textContent = `Place “${m.name}”`;
         b.addEventListener("click", () =>
-          run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [] } }),
+          run({ type: "placeMap", map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [] } }),
         );
         li.append(b);
         return li;
@@ -236,7 +251,7 @@ export function initMaps(
       const png = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
       const entry = await terra.saveMap(nameInput.value, png, plan.bounds);
       importing = null;
-      await run({ type: "placeMap", map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [] } });
+      await run({ type: "placeMap", map: { ...entry, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [] } });
       refreshLibrary();
     } catch (e) {
       im.busy = false;
@@ -411,6 +426,12 @@ export function initMaps(
       ctx.globalAlpha = 1;
       return { c, w };
     };
+    // Lines under the discs (D-006, D-035): the DM's own dashed, fading ones as the table shows them now.
+    const canvasLine = (pts: Point[]) => pts.map(px);
+    for (const l of map.drawings) drawLine(ctx, canvasLine(l.points), l.ink, Math.max(s, 20), 1, !l.table);
+    const now = performance.now();
+    for (const l of fading) drawLine(ctx, canvasLine(l.points), l.ink, Math.max(s, 20), sketchAlpha(now - l.start), !l.table);
+    if (line && !line.eraser) drawLine(ctx, canvasLine(line.points), ink, Math.max(s, 20), 1, !inkTable);
     const picked = selection.get();
     for (const d of map.discs) {
       const moving = discDrag && discKey(discDrag) === discKey(d);
@@ -478,6 +499,39 @@ export function initMaps(
     return best?.id ?? null;
   }
 
+  /** The lasting line under a pointer, or null: the nearest within LINE_HIT_PX of any of its segments. */
+  function lineAt(e: PointerEvent): number | null {
+    const map = state?.map;
+    if (!map) return null;
+    const r = mapCanvas.getBoundingClientRect();
+    const { s, ox, oy } = viewport(map, r.width, r.height);
+    const p = canvasPoint(e);
+    const toCanvas = (q: Point) => {
+      const t = mapToTable(map, q);
+      return { x: ox + t.x * s, y: oy + t.y * s };
+    };
+    let best: { id: number; dist: number } | null = null;
+    for (const l of map.drawings) {
+      const pts = l.points.map(toCanvas);
+      for (let i = 1; i < pts.length; i++) {
+        const dist = segmentDistance(p, pts[i - 1]!, pts[i]!);
+        if (dist <= LINE_HIT_PX && (!best || dist < best.dist)) best = { id: l.id, dist };
+      }
+    }
+    return best?.id ?? null;
+  }
+
+  /** Keep the DM's map drawing while a fading line fades, then drop it. */
+  function tickFading(): void {
+    const now = performance.now();
+    fading = fading.filter((l) => now - l.start < SKETCH_MS);
+    render();
+    clearTimeout(fadeTimer);
+    if (!fading.length) return;
+    const fadesIn = Math.min(...fading.map((l) => SKETCH_MS - 3000 - (now - l.start)));
+    fadeTimer = window.setTimeout(tickFading, Math.max(120, fadesIn));
+  }
+
   /** The DM's own sight of a ping: rings over the map for as long as the table shows them, faint while the curtain is down. */
   function showPing(at: Point): void {
     const mark = document.createElement("span");
@@ -521,7 +575,8 @@ export function initMaps(
 
   /** Esc or a second finger: drop the stroke, drag or placement before it reaches the table. */
   function cancel(): boolean {
-    if (!stroke && !drag && !discDrag && !placing && !pan && !pressing) return false;
+    if (!stroke && !drag && !discDrag && !placing && !pan && !pressing && !line) return false;
+    line = null;
     if (pressing) clearTimeout(pressing.timer);
     pressing = null;
     stroke = null;
@@ -533,8 +588,8 @@ export function initMaps(
     return true;
   }
   /** Whether a gesture is under way, and whether the pen is making it (then touches are a resting palm). */
-  const busy = () => !!(stroke || drag || discDrag || placing || pan || pressing);
-  const penBusy = () => !!(stroke?.pen || drag?.pen || discDrag?.pen || placing?.pen || pressing?.pen);
+  const busy = () => !!(stroke || drag || discDrag || placing || pan || pressing || line);
+  const penBusy = () => !!(stroke?.pen || drag?.pen || discDrag?.pen || placing?.pen || pressing?.pen || line?.pen);
 
   mapCanvas.addEventListener("pointerdown", (e) => {
     if (!state?.map) return;
@@ -584,6 +639,14 @@ export function initMaps(
       render();
       return;
     }
+    if (tool === "draw") {
+      // The pen's eraser end (or eraser button) rubs out lines, as it hides fog with Reveal and Hide (D-025).
+      const eraser = e.pointerType === "pen" && (e.button === 5 || (e.buttons & 32) !== 0);
+      line = { pointer: e.pointerId, pen, from: canvasPoint(e), points: [mapInchesAt(e)!], eraser };
+      if (eraser) eraseAt(e);
+      render();
+      return;
+    }
     if (tool === "ping") {
       const from = canvasPoint(e);
       const pin = pinAt(e);
@@ -623,6 +686,15 @@ export function initMaps(
       const p = canvasPoint(e);
       panBy(p.x - pan.last.x, p.y - pan.last.y);
       pan.last = p;
+      return;
+    }
+    if (line?.pointer === e.pointerId) {
+      if (line.eraser) return eraseAt(e);
+      const at = mapInchesAt(e)!;
+      const last = line.points[line.points.length - 1]!;
+      // A point every tenth of an inch is smooth enough; a very long line stops growing at its limit.
+      if (Math.hypot(at.x - last.x, at.y - last.y) >= 0.1 && line.points.length < MAX_LINE_POINTS) line.points.push(at);
+      render();
       return;
     }
     if (pressing?.pointer === e.pointerId) {
@@ -680,6 +752,35 @@ export function initMaps(
     }
     render();
   }
+  /** The pen's eraser over a lasting line takes it away. */
+  function eraseAt(e: PointerEvent): void {
+    const id = lineAt(e);
+    if (id !== null) void run({ type: "removeDrawing", id });
+  }
+  /** Lifting the pen: a tap on a line rubs it out; a line is kept, or sent to fade (D-035). */
+  function endLine(e: PointerEvent, keep: boolean): void {
+    const l = line!;
+    line = null;
+    const p = canvasPoint(e);
+    const tap = Math.hypot(p.x - l.from.x, p.y - l.from.y) <= SLIP_PX && l.points.length < 3;
+    if (!keep || l.eraser || !state?.map) return render();
+    if (tap) {
+      eraseAt(e);
+      return render();
+    }
+    if (l.points.length < 2) return render();
+    if (!inkFade) void run({ type: "draw", ink, table: inkTable, points: l.points });
+    else {
+      if (inkTable)
+        void terra.sketch(
+          ink,
+          l.points.map((q) => mapToTable(state!.map!, q)),
+        );
+      fading.push({ ink, table: inkTable, points: l.points, start: performance.now() });
+      tickFading();
+    }
+    render();
+  }
   function endPlacing(keep: boolean): void {
     const p = placing!;
     placing = null;
@@ -701,6 +802,7 @@ export function initMaps(
     }
     if (discDrag?.pointer === e.pointerId) return endDisc(keep);
     if (placing?.pointer === e.pointerId) return endPlacing(keep);
+    if (line?.pointer === e.pointerId) return endLine(e, keep);
     if (pressing?.pointer === e.pointerId) {
       const p = pressing;
       clearTimeout(p.timer);
@@ -753,6 +855,10 @@ export function initMaps(
     fogOpts.hidden = !on || (tool !== "reveal" && tool !== "hide");
     markerOpts.hidden = !on || tool !== "marker";
     pingOpts.hidden = !on || tool !== "ping";
+    drawOpts.hidden = !on || tool !== "draw";
+    press(inkTableBtns, (b) => (b.dataset.inkTable === "true") === inkTable);
+    press(inkFadeBtns, (b) => (b.dataset.inkFade === "true") === inkFade);
+    press(inkBtns, (b) => b.dataset.ink === ink);
     press(pinKindBtns, (b) => (b.dataset.pinTable === "true") === pinTable);
     selectHint.hidden = !on || tool !== "select";
     press(colourBtns, (b) => b.dataset.colour === colour);
@@ -784,6 +890,16 @@ export function initMaps(
       render();
     }),
   );
+  const pick = (bs: HTMLButtonElement[], set: (b: HTMLButtonElement) => void) =>
+    bs.forEach((b) =>
+      b.addEventListener("click", () => {
+        set(b);
+        render();
+      }),
+    );
+  pick(inkTableBtns, (b) => (inkTable = b.dataset.inkTable === "true"));
+  pick(inkFadeBtns, (b) => (inkFade = b.dataset.inkFade === "true"));
+  pick(inkBtns, (b) => (ink = b.dataset.ink as Ink));
   pinKindBtns.forEach((b) =>
     b.addEventListener("click", () => {
       pinTable = b.dataset.pinTable === "true";
@@ -799,7 +915,7 @@ export function initMaps(
   const fogAll: FogOp[] = [{ kind: "dimSeen" }, { kind: "revealAll" }, { kind: "coverAll" }];
   fogBtns.forEach((b, i) => b.addEventListener("click", () => run({ type: "fog", op: fogAll[i]! })));
 
-  /** V, R, H, M and P pick the tool; S steps through brush, outline and box. Returns whether the key was used. */
+  /** V, R, H, M, P and D pick the tool; S steps through brush, outline and box. Returns whether the key was used. */
   function shortcut(key: string): boolean {
     if (!state?.map || importing) return false;
     const k = key.toLowerCase();
@@ -808,6 +924,7 @@ export function initMaps(
     else if (k === "h") setTool("hide");
     else if (k === "m") setTool("marker");
     else if (k === "p") setTool("ping");
+    else if (k === "d") setTool("draw");
     else if (k === "s") setDraw(DRAW_ORDER[(DRAW_ORDER.indexOf(drawWith) + 1) % DRAW_ORDER.length]!);
     else return false;
     return true;
@@ -875,4 +992,12 @@ export function initMaps(
   terra.canUndo().then((can) => (undoBtn.disabled = !can));
   refreshLibrary();
   return { undo, render, cancel, shortcut };
+}
+
+/** Distance from `p` to the segment from `a` to `b`. */
+function segmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const t = dx || dy ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy))) : 0;
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }

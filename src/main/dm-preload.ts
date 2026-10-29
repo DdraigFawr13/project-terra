@@ -1,6 +1,7 @@
 // The DM window's only bridge to the main process. The page gets these calls and nothing else.
 import { contextBridge, ipcRenderer } from "electron";
-import type { Command, TableState } from "../core/table.ts";
+import type { Command, Ink, TableState } from "../core/table.ts";
+import type { Point } from "../core/homography.ts";
 import type { LibraryMap } from "./library.ts";
 import type { ImportResult } from "./creatures.ts";
 import type { CreatureHit, StatBlock } from "../core/creatures.ts";
@@ -26,6 +27,8 @@ const api = {
   undo: (): Promise<void> => ipcRenderer.invoke("state:undo"),
   /** Ping the table at (x, y) in table inches: rings for about 2 seconds, nothing saved (D-034). */
   ping: (x: number, y: number): Promise<void> => ipcRenderer.invoke("table:ping", x, y),
+  /** A fading line on the table, in table inches: gone in about 10 seconds, nothing saved (D-035). */
+  sketch: (ink: Ink, points: Point[]): Promise<void> => ipcRenderer.invoke("table:sketch", ink, points),
   canUndo: (): Promise<boolean> => ipcRenderer.invoke("history:get"),
   onHistory: (fn: (canUndo: boolean) => void) => ipcRenderer.on("history:changed", (_e, can: boolean) => fn(can)),
   listMaps: (): Promise<LibraryMap[]> => ipcRenderer.invoke("library:list"),

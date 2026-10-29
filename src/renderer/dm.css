@@ -936,7 +936,8 @@ input[type="number"] {
 #mapCanvas[data-tool="reveal"],
 #mapCanvas[data-tool="hide"],
 #mapCanvas[data-tool="marker"],
-#mapCanvas[data-tool="ping"] {
+#mapCanvas[data-tool="ping"],
+#mapCanvas[data-tool="draw"] {
   cursor: crosshair;
 }
 /* What the DM sees of a ping (D-034): white rings over the map for as long as the table shows them. Faint while the
@@ -1111,6 +1112,16 @@ button.icon {
 }
 .swatch {
   background: var(--disc);
+}
+/* Pen colours, as on the table (table-draw.ts INK_HEX, D-035). */
+.ink-white {
+  --disc: #ffffff;
+}
+.ink-cyan {
+  --disc: #4de1ff;
+}
+.ink-pink {
+  --disc: #ff79d2;
 }
 button.badge {
   min-width: var(--target);

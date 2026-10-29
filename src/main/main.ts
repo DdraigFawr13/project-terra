@@ -12,6 +12,8 @@ import {
   dropMissingCharacters,
   parseCommand,
   parseSave,
+  INKS,
+  parseLine,
   playerViewOf,
   serialize,
   viewOf,
@@ -276,6 +278,12 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle("table:ping", (_e, x: unknown, y: unknown) => {
       const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 500;
       if (ok(x) && ok(y) && viewOf(state) === "map") send(playerWindow, "player:ping", { x: x + 0, y: y + 0 });
+    });
+    // A fading line is a moment too: drawn on the table, gone in about 10 seconds, never saved (D-035).
+    ipcMain.handle("table:sketch", (_e, ink: unknown, raw: unknown) => {
+      const points = parseLine(raw);
+      if (points && INKS.includes(ink as (typeof INKS)[number]) && viewOf(state) === "map")
+        send(playerWindow, "player:sketch", { ink, points });
     });
     ipcMain.handle("library:list", () => listMaps(app.getPath("userData")));
     ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown) =>

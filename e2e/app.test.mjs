@@ -45,7 +45,7 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     assert.match(await dm.textContent("#status"), /No second screen found/);
     await table.waitForFunction(() => document.body.dataset.view === "testGrid");
     // The table window can read the player view and nothing else, and can't be navigated away (D-002).
-    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onPing", "onView"]);
+    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onPing", "onSketch", "onView"]);
     // A file dropped on a window arrives as a file:// navigation.
     await table.evaluate((url) => (location.href = url), new URL("../package.json", import.meta.url).href);
     await table.waitForTimeout(300);
@@ -481,7 +481,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     const shown = JSON.stringify({ ...view, map: view.map && { ...view.map, id: "" } });
     for (const secret of ["Zombie", "SRD52", "board", "hp", "ac", "passive", "init", "notes"]) assert.ok(!shown.includes(secret), secret);
     // The table window's bridge has no way to the library.
-    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onPing", "onView"]);
+    assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), ["getView", "onPing", "onSketch", "onView"]);
 
     // Ping (D-034): a tap pings the table; holding leaves a pin the players see; a tap on the pin takes it away.
     await dm.keyboard.press("p");
@@ -497,6 +497,23 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await table.waitForFunction(async () => (await window.terra.getView()).pins.length === 1);
     await dm.mouse.click(spot.x, spot.y);
     await table.waitForFunction(async () => (await window.terra.getView()).pins.length === 0);
+    // Draw (D-035): a lasting line reaches the table and a tap on it rubs it out; a fading line goes to the table only as a moment.
+    await dm.keyboard.press("d");
+    const stroke = async () => {
+      await dm.mouse.move(spot.x, spot.y);
+      await dm.mouse.down();
+      await dm.mouse.move(spot.x + 120, spot.y + 40, { steps: 8 });
+      await dm.mouse.up();
+    };
+    await stroke();
+    await table.waitForFunction(async () => (await window.terra.getView()).drawings.length === 1);
+    await dm.mouse.click(spot.x + 60, spot.y + 20);
+    await table.waitForFunction(async () => (await window.terra.getView()).drawings.length === 0);
+    await dm.click("button[data-ink-fade=true]");
+    const sketched = table.evaluate(() => new Promise((resolve) => window.terra.onSketch(resolve)));
+    await stroke();
+    assert.ok((await sketched).points.length >= 2);
+    assert.equal((await dm.evaluate(() => window.terra.getState())).map.drawings.length, 0);
     await dm.keyboard.press("v");
 
     // Drag the disc two squares; Ctrl+Z puts it back and doesn't take back the character's HP.

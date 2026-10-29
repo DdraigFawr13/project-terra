@@ -24,6 +24,7 @@ const map: PlacedMap = {
   discs: [],
   groups: {},
   pins: [],
+  drawings: [],
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
