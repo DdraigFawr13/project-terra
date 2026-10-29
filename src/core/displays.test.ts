@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { choosePlayerDisplay, laptopDisplay, playerPlacement, type DisplayInfo } from "./displays.ts";
+import { choosePlayerDisplay, describeDisplay, laptopDisplay, playerPlacement, type DisplayInfo } from "./displays.ts";
 
 const laptop: DisplayInfo = { id: 1, label: "Built-in", width: 1920, height: 1080, primary: true, internal: true };
 const projector: DisplayInfo = { id: 2, label: "Projector", width: 1920, height: 1080, primary: false, internal: false };
@@ -14,6 +14,11 @@ test("uses the chosen display when it is connected", () => {
 test("falls back to the first screen that isn't the laptop", () => {
   assert.equal(choosePlayerDisplay([laptop, projector, tv], 99), projector);
   assert.equal(choosePlayerDisplay([laptop, projector], null), projector);
+  // The picker names the laptop by what it is, and other screens by their own name and size.
+  assert.deepEqual(
+    [laptop, projector].map((d) => describeDisplay(d, [laptop, projector])),
+    ["This laptop, in a window", "Projector (1920 × 1080)"],
+  );
 });
 
 test("the table window is fullscreen only on a screen that isn't the laptop, with one calibration per projector", () => {

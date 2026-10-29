@@ -718,13 +718,14 @@ input[type="number"] {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
-/* ---- Tools (D-032): a narrow column of icons, names in tooltips. The main tools on top; under a rule, only the
-   options for the tool picked; Undo at the foot. Every button is the same width. ---- */
+/* ---- Tools (D-032): a narrow column, each button an icon over its short name (a pen has no hover, so tooltips
+   alone don't do). The main tools on top; under a rule, only the options for the tool picked; Undo at the foot.
+   Every button is the same width. ---- */
 #toolsPanel {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 42px;
+  width: 60px;
   min-height: 100%;
   margin: 0 auto;
 }
@@ -737,10 +738,19 @@ input[type="number"] {
   width: 100%;
   min-width: 0;
   min-height: 40px;
-  padding: 0;
-  gap: 0;
-  /* Icons only: the names stay in the markup for tooltips and screen readers. */
+  padding: 3px 0;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+/* Colour buttons are their own label: the swatch says it. They sit two to a row to save height. */
+.tools button:has(.swatch) {
   font-size: 0;
+}
+.tool-group:has(.swatch) {
+  grid-template-columns: 1fr 1fr;
 }
 .tools button svg {
   width: 20px;
@@ -781,7 +791,7 @@ input[type="number"] {
 }
 /* Beside the map: the bar keeps a small label to grab and the float button; close and fold are in the View menu. */
 .dock-area[data-area="mapside"] .dock-frame {
-  width: 60px;
+  width: 76px;
 }
 .dock-area[data-area="mapside"] .win-fold,
 .dock-area[data-area="mapside"] .win-close {
@@ -793,7 +803,7 @@ input[type="number"] {
 }
 .dock-area[data-area="mapside"] .dock-tab {
   padding: 0 2px;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
 }
 .dock-area[data-area="mapside"] .dock-tools .icon {
   min-width: 22px;
@@ -1623,10 +1633,14 @@ button.pop-close {
 /* On a short window (the 14-inch laptop at 150%, about 1280 x 680), the column tightens so Marker's options fit. */
 @media (max-height: 760px) {
   .tools button {
-    min-height: 34px;
+    min-height: 36px;
   }
   .tool-sub button {
     min-height: 26px;
+  }
+  /* Disc sizes keep 1″–4″ and drop the size word (it stays in the tooltip). */
+  .tools button:has(> b) {
+    font-size: 0;
   }
   #toolsPanel,
   .tool-main,
