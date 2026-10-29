@@ -58,4 +58,3 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7f are all merged, the
 - 2026-10-28 D-034 ping, pins, reopening sheets, audit leftovers.
 - 2026-10-28 D-032 DM window redesign; D-033 looks (three dark, two light, 7:1 contrast).
 - 2026-10-28 D-018 PR workflow; D-019 the repo carries everything; D-020 test upkeep; D-010 changed: book data goes in the private repo `project-terra-library`, never here.
-- 2026-10-28 D-021 calibration; D-022 UI design step; D-023 UI design; D-024 map import, undo, library; D-025 fog.
