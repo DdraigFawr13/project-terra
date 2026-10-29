@@ -8,13 +8,13 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Just done
 
-- 2026-10-29 Step 7l (D-039), branch `ccr-f55b2366-e7hkj0`, not yet in a PR: a curtain per scene (black, title twice, or a picture via `terra-curtain://`, table-limited to the one shown; `cover` in the state and player view, cleared by B), saved spots on the map bar (`#spotsMap`, slide a locked map), Mark ready / Reset in a scene's menu; saves reuse unchanged scenes' JSON (measurements in D-039). Save version 14.
+- 2026-10-29 Step 7l (D-039), [walkthrough](https://claude.ai/artifact/XC9dLhFeP9VHHiU3xqKDXg), approved by Morgan: a curtain per scene (black, title twice, or a picture via `terra-curtain://`, table-limited to the one shown; `cover` in the state and player view, cleared by B), saved spots on the map bar (`#spotsMap`, slide a locked map), Mark ready / Reset in a scene's menu; saves reuse unchanged scenes' JSON (measurements in D-039). Save version 14.
 - 2026-10-29 Step 7k (D-039), [walkthrough](https://claude.ai/artifact/4FmMr1fhg6hJTD6DmRFEuS), merged as [PR #30](https://github.com/DdraigFawr13/project-terra/pull/30): scenes in `src/core/table.ts` (save version 13; `scenes`, `scene`, `lastScene`; the current scene's content stays in `map`/`fight`/`mapLocked`, the others are `parked`); `dm-scenes.ts` (Scenes list in Setup, `#sceneBtn` above the tabs); undo per scene and the table's `terra-map` limited to the current map (`main.ts`); REHEARSAL part 3b. Tests: 53 unit, 4 e2e (about 20 s).
 - Earlier: [archive](archive/handoff-2026-10.md).
 
 ## Next
 
-0. Step 7l built: Morgan reviews the summary, then open its PR and merge when green (D-018). Then 7m, the world map.
+0. Step 7l PR: merge when green (D-018). Then 7m, the world map.
 1. Step 8, rehearsal, when the laptop and projector arrive: follow [REHEARSAL.md](REHEARSAL.md). Confirm the built-in screen shows as "This laptop, in a window" and the display scale (14" 1080p usually defaults to 150%, a DM window of about 1280 × 680). On the laptop, re-import `data/monsters/mm2024.json` from the private library so the portraits arrive.
 2. Morgan's photos decide (VER-07): letters, symbols and portraits readable from the players' seats (whether 1-inch portraits are worth switching on); HP ring, patched Thundertree, ping, pins and lines on the projector; close the app mid-fight and reopen it.
 3. Still open: calibration keyed to the Windows display id; unplugging the projector drops the table window over the DM window; no Windows CI run of the app (REHEARSAL.md part 4). From step 7g: the fight journey's "fading line saves nothing" check failed 1 in 40 local runs (main 0 in 14), cause not found (VER-04).
