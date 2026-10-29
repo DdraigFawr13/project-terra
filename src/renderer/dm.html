@@ -206,7 +206,7 @@
         </section>
       </div>
 
-      <!-- Tools (D-032): one column. The main tools on top; below them, the options for the tool picked; Undo at the foot. -->
+      <!-- Tools (D-032): one column, each button an icon over its name. The main tools on top; below them, the options for the tool picked; Undo at the foot. -->
       <div id="toolsPanel" class="tools" aria-label="Map tools">
         <div class="tool-main" role="group" aria-label="Tool">
           <button
@@ -292,10 +292,26 @@
         <div id="pingOpts" class="tool-sub" hidden>
           <h4>Pins</h4>
           <div class="tool-group" role="group" aria-label="Who sees a new pin" title="Who sees a new pin">
-            <button type="button" data-pin-table="true" data-icon="pin" aria-pressed="true" disabled title="New pins: the players see them">
-              Players see
+            <button
+              type="button"
+              data-pin-table="true"
+              data-icon="pin"
+              aria-pressed="true"
+              disabled
+              title="New pins: the players see them"
+              aria-label="New pins: the players see them"
+            >
+              Players
             </button>
-            <button type="button" data-pin-table="false" data-icon="hide" aria-pressed="false" disabled title="New pins: only you see them">
+            <button
+              type="button"
+              data-pin-table="false"
+              data-icon="hide"
+              aria-pressed="false"
+              disabled
+              title="New pins: only you see them"
+              aria-label="New pins: only you see them"
+            >
               Only me
             </button>
           </div>
@@ -311,8 +327,9 @@
               aria-pressed="true"
               disabled
               title="New lines: the players see them"
+              aria-label="New lines: the players see them"
             >
-              Players see
+              Players
             </button>
             <button
               type="button"
@@ -321,6 +338,7 @@
               aria-pressed="false"
               disabled
               title="New lines: only you see them"
+              aria-label="New lines: only you see them"
             >
               Only me
             </button>

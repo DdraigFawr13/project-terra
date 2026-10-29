@@ -7,7 +7,7 @@ Setup steps are in [README.md](../README.md).
 ## 1. Cold start
 
 - Run **Build Windows app**, unzip on the laptop, double-click.
-- Pass: the DM window opens on the laptop screen, the table window fullscreen on the projector; the status bar says "this laptop" for the built-in screen. Note the Windows display scale.
+- Pass: the DM window opens on the laptop screen, the table window fullscreen on the projector; Table setup's screen picker names the built-in screen "This laptop, in a window". Note the Windows display scale.
 - Evidence: a phone photo of both screens.
 
 ## 2. Prep from nothing

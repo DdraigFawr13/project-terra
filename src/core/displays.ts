@@ -40,7 +40,8 @@ export function playerPlacement(displays: DisplayInfo[], preferredId: number | n
   return { display, fullscreen, surfaceKey: fullscreen ? `display:${display.id}` : "window" };
 }
 
+/** A screen's name in the DM's picker: the laptop by what it is, short enough not to be cut off in the panel. */
 export function describeDisplay(d: DisplayInfo, all: DisplayInfo[]): string {
-  const name = d.label || `Screen ${d.id}`;
-  return `${name} (${d.width} × ${d.height})${isLaptop(d, all) ? ", this laptop" : ""}`;
+  if (isLaptop(d, all)) return "This laptop, in a window";
+  return `${d.label || `Screen ${d.id}`} (${d.width} × ${d.height})`;
 }

@@ -179,10 +179,11 @@ export function initMonsters(
             },
             () => selection.set(discKey(d)),
           );
+          // Without an HP max the condition button beside it carries the word, so it isn't shown twice.
           pick.append(
             el("span", { class: `badge ${c}` }, d.letter),
             max === null
-              ? el("span", { class: "hp-word" }, WORD[word])
+              ? el("span", { class: "hp-word" })
               : el(
                   "span",
                   { class: "hp-mid" },
@@ -218,10 +219,18 @@ export function initMonsters(
           );
         }),
       ),
-      anyMax ? p.pad.el : el("p", { class: "hint" }, "No HP yet. Set an HP max with Edit, or pick the creature with Book."),
+      // What's missing, in one line. A pen can't hover for Reveal's tooltip, so this also says why it is greyed out.
+      ...(anyMax ? [p.pad.el] : []),
+      ...missing(anyMax, !!g.symbol || g.revealed),
       ...(g.notes ? [el("p", { class: "notes" }, g.notes)] : []),
     );
   }
+
+  /** One hint for a group missing HP, a symbol for Reveal, or both: pick the creature with Book, or set them in Edit. */
+  const missing = (hp: boolean, symbol: boolean): HTMLElement[] => {
+    const what = !hp && !symbol ? "No HP or symbol yet" : !hp ? "No HP yet" : !symbol ? "Reveal needs a symbol" : null;
+    return what ? [el("p", { class: "hint" }, `${what}. Pick the creature with Book, or set it in Edit.`)] : [];
+  };
 
   const draftOf = (g: GroupInfo, discs: Disc[]): Draft => ({
     info: {
