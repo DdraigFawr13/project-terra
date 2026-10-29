@@ -1,3 +1,4 @@
+// Test-only concept (D-041): nothing in the app uses this until the generator's design phase.
 // Seeded randomness for the map generator (GAME-01): the same seed always gives the same map. Mulberry32.
 
 export type Rng = {

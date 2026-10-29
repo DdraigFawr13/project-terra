@@ -1,3 +1,4 @@
+// Test-only concept (D-041): nothing in the app uses this until the generator's design phase.
 // Map generator, first concept (PLAN.md "Generator", D-037 item 5): seeded maps for random encounters, with the same
 // annotation that map annotation will trace on imported maps: rooms and areas, walls, doors, materials, objects and
 // lights. Everything is in inches, 1 square = 1 inch (D-005). Pure and seeded (GAME-01), so tests can generate a map,

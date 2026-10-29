@@ -1,3 +1,4 @@
+// Test-only concept (D-041): nothing in the app uses this until the generator's design phase.
 // Lighting, first concept: each light's visibility polygon, cut by walls, closed doors and solid objects, filled out
 // to its bright and dim radius. This is light from fixed sources on the map, not line of sight from a creature
 // (cut by D-037). Pure: the light map is a plain array, one value per pixel.

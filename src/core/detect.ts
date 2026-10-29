@@ -1,3 +1,4 @@
+// Test-only concept (D-041): nothing in the app uses this until the generator's design phase.
 // Wall and object detection, first concept: find the firm dark lines and shapes on a map image and turn them into
 // wall segments and solid objects in inches, the annotation map annotation will need (D-037 item 5). Generated maps
 // carry the true answer, so tests score what is found against it. Pure: plain RGBA arrays.

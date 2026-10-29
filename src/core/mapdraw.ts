@@ -1,3 +1,4 @@
+// Test-only concept (D-041): nothing in the app uses this until the generator's design phase.
 // Draws a generated map (mapgen.ts) as pencil on paper (D-011): firm dark walls and objects, light pencil for grid,
 // hatching, water, road and canopies. Also shades a drawn map with a light map (light.ts). Pure: plain RGBA arrays.
 import type { Point } from "./homography.ts";
