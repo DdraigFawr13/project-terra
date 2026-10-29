@@ -1,6 +1,6 @@
 // Electron main process: opens the DM window and the player (table) window, keeps the table
 // state, and saves it after every change so a crash or restart reopens where it was.
-import { app, BrowserWindow, ipcMain, net, powerSaveBlocker, protocol, screen, session, type Display } from "electron";
+import { app, BrowserWindow, clipboard, ipcMain, net, powerSaveBlocker, protocol, screen, session, type Display } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -21,8 +21,21 @@ import {
   type TableState,
 } from "../core/table.ts";
 import { isColour, tokenLook } from "../core/fight.ts";
+import { describeSave, dueForEarlier, earlierName, earlierSaves, earlierTime, earlierToDrop, problemReport } from "../core/saves.ts";
 import { countCreatures, findCreatures, getCreature, importCreatures } from "./creatures.ts";
 import { listMaps, mapFile, saveMap, savePatch, tableMapFile } from "./library.ts";
+
+/** Going back to an earlier save keeps the rig as it is now: the screens, the calibration and the curtain (D-037). */
+function keepOnRestore(s: TableState): Partial<TableState> {
+  return {
+    curtain: s.curtain,
+    calibrating: s.calibrating,
+    testGrid: s.testGrid,
+    playerDisplayId: s.playerDisplayId,
+    calibrations: s.calibrations,
+    flipLetters: s.flipLetters,
+  };
+}
 
 /** Undo takes back map, disc and fight changes only: switches like the curtain and the screen choice stay as the DM last set them. */
 function keepOnUndo(s: TableState): Partial<TableState> {
@@ -56,6 +69,52 @@ let notice: string | null = null;
 let saveProblem: string | null = null;
 
 const savePath = () => path.join(app.getPath("userData"), "table-state.json");
+const earlierDir = () => path.join(app.getPath("userData"), "earlier-saves");
+
+/** Recent problems for the problem report (D-037), newest last. The packaged app has no console to read them from. */
+const problems: string[] = [];
+function logProblem(text: string): void {
+  console.error(text);
+  problems.push(`${new Date().toISOString()} ${text}`);
+  if (problems.length > 50) problems.shift();
+}
+
+/** When the newest earlier save was taken this run, or null before the first. */
+let lastEarlier: number | null = null;
+/**
+ * Copy the save as it is on disk now into the earlier saves, keeping the newest three (D-037). A copy identical to the
+ * newest one is skipped, so restarting the app a few times can't push the good saves out with copies of a bad one.
+ */
+function keepEarlier(): void {
+  const file = savePath();
+  if (!fs.existsSync(file)) return;
+  try {
+    const dir = earlierDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const now = Date.now();
+    lastEarlier = now;
+    const newest = earlierSaves(fs.readdirSync(dir))[0];
+    const text = fs.readFileSync(file);
+    if (newest && fs.readFileSync(path.join(dir, newest)).equals(text)) return;
+    fs.writeFileSync(path.join(dir, earlierName(now)), text);
+    for (const old of earlierToDrop(fs.readdirSync(dir))) fs.rmSync(path.join(dir, old), { force: true });
+  } catch (e) {
+    // An earlier save is a spare: failing to make one never stops the game.
+    logProblem(`An earlier save couldn't be kept (${(e as NodeJS.ErrnoException).code ?? (e as Error).message}).`);
+  }
+}
+
+/** The earlier saves, newest first, with a few words on each for the menu. */
+function listEarlier(): { name: string; time: number; summary: string }[] {
+  const dir = earlierDir();
+  if (!fs.existsSync(dir)) return [];
+  const maps = new Map(listMaps(app.getPath("userData")).map((m) => [m.id, m.name]));
+  return earlierSaves(fs.readdirSync(dir)).map((name) => {
+    const parsed = parseSave(fs.readFileSync(path.join(dir, name), "utf8"));
+    const summary = parsed.ok ? describeSave(parsed.state, maps.get(parsed.state.map?.id ?? "") ?? null) : "can't be read";
+    return { name, time: earlierTime(name)!, summary };
+  });
+}
 
 function loadState(): TableState {
   const file = savePath();
@@ -70,7 +129,7 @@ function loadState(): TableState {
     fs.copyFileSync(file, kept);
   }
   notice = `The last save couldn't be read (${parsed.reason}), so the table started fresh. The old file is kept as ${path.basename(kept)}.`;
-  console.error(notice);
+  logProblem(notice);
   return defaultState();
 }
 
@@ -99,6 +158,7 @@ function saveNow(): void {
     // Write then rename, so a crash mid-write never leaves a half-written save.
     fs.writeFileSync(file + ".tmp", serialize(state));
     renameWithRetry(file + ".tmp", file);
+    if (dueForEarlier(lastEarlier, Date.now())) keepEarlier();
     if (saveProblem) {
       saveProblem = null;
       send(dmWindow, "table:status", tableStatus());
@@ -107,8 +167,9 @@ function saveNow(): void {
     // Never crash the app over a save: tell the DM and try again shortly. The last good save stays on disk.
     const first = !saveProblem;
     const reason = (e as NodeJS.ErrnoException).code ?? (e as Error).message;
+    const repeat = saveProblem;
     saveProblem = `The table couldn't be saved (${reason}). Trying again; the last good save is kept.`;
-    console.error(saveProblem);
+    if (saveProblem !== repeat) logProblem(saveProblem);
     if (first) send(dmWindow, "table:status", tableStatus());
     if (!quitting) saveTimer = setTimeout(saveNow, 2000);
   }
@@ -206,7 +267,14 @@ function createWindows(): void {
   // The DM's calibration preview follows the table window's size.
   playerWindow.on("resize", () => send(dmWindow, "table:status", tableStatus()));
   playerWindow.webContents.once("did-finish-load", placePlayerWindow);
-  for (const w of [dmWindow, playerWindow]) reloadIfGone(w);
+  for (const w of [dmWindow, playerWindow]) {
+    reloadIfGone(w);
+    // A page's errors go in the problem report too.
+    const title = w.getTitle();
+    w.webContents.on("console-message", (e) => {
+      if (e.level === "error") logProblem(`${title}: ${e.message} (${path.basename(e.sourceId)}:${e.lineNumber})`);
+    });
+  }
 }
 
 /** A window whose page crashes loads again and asks for the state, so the projector isn't left blank mid-game. */
@@ -214,7 +282,7 @@ function reloadIfGone(w: BrowserWindow): void {
   const crashes: number[] = [];
   w.webContents.on("render-process-gone", (_e, details) => {
     if (details.reason === "clean-exit" || quitting || w.isDestroyed()) return;
-    console.error(`${w.getTitle()} crashed (${details.reason}); reloading.`);
+    logProblem(`${w.getTitle()} crashed (${details.reason}); reloading.`);
     // Give up after three crashes in a minute rather than loop.
     const now = Date.now();
     crashes.push(now);
@@ -293,6 +361,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     state = loadState();
+    // The table as it opened is an earlier save, so a bad change made now can be rolled back after another restart.
+    keepEarlier();
     ipcMain.handle("state:get", () => state);
     ipcMain.handle("player:get", () => playerViewOf(state, placement().surfaceKey));
     ipcMain.handle("table:status", () => tableStatus());
@@ -314,6 +384,44 @@ if (!app.requestSingleInstanceLock()) {
       if (previous) commit(dropMissingCharacters({ ...previous, ...keepOnUndo(state) }));
     });
     ipcMain.handle("history:get", () => history.length > 0);
+    // Earlier saves (D-037): going back keeps the state now as an earlier save first, so it can be taken back too.
+    ipcMain.handle("saves:list", () => listEarlier());
+    ipcMain.handle("saves:restore", (_e, name: unknown) => {
+      if (typeof name !== "string" || earlierTime(name) === null) return false;
+      const file = path.join(earlierDir(), name);
+      if (!fs.existsSync(file)) return false;
+      const parsed = parseSave(fs.readFileSync(file, "utf8"));
+      if (!parsed.ok) return false;
+      saveNow();
+      keepEarlier();
+      // Undo steps belong to the state being left.
+      history.length = 0;
+      // A character id given out since stays used, so it never names someone else (a sheet left open, say).
+      const lastCharacter = Math.max(state.lastCharacter, parsed.state.lastCharacter);
+      commit({ ...parsed.state, ...keepOnRestore(state), lastCharacter });
+      return true;
+    });
+    ipcMain.handle("report:copy", () => {
+      const { fullscreen, surfaceKey } = placement();
+      const file = savePath();
+      const text = problemReport({
+        at: new Date().toISOString(),
+        app: app.getVersion(),
+        electron: process.versions.electron,
+        chrome: process.versions.chrome,
+        os: `${process.platform} ${process.getSystemVersion()}`,
+        displays: screen.getAllDisplays().map((d) => ({ ...displayInfo(d), scale: d.scaleFactor })),
+        surfaceKey,
+        fullscreen,
+        calibrated: Object.keys(state.calibrations),
+        saveBytes: fs.existsSync(file) ? fs.statSync(file).size : null,
+        earlier: listEarlier().length,
+        notices: [notice, saveProblem].filter((n): n is string => !!n),
+        log: problems,
+      });
+      clipboard.writeText(text);
+      return text;
+    });
     // A ping is a moment, not a change: it goes to the table and is never saved or undone (D-034). The curtain hides it.
     ipcMain.handle("table:ping", (_e, x: unknown, y: unknown) => {
       const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 500;
