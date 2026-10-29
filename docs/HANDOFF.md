@@ -27,7 +27,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 - Button size: Morgan thinks buttons could be a little smaller (2026-10-28), but wants to decide after trying the laptop. Keep D-023's 40 px / 56 px until then.
 - Windows SmartScreen warns on the unsigned app ("More info" → "Run anyway"). Recommended: accept for now; code signing costs money.
-- Morgan will measure the projected table area; a map bigger than it is dragged under the projector (D-036; saved spots later).
+- Table area: plan for a 2 × 3.5 ft board (24 × 42 in), Morgan 2026-10-29; the projected area is measured at the rehearsal. A map bigger than it is dragged under the projector (D-036; saved spots with scenes).
 - Library loose ends: portraits could be touched up on Morgan's PC (320 × 320 in `mm2024.json`); 4 files damaged in Morgan's map zip (listed in `maps/lmop/README.md`); Wave Echo Cave scale unchecked; Flesh Meld and Nellik DCs don't fit their stats (adventure Markdown only, no page to check); wall spells have no template area; spell class lists include Artificer from the source file.
 
 ## How to work here
