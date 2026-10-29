@@ -279,6 +279,7 @@ button.menu-btn:hover {
 }
 /* ---- The map first, beside one panel (D-038) ---- */
 .work {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -544,20 +545,6 @@ body[data-panels="folded"] .panel-split {
   gap: 10px;
   min-width: 0;
 }
-.card.lead {
-  grid-column: 1 / -1;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 14px;
-}
-.lead-icon svg {
-  width: 32px;
-  height: 32px;
-  color: var(--accent);
-}
-.card.lead h2 {
-  color: var(--ink);
-}
 .hint {
   margin: 0;
   color: var(--muted);
@@ -718,11 +705,6 @@ input[type="number"] {
   width: 20px;
   height: 20px;
 }
-.cal-tools {
-  display: grid;
-  gap: 10px;
-}
-.cal-tools[hidden],
 #notice[hidden] {
   display: none;
 }
@@ -765,11 +747,6 @@ input[type="number"] {
 }
 .setup[hidden] {
   display: none;
-}
-.lead-body {
-  display: grid;
-  gap: 8px;
-  justify-items: start;
 }
 .library {
   list-style: none;
@@ -1601,4 +1578,88 @@ button.who {
 }
 .turn-strip span {
   color: var(--muted);
+}
+/* Full-window steps (D-038): calibrate, import and patch cover the map and the panel, the picture takes the room left,
+   and the buttons stay at the foot. */
+.full-step:not([hidden]) {
+  position: absolute;
+  inset: 6px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  box-shadow: 0 14px 36px var(--shade);
+}
+.full-step > * {
+  flex: none;
+}
+.full-step > .stage-frame,
+.full-step > .patch-scroll {
+  flex: 1;
+  min-height: 0;
+}
+.full-step > .patch-scroll {
+  max-height: none;
+}
+.stage-frame {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+/* The first screen's checklist (D-038), centred on the empty map. */
+.card.checklist {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(100%, 600px);
+  margin-top: 6vh;
+}
+.card.checklist h2,
+.full-step h2 {
+  font: 600 1.15rem var(--body);
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.ready {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.ready li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--raised);
+}
+.ready li > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+.ready small {
+  color: var(--muted);
+}
+/* An empty ring, or a ticked one when the step is done. */
+.ready .tick {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--frame);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+.ready li.done .tick {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: var(--accent-ink);
+}
+.ready li.done .tick::after {
+  content: "✓";
 }

@@ -103,6 +103,8 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     await table.waitForFunction(() => document.body.dataset.calibrated === "true");
     await table.waitForFunction((b) => document.getElementById("layer").style.transform !== b, before);
     await dm.click("#calDone");
+    // The first screen's checklist (D-038) ticks Calibrate once this screen has a calibration.
+    await dm.locator("#readyCal.done").waitFor();
     await table.waitForFunction(() => document.body.dataset.view === "testGrid");
 
     // Shortcuts (D-023): Tab folds the side panels when no control has focus, and B blanks the table.
@@ -297,7 +299,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     assert.equal(await fingerprint(table, `terra-map://${id}/?b`), patched);
     assert.equal(await fingerprint(table, `terra-map://${id}/table?b`), patched);
 
-    // Fog (D-025): a new map is all black on the table. Paint a box with Reveal, and the table and the DM's preview
+    // Fog (D-025): a new map is all black on the table. Paint a box with Uncover, and the table and the DM's preview
     // show the map there; Ctrl+Z covers it again.
     await dm.evaluate(() => window.terra.apply({ type: "testGrid", on: false }));
     const lit = (page, id) =>
@@ -310,7 +312,12 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
       }, id);
     await table.waitForFunction(async () => (await window.terra.getView()).grid === false);
     assert.equal(await lit(table, "layer"), 0);
-    await dm.click("button[data-tool='reveal']");
+    // The fog tools' keys (D-038): G picks Dim, U picks Uncover.
+    await dm.evaluate(() => document.activeElement.blur());
+    await dm.keyboard.press("g");
+    assert.equal(await dm.getAttribute("button[data-tool='hide']", "aria-pressed"), "true");
+    await dm.keyboard.press("u");
+    assert.equal(await dm.getAttribute("button[data-tool='reveal']", "aria-pressed"), "true");
     await dm.click("button[data-draw='box']");
     const box = await dm.locator("#mapCanvas").boundingBox();
     await dm.mouse.move(box.x + box.width / 2 - 30, box.y + box.height / 2 - 30);
@@ -567,13 +574,13 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     // The map's id is random hex, which can hold "ac" by chance; it is checked to be the library id elsewhere.
     const shown = JSON.stringify({ ...view, map: view.map && { ...view.map, id: "" } });
     for (const secret of ["Zombie", "SRD52", "board", "hp", "ac", "passive", "init", "notes"]) assert.ok(!shown.includes(secret), secret);
-    // Reveal (D-036): linking the zombie chose its symbol; one tap shows it on the table, still without its name. Mini
+    // Show picture (D-036, D-038): linking the zombie chose its symbol; one tap shows it on the table, still without its name. Mini
     // on it, from the disc's HP pad, tells the table to put the letter on a tab.
     await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await dm.click(".quick-hp button.sheet");
     // The strip stays pinned above an open sheet, so whose turn it is never goes out of sight.
     assert.ok(await dm.locator("#turnStrip").isVisible());
-    await mon.locator("button", { hasText: "Reveal" }).click();
+    await mon.locator("button", { hasText: "Show picture" }).click();
     await table.waitForFunction(async () => (await window.terra.getView()).discs[0]?.symbol === "undead");
     await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await dm.click(".quick-hp button.mini");

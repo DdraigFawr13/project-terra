@@ -1,6 +1,6 @@
 // DM window, maps (step 4, D-024): import a picture, mark a rectangle of known size, straighten it into 1-inch
 // squares, and place, move and turn it on the table. Straightening runs here, in the DM window; the main process only
-// stores the result in the personal library (D-010). Fog (step 5, D-025) is painted here with Reveal and Hide, and
+// stores the result in the personal library (D-010). Fog (step 5, D-025) is painted here with Uncover and Dim (the tools `reveal` and `hide`, D-038), and
 // enemy discs (step 6, D-027) are placed with Marker and dragged with Select. Ping (step 7, D-034) pings the table with
 // a tap and leaves a pin with a long press. Draw (D-035) draws freehand lines, lasting or fading.
 import { defaultCalibration, screenOutline } from "../core/calibration.ts";
@@ -195,9 +195,10 @@ export function initMaps(
 
   // ---- Import: mark a rectangle on the picture ----
 
-  /** Picture pixels → canvas pixels: the picture fits the card and sits centred in it. */
+  /** Picture pixels → canvas pixels: the picture fits the room the import step leaves it, centred (D-038). */
   function importFit(bitmap: ImageBitmap): { k: number; x0: number } {
-    const k = Math.min(importCanvas.clientWidth / bitmap.width, (window.innerHeight * 0.55) / bitmap.height);
+    const room = importCanvas.parentElement!.clientHeight || window.innerHeight * 0.55;
+    const k = Math.min(importCanvas.clientWidth / bitmap.width, room / bitmap.height);
     return { k, x0: (importCanvas.clientWidth - bitmap.width * k) / 2 };
   }
 
@@ -746,7 +747,7 @@ export function initMaps(
       return;
     }
     if (tool === "draw") {
-      // The pen's eraser end (or eraser button) rubs out lines, as it hides fog with Reveal and Hide (D-025).
+      // The pen's eraser end (or eraser button) rubs out lines, as it dims fog with Uncover and Dim (D-025).
       const eraser = e.pointerType === "pen" && (e.button === 5 || (e.buttons & 32) !== 0);
       line = { pointer: e.pointerId, pen, from: canvasPoint(e), points: [mapInchesAt(e)!], eraser };
       if (eraser) eraseAt(e);
@@ -769,7 +770,7 @@ export function initMaps(
       return;
     }
     const at = mapInchesAt(e)!;
-    // A pen's eraser end (or eraser button) hides, whichever of Reveal or Hide is picked.
+    // A pen's eraser end (or eraser button) hides, whichever of Uncover or Dim is picked.
     const eraser = e.pointerType === "pen" && (e.button === 5 || (e.buttons & 32) !== 0);
     stroke = { pointer: e.pointerId, pen: e.pointerType === "pen", mode: eraser ? "hide" : tool, points: [at] };
     hover = e.pointerType === "touch" ? null : at;
@@ -976,7 +977,7 @@ export function initMaps(
     tool = t;
     render();
   }
-  /** Picking how to draw, or a brush size, also picks Reveal if the map was on Select. */
+  /** Picking how to draw, or a brush size, also picks Uncover if the map was on Select. */
   function setDraw(d: DrawWith): void {
     drawWith = d;
     if (tool === "select" || tool === "marker") tool = "reveal";
@@ -1021,13 +1022,13 @@ export function initMaps(
   const fogAll: FogOp[] = [{ kind: "dimSeen" }, { kind: "revealAll" }, { kind: "coverAll" }];
   fogBtns.forEach((b, i) => b.addEventListener("click", () => run({ type: "fog", op: fogAll[i]! })));
 
-  /** V, R, H, M, P and D pick the tool; S steps through brush, outline and box. Returns whether the key was used. */
+  /** V, U (Uncover), G (Dim), M, P and D pick the tool; S steps through brush, outline and box (D-038). Returns whether the key was used. */
   function shortcut(key: string): boolean {
     if (!state?.map || importing) return false;
     const k = key.toLowerCase();
     if (k === "v") setTool("select");
-    else if (k === "r") setTool("reveal");
-    else if (k === "h") setTool("hide");
+    else if (k === "u") setTool("reveal");
+    else if (k === "g") setTool("hide");
     else if (k === "m") setTool("marker");
     else if (k === "p") setTool("ping");
     else if (k === "d") setTool("draw");

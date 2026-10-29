@@ -17,8 +17,8 @@ With a projector or TV plugged in, the table window goes fullscreen on it. Windo
 ### Calibrate (step 2)
 
 1. With a ruler, mark a rectangle on the mat (a coin or tape at each corner), for example 10 × 10 inches.
-2. In the DM window, press **Calibrate** and enter the rectangle's size.
-3. Drag corners 1–4 in the small preview until each lands on its mark on the table. For fine moves, select a corner and use the arrow keys (Shift for bigger steps).
+2. In the DM window, press **Calibrate** (on the first screen's checklist, in Setup, or Table → Calibrate…). It fills the window. Enter the rectangle's size.
+3. Drag corners 1–4 in the preview until each lands on its mark on the table. For fine moves, select a corner and use the arrow keys (Shift for bigger steps).
 4. Press **Done**, then check one square with the ruler: it should be 1 inch.
 
 Without a projector, the same works on the laptop: hold the ruler against the table window and calibrate it. Each projector keeps its own calibration.
@@ -40,6 +40,9 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 
 - **The map and one panel (D-038):** the map fills the window, with its tools on its left edge. The panel on the right shows a thumbnail of what the table shows (hold it to see it big), then three tabs: **Setup** (table screen, calibration, the Party sheet), **Explore** (fog for the whole map, the Encounter list) and **Fight** (the Encounter list). Start fight switches to Fight, End fight back to Explore.
 - **Encounter list:** the party (each with a thin HP bar and numbers; tap a name for an HP pad with Damage, Heal and Temp HP) and the colour groups (tap for the sheet). In a fight the same rows run in turn order with their rolls, and a strip pinned at the top says the round, whose turn it is and who is next, even while a sheet is open.
+- **First screen:** with no map yet, a checklist shows what to do: table screen, calibrate, import a map, add the party. Each step ticks itself off.
+- **Map tools (D-038):** Select (V), Uncover (U) and Dim (G) for fog, Marker (M), Ping (P) and Draw (D); S steps through brush, outline and box. Each tool shows its name under its icon.
+- **Words:** **On table / Off table** says whether a group's or a disc's discs are on the table; **Show picture** puts a group's symbol or portrait on its tokens; the fog buttons are **Dim what's in view**, **Uncover all** and **Cover all**.
 - **Sheets:** the Party and monster sheets open in the panel in place of the tab's lists; **Back** returns to the lists. One sheet shows at a time, and the one open when the app closes opens again.
 - **Panel size:** drag the panel's edge to make it wider or narrower (or focus the edge and use the arrow keys); the width is remembered. Tab folds the panel away so the map has the whole window.
 - **Menus:** Table (setup, calibrate, test grid, flip letters, lock, import, earlier saves, problem report), Fight (start or end, Party) and View (the panel's tabs, fold, appearance). Curtain and Next turn stay on the bar; the status bar at the bottom shows the table screen, the round, the zoom and any problem.

@@ -23,7 +23,7 @@ import { button, COLOUR_NAME, el, field, NUMBER, stat, swatch, wholeOrNull } fro
 import { sheetWin, forgetSheet, wasOpen, type Sheet } from "./panel.ts";
 import { numpad, type Numpad } from "./numpad.ts";
 
-/** The symbol choice in Edit: none keeps plain letter discs even after Reveal is pressed. */
+/** The symbol choice in Edit: none keeps plain letter discs even after Show picture is pressed. */
 function symbolField(value: string, onChange: (v: string) => void): HTMLLabelElement {
   const select = el(
     "select",
@@ -135,15 +135,17 @@ export function initMonsters(
         }
         render();
       });
-    // Reveal (D-036): the table shows the group's symbol in place of plain letters. It needs a symbol first.
+    // Show picture (D-036, named by D-038): the table shows the group's symbol or portrait in place of plain letters. It
+    // needs a symbol first.
     const reveal = button(
-      g.revealed ? "Revealed" : "Reveal",
+      g.revealed ? "Picture shown" : "Show picture",
       {
         "aria-pressed": String(g.revealed),
         disabled: !g.symbol && !g.revealed,
-        title: g.symbol ? "Show this group's symbol on the table" : "Pick a symbol with Edit, or a creature with Book",
+        title: g.symbol ? "Show this group's picture on the table" : "Pick a symbol with Edit, or a creature with Book",
       },
       () => run({ type: "group", colour: c, info: { ...g, revealed: !g.revealed } }),
+      "picture",
     );
     p.win.actions.replaceChildren(reveal, tab("book", "Book"), tab("edit", "Edit"));
     if (p.view === "edit") return p.win.body.replaceChildren(editView(s, c, p, g, discs));
@@ -210,8 +212,10 @@ export function initMonsters(
               "",
               {
                 class: "icon",
-                "aria-pressed": String(d.shown),
-                "aria-label": d.shown ? `${d.letter} is on the table: hide it` : `${d.letter} is hidden: show it`,
+                role: "switch",
+                "aria-checked": String(d.shown),
+                "aria-label": `${d.letter} on the table`,
+                title: d.shown ? "On table: tap to take it off" : "Off table: tap to put it on",
               },
               () => run({ type: "showDiscs", colour: c, letter: d.letter, on: !d.shown }),
               d.shown ? "reveal" : "hide",
@@ -219,16 +223,16 @@ export function initMonsters(
           );
         }),
       ),
-      // What's missing, in one line. A pen can't hover for Reveal's tooltip, so this also says why it is greyed out.
+      // What's missing, in one line. A pen can't hover for Show picture's tooltip, so this also says why it is greyed out.
       ...(anyMax ? [p.pad.el] : []),
       ...missing(anyMax, !!g.symbol || g.revealed),
       ...(g.notes ? [el("p", { class: "notes" }, g.notes)] : []),
     );
   }
 
-  /** One hint for a group missing HP, a symbol for Reveal, or both: pick the creature with Book, or set them in Edit. */
+  /** One hint for a group missing HP, a symbol for Show picture, or both: pick the creature with Book, or set them in Edit. */
   const missing = (hp: boolean, symbol: boolean): HTMLElement[] => {
-    const what = !hp && !symbol ? "No HP or symbol yet" : !hp ? "No HP yet" : !symbol ? "Reveal needs a symbol" : null;
+    const what = !hp && !symbol ? "No HP or symbol yet" : !hp ? "No HP yet" : !symbol ? "Show picture needs a symbol" : null;
     return what ? [el("p", { class: "hint" }, `${what}. Pick the creature with Book, or set it in Edit.`)] : [];
   };
 
@@ -467,7 +471,7 @@ function statBlock(b: StatBlock): HTMLElement {
   return el(
     "article",
     { class: "statblock" },
-    // The DM sees the portrait before revealing it (D-036); the table's own route serves it only after Reveal.
+    // The DM sees the portrait before showing it (D-036); the table's own route serves it only after Show picture.
     ...(b.portrait
       ? [el("img", { class: "portrait", src: `terra-portrait://book/${encodeURIComponent(b.key)}`, alt: `${b.name}: the book's picture` })]
       : []),
