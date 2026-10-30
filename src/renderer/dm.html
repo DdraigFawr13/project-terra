@@ -334,7 +334,13 @@
                 </li>
                 <li id="readyMap">
                   <span class="tick" aria-hidden="true"></span>
-                  <span><b>Import a map</b><small>A picture or photo of a map. Maps stay in your library on this laptop.</small></span>
+                  <span
+                    ><b>Import a map</b
+                    ><small
+                      >A picture or photo of a map, or a VTT file (.dd2vtt, .uvtt) with its walls and doors. Maps stay in your library on
+                      this laptop.</small
+                    ></span
+                  >
                   <button id="importMap" type="button" class="primary">Import map…</button>
                 </li>
                 <li id="readyParty">
@@ -343,13 +349,15 @@
                   <button id="readyPartyBtn" type="button">Party sheet</button>
                 </li>
               </ol>
-              <input id="mapFile" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+              <input id="mapFile" type="file" accept="image/png,image/jpeg,image/webp,.dd2vtt,.uvtt,.json" multiple hidden />
+              <input id="vttPicture" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+              <p id="libraryStatus" class="hint" role="status"></p>
               <ul id="library" class="library" aria-label="Your maps"></ul>
             </section>
 
             <section id="importer" class="card wide full-step" aria-labelledby="import-heading" hidden>
               <h2 id="import-heading">Mark a rectangle on the map</h2>
-              <ol class="steps">
+              <ol class="steps" data-mark-only>
                 <li>
                   Drag corners 1–4 onto the corners of a block of grid squares, or any rectangle you know the size of. A magnifier shows the
                   corner while you drag.
@@ -363,8 +371,8 @@
               </ol>
               <div class="size">
                 <label>Name <input id="mapName" type="text" maxlength="120" /></label>
-                <label>Width <input id="markW" type="number" min="1" max="120" step="1" value="4" /> squares</label>
-                <label>Height <input id="markH" type="number" min="1" max="120" step="1" value="4" /> squares</label>
+                <label data-mark-only>Width <input id="markW" type="number" min="1" max="120" step="1" value="4" /> squares</label>
+                <label data-mark-only>Height <input id="markH" type="number" min="1" max="120" step="1" value="4" /> squares</label>
                 <label
                   >Each square is
                   <select id="markFeet">
@@ -385,6 +393,7 @@
                 <button
                   id="importFill"
                   type="button"
+                  data-mark-only
                   title="For a picture with no squares, such as a region map: fill the table without stretching"
                 >
                   Fill the table

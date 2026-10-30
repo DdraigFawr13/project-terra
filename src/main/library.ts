@@ -50,18 +50,34 @@ export function savePatch(userData: string, id: unknown, png: unknown): void {
 const isPng = (png: unknown): png is Uint8Array =>
   png instanceof Uint8Array && png.byteLength <= MAX_BYTES && Buffer.from(png.subarray(0, 8)).equals(PNG_SIGNATURE);
 
-/** Store a straightened map. Refuses anything that isn't a PNG of sensible size, or has a bad name or extent. */
-export function saveMap(userData: string, name: unknown, png: unknown, bounds: unknown, feetPerSquare: unknown): LibraryMap {
+/**
+ * Store a straightened map. Refuses anything that isn't a PNG of sensible size, or has a bad name or extent. `walls`
+ * come with a VTT import (D-044); they are checked before anything is written, so a bad file leaves no half a map.
+ */
+export function saveMap(
+  userData: string,
+  name: unknown,
+  png: unknown,
+  bounds: unknown,
+  feetPerSquare: unknown,
+  walls?: unknown,
+): LibraryMap {
   if (!isPng(png)) throw new Error("The map image must be a PNG under 64 MB.");
   const id = `map-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`;
   const cleanName = typeof name === "string" && name.trim() ? name.trim().slice(0, 120) : "Untitled map";
   // Reuse the table's own checks for the id, name, extent and feet per square.
   const checked = parsePlacedMap({ id, name: cleanName, bounds, feetPerSquare, x: 0, y: 0, turns: 0 });
   if (!checked) throw new Error("The map's size or name is not usable.");
+  const traced =
+    walls == null
+      ? null
+      : parseAnnotation(walls && typeof walls === "object" ? { ...walls, version: ANNOTATION_VERSION } : walls, checked.bounds);
+  if (walls != null && !traced) throw new Error("The walls couldn't be saved: some of them are outside the map or damaged.");
   const entry: LibraryMap = { id, name: checked.name, bounds: checked.bounds, feetPerSquare: checked.feetPerSquare, patched: false };
   const dir = mapsDir(userData);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, `${id}.png`), png);
+  if (traced) fs.writeFileSync(path.join(dir, `${id}.walls.json`), JSON.stringify(annotationFile(traced)) + "\n");
   // Whether it is patched comes from the files on disk, never from the JSON.
   const { patched: _, ...stored } = entry;
   fs.writeFileSync(path.join(dir, `${id}.json`), JSON.stringify(stored, null, 2) + "\n");
