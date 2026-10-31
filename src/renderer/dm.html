@@ -452,6 +452,8 @@
                   <button type="button" data-walls-tool="window" aria-pressed="false">Window</button>
                   <button type="button" data-walls-tool="opening" aria-pressed="false">Opening</button>
                   <button type="button" data-walls-tool="room" aria-pressed="false">Room</button>
+                  <button type="button" data-walls-tool="area" aria-pressed="false">Area</button>
+                  <button type="button" data-walls-tool="check" aria-pressed="false">Wall check</button>
                   <button type="button" data-walls-tool="erase" aria-pressed="false">Rub out</button>
                 </div>
                 <div class="presets" role="group" aria-label="Zoom">
@@ -459,10 +461,19 @@
                   <button type="button" data-walls-zoom="2" aria-pressed="false">2×</button>
                   <button type="button" data-walls-zoom="4" aria-pressed="false">4×</button>
                 </div>
-                <label id="roomNameBox" class="room-name" hidden>
+                <label id="roomNameBox" class="room-name unseen">
                   Room name
                   <input id="roomName" type="text" maxlength="40" autocomplete="off" />
                 </label>
+                <div id="tagRow" class="presets unseen" role="group" aria-label="What the floor is">
+                  <button type="button" data-tag="stone" aria-pressed="false">Stone</button>
+                  <button type="button" data-tag="wood" aria-pressed="false">Wood</button>
+                  <button type="button" data-tag="earth" aria-pressed="false">Earth</button>
+                  <button type="button" data-tag="grass" aria-pressed="false">Grass</button>
+                  <button type="button" data-tag="water" aria-pressed="false">Water</button>
+                  <button type="button" data-tag="ice" aria-pressed="false">Ice</button>
+                  <button type="button" data-tag="difficult" aria-pressed="false">Difficult</button>
+                </div>
                 <button id="wallsFinish" type="button" disabled>Finish line</button>
                 <button id="wallsUndo" type="button" disabled>Undo</button>
               </div>

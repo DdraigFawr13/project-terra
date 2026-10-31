@@ -1,4 +1,4 @@
-// Map annotation (D-044): walls, pillars, openings and rooms traced on a library map, in the map's own inches like fog
+// Map annotation (D-044): walls, pillars, openings, rooms and areas traced on a library map, in the map's own inches like fog
 // (D-025), so they move and turn with the map. DM-only: none of it is ever sent to the table window (D-002). Pure:
 // the editor's tapping, joining and smoothing rules live here so they are tested without a browser.
 import type { Point } from "./homography.ts";
@@ -14,12 +14,17 @@ type Wall = { points: Point[]; closed: boolean };
 type Pillar = { at: Point; r: number };
 /** `open`: how a door starts; each scene keeps its own state from step 2C. */
 type Opening = { kind: OpeningKind; a: Point; b: Point; open: boolean };
-/** A room (step 2C): its own outline, never overlapping another room's, and a short DM-only name or key number. */
-type Room = { outline: Point[]; name: string };
-export type Annotation = { walls: Wall[]; pillars: Pillar[]; openings: Opening[]; rooms: Room[] };
+/** What a floor is made of (D-044 item 7), for living effects later (D-014). */
+const MATERIALS = ["stone", "wood", "earth", "grass", "water", "ice"] as const;
+export type Material = (typeof MATERIALS)[number];
+/** A room (step 2C): its own outline, never overlapping another room's, a short DM-only name or key number, and a material. */
+type Room = { outline: Point[]; name: string; material: Material | null };
+/** An area (step 2D): an outline that may overlap rooms, with a material, difficult terrain, or both. DM map only. */
+type Area = { outline: Point[]; material: Material | null; difficult: boolean };
+export type Annotation = { walls: Wall[]; pillars: Pillar[]; openings: Opening[]; rooms: Room[]; areas: Area[] };
 
-/** Version 2 added rooms; a version 1 file loads with none. */
-export const ANNOTATION_VERSION = 2;
+/** Version 2 added rooms, version 3 areas and room materials; older files load with none. */
+export const ANNOTATION_VERSION = 3;
 export const MAX_ROOM_NAME = 40;
 /** Taps land on the nearest quarter inch (D-044). */
 const SNAP_IN = 0.25;
@@ -32,7 +37,7 @@ export const MAX_POINTS = 2000;
 /** Lines may reach this far past the picture's edge, for walls drawn along it. */
 const EDGE_IN = 1;
 
-export const emptyAnnotation = (): Annotation => ({ walls: [], pillars: [], openings: [], rooms: [] });
+export const emptyAnnotation = (): Annotation => ({ walls: [], pillars: [], openings: [], rooms: [], areas: [] });
 
 /** Hundredths of an inch, as fog keeps them (D-025); `+ 0` so -0 never reaches a save (AGENTS.md). */
 const round = (v: number): number => Math.round(v * 100) / 100 + 0;
@@ -167,9 +172,9 @@ export function eraseAt(a: Annotation, p: Point, reach: number): Annotation {
 }
 
 /** How many things are traced, for the editor's status line. */
-export function countOf(a: Annotation): { walls: number; pillars: number; openings: number; rooms: number } {
+export function countOf(a: Annotation): { walls: number; pillars: number; openings: number; rooms: number; areas: number } {
   const pieces = a.walls.reduce((n, w) => n + (w.closed ? w.points.length : w.points.length - 1), 0);
-  return { walls: pieces, pillars: a.pillars.length, openings: a.openings.length, rooms: a.rooms.length };
+  return { walls: pieces, pillars: a.pillars.length, openings: a.openings.length, rooms: a.rooms.length, areas: a.areas.length };
 }
 
 // ---- Reading saved files ----
@@ -190,17 +195,22 @@ function parsePoints(raw: unknown, b: Bounds, min: number): Point[] | null {
 
 /**
  * A saved annotation for a map with these bounds, or null if any part of it is unusable. The file is `{ version,
- * walls, pillars, openings, rooms }`; a version 1 file has no rooms. Whole-file refusal keeps a damaged file from
- * being half-loaded and then saved over.
+ * walls, pillars, openings, rooms, areas }`; a version 1 file has no rooms, and versions 1 and 2 have no areas or room
+ * materials. Whole-file refusal keeps a damaged file from being half-loaded and then saved over.
  */
 export function parseAnnotation(raw: unknown, b: Bounds): Annotation | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  if (r.version !== 1 && r.version !== ANNOTATION_VERSION) return null;
+  if (r.version !== 1 && r.version !== 2 && r.version !== ANNOTATION_VERSION) return null;
   const { walls, pillars, openings } = r;
   const rooms = r.version === 1 ? [] : r.rooms;
-  if (!Array.isArray(walls) || !Array.isArray(pillars) || !Array.isArray(openings) || !Array.isArray(rooms)) return null;
-  if (walls.length + pillars.length + openings.length + rooms.length > MAX_ITEMS) return null;
+  const areas = r.version === ANNOTATION_VERSION ? r.areas : [];
+  if (!Array.isArray(walls) || !Array.isArray(pillars) || !Array.isArray(openings) || !Array.isArray(rooms) || !Array.isArray(areas))
+    return null;
+  if (walls.length + pillars.length + openings.length + rooms.length + areas.length > MAX_ITEMS) return null;
+  /** A material, or null; undefined if the value isn't one. Files before version 3 have none. */
+  const material = (v: unknown): Material | null | undefined =>
+    r.version !== ANNOTATION_VERSION ? null : v === null ? null : MATERIALS.includes(v as Material) ? (v as Material) : undefined;
   const out = emptyAnnotation();
   for (const w of walls) {
     if (!w || typeof w !== "object" || typeof w.closed !== "boolean") return null;
@@ -222,8 +232,16 @@ export function parseAnnotation(raw: unknown, b: Bounds): Annotation | null {
   for (const room of rooms) {
     if (!room || typeof room !== "object" || typeof room.name !== "string" || room.name.length > MAX_ROOM_NAME) return null;
     const outline = parsePoints(room.outline, b, 3);
-    if (!outline) return null;
-    out.rooms.push({ outline, name: room.name });
+    const m = material(room.material);
+    if (!outline || m === undefined) return null;
+    out.rooms.push({ outline, name: room.name, material: m });
+  }
+  for (const area of areas) {
+    if (!area || typeof area !== "object" || typeof area.difficult !== "boolean") return null;
+    const outline = parsePoints(area.outline, b, 3);
+    const m = material(area.material);
+    if (!outline || m === undefined) return null;
+    out.areas.push({ outline, material: m, difficult: area.difficult });
   }
   return out;
 }

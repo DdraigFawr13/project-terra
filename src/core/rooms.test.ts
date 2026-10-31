@@ -101,7 +101,7 @@ test("uncovering a room grows past its walls but never into the next room, and p
 test("rooms save and load; a version 1 file loads with none", () => {
   const a = addRoom(building(), box(2, 2, 8, 8).slice(0, 4), "Hall")!;
   const file = JSON.parse(JSON.stringify(annotationFile(a)));
-  assert.equal(file.version, 2);
+  assert.equal(file.version, 3);
   assert.deepEqual(parseAnnotation(file, bounds), a);
   const old = { version: 1, walls: file.walls, pillars: [], openings: file.openings };
   assert.deepEqual(parseAnnotation(old, bounds)!.rooms, []);
