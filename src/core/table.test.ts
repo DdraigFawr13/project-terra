@@ -95,6 +95,7 @@ test("the table window gets only the player view: no map name, the calibration f
     flipLetters: false,
     // Placing a map switches the test grid off (D-034).
     grid: false,
+    brightness: 1,
     pins: [],
     drawings: [],
     cover: null,
@@ -273,6 +274,7 @@ test("the same commands give the same state, and any state saves and loads uncha
       init: fc.oneof(anyValue, fc.integer({ min: -2, max: 3 })),
     }),
     fc.record({ type: fc.constant("swapTie"), who: fc.constantFrom("pc-1", "red"), by: fc.constantFrom(-1, 1, -0) }),
+    fc.record({ type: fc.constant("brightness"), value: fc.oneof(anyValue, fc.integer({ min: 40, max: 160 })) }),
     fc.record({
       type: fc.constantFrom("addScene", "renameScene"),
       id: fc.constantFrom("scene-1", "scene-2", "x"),
@@ -343,7 +345,7 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
     ok: true,
     state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
   });
-  assert.equal(parseSave(JSON.stringify({ version: 17, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 18, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });
 
@@ -506,7 +508,7 @@ test("scenes (D-039): each keeps its own map, discs and paused fight; switching 
   // A new scene is empty and on the table, behind the curtain; the cave waits with everything in it.
   assert.equal(s.scene, "scene-2");
   assert.deepEqual([s.map, s.fight, s.mapLocked, s.curtain], [null, null, false, true]);
-  assert.deepEqual(s.scenes[0]!.parked, { map: cave.map, fight: cave.fight, mapLocked: true });
+  assert.deepEqual(s.scenes[0]!.parked, { map: cave.map, fight: cave.fight, mapLocked: true, testGrid: false });
   // The party is shared: HP changed on the road is the same Ash back in the cave.
   const back = run(
     [
@@ -517,7 +519,7 @@ test("scenes (D-039): each keeps its own map, discs and paused fight; switching 
     s,
   );
   assert.deepEqual([back.map, back.fight, back.curtain, back.party[0]!.hp], [cave.map, cave.fight, true, 15]);
-  assert.deepEqual(back.scenes[1]!.parked, { map: null, fight: null, mapLocked: false });
+  assert.deepEqual(back.scenes[1]!.parked, { map: null, fight: null, mapLocked: false, testGrid: false });
   // A character removed while the fight waits leaves its turn order on the way back (D-027).
   const gone = run(
     [
@@ -541,6 +543,52 @@ test("scenes (D-039): each keeps its own map, discs and paused fight; switching 
   const view = JSON.stringify(playerViewOf(road, "window"));
   assert.ok(!view.includes("map-1") && !view.includes("Goblin") && !view.includes("Secret"));
   assert.deepEqual([playerViewOf(road, "window").discs, playerViewOf(road, "window").pins], [[], []]);
+});
+
+test("Batch 2 (D-046): a turn ring for the colour whose turn it is, each scene's own grid, and the map's brightness", () => {
+  let s = run([
+    { type: "placeMap", map },
+    { type: "placeDisc", colour: "red", x: 1, y: 1, size: 1 },
+    { type: "placeDisc", colour: "blue", x: 3, y: 1, size: 3 },
+    { type: "showDiscs", colour: "red", letter: null, on: true },
+    { type: "showDiscs", colour: "blue", letter: null, on: true },
+    { type: "startFight" },
+    { type: "initiative", who: "red", init: 14 },
+    { type: "initiative", who: "blue", init: 9 },
+  ]);
+  const turns = (t: TableState) => playerViewOf(t, "window").discs.map((d) => [d.colour, d.turn]);
+  // Before the first turn nobody has the ring; then only the colour whose turn it is.
+  assert.deepEqual(turns(s), [
+    ["red", false],
+    ["blue", false],
+  ]);
+  s = run([{ type: "nextTurn" }], s);
+  assert.deepEqual(turns(s), [
+    ["red", true],
+    ["blue", false],
+  ]);
+  // The grid: on in this scene, off in a new one, back on when this one returns, and kept by a save.
+  s = run([{ type: "testGrid", on: true }], s);
+  const road = run([{ type: "addScene", name: "Road" }], s);
+  assert.equal(road.testGrid, false);
+  const back = run([{ type: "switchScene", id: "scene-1" }], road);
+  assert.equal(back.testGrid, true);
+  const saved = parseSave(serialize(road));
+  assert.ok(saved.ok && saved.state.scenes[0]!.parked!.testGrid === true);
+  // Brightness: whole percent from 50 to 150, sent to the table as a factor; outside that it is refused.
+  assert.equal(playerViewOf(s, "window").brightness, 1);
+  const dim = run([{ type: "brightness", value: 80 }], s);
+  assert.equal(playerViewOf(dim, "window").brightness, 0.8);
+  assert.equal(parseCommand({ type: "brightness", value: 45 }), null);
+  assert.equal(parseCommand({ type: "brightness", value: 80.5 }), null);
+  const kept = parseSave(serialize(dim));
+  assert.ok(kept.ok && kept.state.brightness === 80);
+  // A save from before brightness and per-scene grids loads at 100% with waiting scenes' grids off.
+  const old = JSON.parse(serialize(road));
+  delete old.brightness;
+  delete old.scenes[0].parked.testGrid;
+  const upgraded = parseSave(JSON.stringify({ ...old, version: 16 }));
+  assert.ok(upgraded.ok && upgraded.state.brightness === 100 && upgraded.state.scenes[0]!.parked!.testGrid === false);
 });
 
 test("scene list (D-039): names, order, copies and the Removed list", () => {

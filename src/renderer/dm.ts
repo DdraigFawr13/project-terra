@@ -67,6 +67,8 @@ const statusEl = $<HTMLSpanElement>("status");
 const noticeEl = $<HTMLSpanElement>("notice");
 const displaySelect = $<HTMLSelectElement>("display");
 const testGridBtn = $<HTMLButtonElement>("testGrid");
+const brightnessIn = $<HTMLInputElement>("brightness");
+const brightnessOut = $<HTMLOutputElement>("brightnessValue");
 const curtainBtn = $<HTMLButtonElement>("curtain");
 const calibrateBtn = $<HTMLButtonElement>("calibrate");
 const calState = $<HTMLParagraphElement>("calState");
@@ -125,6 +127,9 @@ function renderState(s: TableState): void {
   curtainBtn.setAttribute("aria-pressed", String(s.curtain));
   calibrateBtn.setAttribute("aria-pressed", String(s.calibrating));
   $<HTMLButtonElement>("flipLetters").setAttribute("aria-pressed", String(s.flipLetters));
+  // Not while the slider is held, so a state echo can't pull it back under the finger.
+  if (document.activeElement !== brightnessIn) brightnessIn.value = String(s.brightness);
+  brightnessOut.textContent = `${brightnessIn.value}%`;
   renderCalibration();
   drawTablePreview();
   renderReady();
@@ -334,6 +339,9 @@ function togglePanels(): void {
   drawTablePreview();
 }
 
+// Map brightness (D-046): the number follows the slider as it moves; the table changes when it is let go.
+brightnessIn.addEventListener("input", () => (brightnessOut.textContent = `${brightnessIn.value}%`));
+brightnessIn.addEventListener("change", () => terra.apply({ type: "brightness", value: Number(brightnessIn.value) }));
 testGridBtn.addEventListener("click", () => terra.apply({ type: "testGrid", on: testGridBtn.getAttribute("aria-pressed") !== "true" }));
 curtainBtn.addEventListener("click", toggleCurtain);
 

@@ -85,6 +85,10 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     await dm.click("#testGrid");
     await table.waitForFunction(() => document.body.dataset.view === "idle");
     await dm.click("#testGrid");
+    // Map brightness (D-046): set once in Setup, sent to the table as a factor and kept by the save.
+    await dm.locator("#brightness").fill("80");
+    await until(table, async () => (await window.terra.getView()).brightness === 0.8);
+    assert.equal(await dm.textContent("#brightnessValue"), "80%");
 
     // Calibrate: drag corner 3 in the DM's preview, and the table's warp follows (D-004).
     assert.equal(await table.getAttribute("body", "data-calibrated"), "false");
@@ -163,6 +167,7 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     assert.equal(await dm.getAttribute("#curtain", "aria-pressed"), "true");
     assert.equal(await dm.getAttribute("#testGrid", "aria-pressed"), "true");
     assert.equal(await table.getAttribute("body", "data-calibrated"), "true");
+    assert.equal(await dm.inputValue("#brightness"), "80");
     assert.match(await dm.textContent("#calState"), /^Calibrated for/);
     assert.equal(await dm.getAttribute("html", "data-look"), "linen");
 
@@ -936,8 +941,11 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     // strip stays pinned above it, saying whose turn it is.
     await dm.locator("#turnStrip", { hasText: "Zombie now" }).waitFor();
     await mon.waitFor();
+    // On the table, the zombies' disc wears the turn ring while it is their turn (D-046).
+    assert.equal((await table.evaluate(() => window.terra.getView())).discs[0].turn, true);
     await dm.keyboard.press("n");
     await mon.waitFor({ state: "detached" });
+    await until(table, async () => (await window.terra.getView()).discs[0].turn === false);
     // The Encounter list (D-038): a character's name opens its HP pad.
     await dm.locator("#order button.who", { hasText: "Ash" }).click();
     await pad(dm.locator(".quick-hp"), "1", "damage");
