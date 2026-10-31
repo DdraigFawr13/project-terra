@@ -124,6 +124,35 @@ test("initiative: ties keep typed order, arrows swap only ties, turns skip the d
   assert.deepEqual(turns(s, 3), ["1:yellow", "1:pc-1", "2:yellow"]);
 });
 
+test("retyping the current turn lower hands it on, so Next turn reaches everyone it jumped (a held turn)", () => {
+  let s = run([
+    { type: "placeMap", map },
+    { type: "lockMap", on: false },
+    { type: "addCharacter", character: { name: "Ash", ...card } },
+    { type: "addCharacter", character: { name: "Bryn", ...card } },
+    { type: "placeDisc", colour: "yellow", x: 1, y: 1, size: 1 },
+    { type: "placeDisc", colour: "red", x: 3, y: 1, size: 1 },
+    { type: "startFight" },
+    { type: "initiative", who: "yellow", init: 18 },
+    { type: "initiative", who: "pc-1", init: 14 },
+    { type: "initiative", who: "red", init: 10 },
+    { type: "initiative", who: "pc-2", init: 6 },
+    { type: "nextTurn" },
+  ]);
+  const at = (t: TableState) => `${t.fight!.round}:${t.fight!.current}`;
+  assert.equal(at(s), "1:yellow");
+  // Yellow holds until after red: Ash acts now, then red, then yellow, then Bryn.
+  s = run([{ type: "initiative", who: "yellow", init: 9 }], s);
+  const seen = [at(s)];
+  for (let i = 0; i < 4; i++) seen.push(at((s = run([{ type: "nextTurn" }], s))));
+  assert.deepEqual(seen, ["1:pc-1", "1:red", "1:yellow", "1:pc-2", "2:pc-1"]);
+  // Retyped higher, or lower without passing anyone, the turn stays put. Handing on skips a colour that is all down.
+  assert.equal(at(run([{ type: "initiative", who: "pc-1", init: 20 }], s)), "2:pc-1");
+  assert.equal(at(run([{ type: "initiative", who: "pc-1", init: 11 }], s)), "2:pc-1");
+  const redDown = run([{ type: "condition", colour: "red", letter: "A", condition: "down" }], s);
+  assert.equal(at(run([{ type: "initiative", who: "pc-1", init: 1 }], redDown)), "2:yellow");
+});
+
 test("the turn strip starts at the current turn and holds only what players may see (D-002, D-026)", () => {
   const s = run([
     { type: "placeMap", map },

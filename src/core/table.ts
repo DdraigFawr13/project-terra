@@ -799,6 +799,9 @@ function withDiscs(state: TableState, change: (discs: Disc[]) => Disc[]): TableS
 }
 const editDisc = (state: TableState, colour: DiscColour, letter: string, edit: (d: Disc) => Disc) =>
   withDiscs(state, (ds) => ds.map((d) => (sameDisc(d, colour, letter) ? edit(d) : d)));
+/** Who still takes turns in this state (D-027). */
+const takingTurns = (state: TableState) => (who: Who) => takesTurns(who, state.map?.discs ?? [], state.map?.groups ?? {}, state.party);
+
 function withFight(state: TableState, change: (f: Fight) => Fight): TableState {
   return state.fight ? { ...state, fight: change(state.fight) } : state;
 }
@@ -905,18 +908,18 @@ export function apply(state: TableState, c: Command): TableState {
       return { ...state, party: state.party.map((p) => (p.id === c.character.id ? c.character : p)) };
     case "removeCharacter": {
       const next = { ...state, party: state.party.filter((p) => p.id !== c.id) };
-      return withFight(next, (f) => setInitiative(f, c.id, null));
+      return withFight(next, (f) => setInitiative(f, c.id, null, takingTurns(next)));
     }
     case "startFight":
       return state.fight ? state : { ...state, fight: { entries: [], current: null, round: 0 } };
     case "endFight":
       return { ...state, fight: null };
     case "initiative":
-      return withFight(state, (f) => setInitiative(f, c.who, c.init));
+      return withFight(state, (f) => setInitiative(f, c.who, c.init, takingTurns(state)));
     case "swapTie":
       return withFight(state, (f) => swapTie(f, c.who, c.by));
     case "nextTurn":
-      return withFight(state, (f) => nextTurn(f, (who) => takesTurns(who, state.map?.discs ?? [], state.map?.groups ?? {}, state.party)));
+      return withFight(state, (f) => nextTurn(f, takingTurns(state)));
     case "placePin": {
       const m = state.map;
       if (!m || m.pins.length >= MAX_PINS) return state;
@@ -1029,7 +1032,7 @@ export function apply(state: TableState, c: Command): TableState {
  */
 export function dropMissingCharacters(state: TableState): TableState {
   const gone = (state.fight?.entries ?? []).filter((e) => !isColour(e.who) && !state.party.some((p) => p.id === e.who));
-  return gone.reduce((s, e) => withFight(s, (f) => setInitiative(f, e.who, null)), state);
+  return gone.reduce((s, e) => withFight(s, (f) => setInitiative(f, e.who, null, takingTurns(s))), state);
 }
 
 export type ParsedSave = { ok: true; state: TableState } | { ok: false; reason: string };

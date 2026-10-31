@@ -85,6 +85,8 @@ export function sheetWin(id: string): Sheet {
   if (kept.sheet === id) showSheet(id);
   return sheet;
 }
+/** Whether any sheet is open in the panel. */
+export const anySheetOpen = () => openSheet !== null;
 /** Whether the sheet `id` was open when the DM window last closed (D-034). */
 export const wasOpen = (id: string) => kept.sheet === id;
 /** Drop a sheet that won't be made, such as the sheet of a colour with no discs left. */

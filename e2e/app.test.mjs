@@ -433,6 +433,18 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await pen("mouseReleased", 20);
     await until(table, async () => (await window.terra.getView()).map?.fog[0]?.kind === "brush");
     await dm.keyboard.press("Control+z");
+    // Uncover all takes a hold while the players can see the map (D-046): a tap only says so.
+    await dm.click(".side-tabs button[data-tab='explore']");
+    await dm.click("#fogRevealAll");
+    await dm.locator("#fogRevealAll", { hasText: "Hold to uncover all" }).waitFor();
+    assert.equal(await dm.evaluate(async () => (await window.terra.getState()).map.fog.length), 0);
+    await dm.hover("#fogRevealAll");
+    await dm.mouse.down();
+    await until(dm, async () => (await window.terra.getState()).map.fog[0]?.kind === "revealAll");
+    await dm.mouse.up();
+    await dm.keyboard.press("Control+z");
+    await until(dm, async () => (await window.terra.getState()).map.fog.length === 0);
+    await dm.click(".side-tabs button[data-tab='setup']");
     await dm.click("button[data-tool='select']");
 
     // A new map starts locked (D-032): Turn is off, and a drag on the map pans the view rather than moving the map.
@@ -850,10 +862,13 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await until(dm, async () => (await window.terra.getState()).map.discs[0].hp === 6);
 
     // Rolls; the hidden disc's colour is in the order but not on the strip until it is shown. Back from the sheet to the
-    // Fight tab's lists (D-038).
+    // Fight tab's lists (D-038). Start fight goes back to Select from Ping (D-046).
     await dm.click(".sheet-back");
+    await dm.keyboard.press("p");
     await dm.click("#startFight");
-    // With the pen, a roll box opens a number pad instead of the on-screen keyboard (D-032).
+    assert.equal(await dm.getAttribute("button[data-tool='select']", "aria-pressed"), "true");
+    // With the pen, a roll box opens a number pad instead of the on-screen keyboard (D-032). After Set it stays open
+    // for the next one without a roll, and closes when everyone has one (D-046).
     const roll = await dm.locator('[data-key="init-pc-1"]').boundingBox();
     for (const type of ["mousePressed", "mouseReleased"])
       await cdp.send("Input.dispatchMouseEvent", {
@@ -866,20 +881,26 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
         clickCount: 1,
       });
     const rollPad = dm.locator(".roll-pad");
+    await rollPad.locator(".pop-head", { hasText: "Ash" }).waitFor();
     for (const k of "15") await rollPad.locator(`.k.digit[aria-label='${k}']`).click();
     await rollPad.locator(".k.act", { hasText: "Set" }).click();
-    await until(dm, async () => (await window.terra.getState()).fight.entries[0]?.init === 15);
-    await dm.fill('[data-key="init-yellow"]', "9");
-    await dm.press('[data-key="init-yellow"]', "Enter");
-    await until(dm, async () => (await window.terra.getState()).fight.entries.length === 2);
-    await dm.evaluate(() => document.activeElement.blur());
+    await rollPad.locator(".pop-head", { hasText: "Zombie" }).waitFor();
+    await rollPad.locator(".k.digit[aria-label='9']").click();
+    await rollPad.locator(".k.act", { hasText: "Set" }).click();
+    await rollPad.waitFor({ state: "detached" });
+    await until(dm, async () => (await window.terra.getState()).fight.entries.map((e) => e.init).join() === "15,9");
     await dm.keyboard.press("n");
     await until(table, async () => (await window.terra.getView()).strip?.round === 1);
     await dm.click(".group-row .eye");
     await dm.keyboard.press("n");
     await until(table, async () => (await window.terra.getView()).strip?.chips[0]?.kind === "enemy");
-    // The Encounter list (D-038): the turn strip says whose turn it is, and a character's name opens its HP pad.
+    // The zombies are linked to a monster, so their sheet opens on their turn and closes on the next (D-046). The turn
+    // strip stays pinned above it, saying whose turn it is.
     await dm.locator("#turnStrip", { hasText: "Zombie now" }).waitFor();
+    await mon.waitFor();
+    await dm.keyboard.press("n");
+    await mon.waitFor({ state: "detached" });
+    // The Encounter list (D-038): a character's name opens its HP pad.
     await dm.locator("#order button.who", { hasText: "Ash" }).click();
     await pad(dm.locator(".quick-hp"), "1", "damage");
     await until(dm, async () => (await window.terra.getState()).party[0].hp === 21);
@@ -887,7 +908,7 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await dm.keyboard.press("Escape");
     const view = await table.evaluate(() => window.terra.getView());
     // 6 of 15 HP: bloodied, worked out from HP. Only the word reaches the table (D-013, D-028).
-    assert.equal(view.strip.chips[0].condition, "bloodied");
+    assert.equal(view.strip.chips.find((c) => c.kind === "enemy").condition, "bloodied");
     // The map's id is random hex, which can hold "ac" by chance; it is checked to be the library id elsewhere.
     const shown = JSON.stringify({ ...view, map: view.map && { ...view.map, id: "" } });
     for (const secret of ["Zombie", "SRD52", "board", "hp", "ac", "passive", "init", "notes"]) assert.ok(!shown.includes(secret), secret);

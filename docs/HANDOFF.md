@@ -1,20 +1,20 @@
 # Handoff
 
-Updated: 2026-10-30. A fresh session must be able to continue from this file alone. Keep it to 60 lines; finished entries move to [archive/handoff-2026-10.md](archive/handoff-2026-10.md).
+Updated: 2026-10-31. A fresh session must be able to continue from this file alone. Keep it to 60 lines; finished entries move to [archive/handoff-2026-10.md](archive/handoff-2026-10.md).
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: maps and monster tokens (D-036, PRs #20–#23), the usability audit fixes (#25), rehearsal safety (7g, D-037, #26) and the one-panel DM window (7h–7j, D-038, #27, #28 and the 7j PR). Morgan lifted the feature freeze for scenes (D-039). Left: step 8, the rehearsal, which needs the laptop and projector. While waiting, Morgan asked to start map annotation (D-044, PLAN.md 2A–2D): 2A, the walls editor, is merged (#36); step 2B, VTT import, is merged (#37), and Morgan hasn't tested it yet. Character tokens are merged (#38). Tested in the cloud, plus one install test on Morgan's Windows PC (not the laptop, no projector). The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1), expected the week of 2026-11-02, so projected steps stay "built, awaiting Morgan's check" (VER-07).
+Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: maps and monster tokens (D-036, PRs #20–#23), the usability audit fixes (#25), rehearsal safety (7g, D-037, #26) and the one-panel DM window (7h–7j, D-038, #27, #28 and the 7j PR). Morgan lifted the feature freeze for scenes (D-039). Left: step 8, the rehearsal, which needs the laptop and projector. While waiting, Morgan asked to start map annotation (D-044, PLAN.md 2A–2D): 2A, the walls editor, is merged (#36); step 2B, VTT import, is merged (#37), and Morgan hasn't tested it yet. Character tokens are merged (#38). Morgan took every recommendation on the Wants review (D-046); Batch 1, step 7n, is built on branch `ccr-dec548fa-irhfsu` and awaits Morgan's OK for the PR. Tested in the cloud, plus one install test on Morgan's Windows PC (not the laptop, no projector). The laptop will be an HP Pavilion x360 14" (1920 × 1080 touch, i5-1035G1), expected the week of 2026-11-02, so projected steps stay "built, awaiting Morgan's check" (VER-07).
 
 ## Just done ([earlier](archive/handoff-2026-10.md))
 
-- 2026-10-30 Research and review, no code: [similar apps research](https://claude.ai/artifact/EMsAgY1w1Ls7oyMGWDs6Ma) (76 gaps; Morgan's marks are in its `gaps` collection: 18 Want, 36 Later, 22 No) and the [Wants review](https://claude.ai/artifact/P9egMjv9LBUoNJEPdEWBRq), checked for added steps by Claude and an independent reviewer. Everything on that page is Proposed until Morgan answers. Reddit could not be read for the research.
-- 2026-10-30 Character tokens (D-045), merged as [PR #38](https://github.com/DdraigFawr13/project-terra/pull/38): `tokens` on `PlacedMap`, `drawToken`, crop in `dm-token-crop.ts`, controls on the Party sheet, save version 16. Awaits Morgan's table photo (VER-07).
-- 2026-10-29 Steps 2A and 2B (D-044), merged as [PR #36](https://github.com/DdraigFawr13/project-terra/pull/36) and [PR #37](https://github.com/DdraigFawr13/project-terra/pull/37): details in the archive.
+- 2026-10-31 Step 7n, Wants Batch 1 (D-046), branch `ccr-dec548fa-irhfsu`, awaiting Morgan's OK for the PR: the roll pad stays open and moves to the next one without a roll (`openPad`, `dm-fight.ts`); Start fight picks Select (`maps.select`); retyping the current turn lower hands it on (`setInitiative` takes who still takes turns, `src/core/fight.ts`); Uncover all takes a hold, a tap with the curtain down (`holdToUncoverAll`, `dm-map.ts`); a linked monster's sheet opens on its turn and closes after (`followTurn`, `dm-monsters.ts`). Unit and e2e tests added; screenshots checked. No save change.
+- 2026-10-30 Research and review, no code: [similar apps research](https://claude.ai/artifact/EMsAgY1w1Ls7oyMGWDs6Ma) (76 gaps; Morgan's marks in its `gaps` collection: 18 Want, 36 Later, 22 No) and the [Wants review](https://claude.ai/artifact/P9egMjv9LBUoNJEPdEWBRq); Morgan's answer, read 2026-10-31: "Take all your recommendations" (D-046).
+- 2026-10-30 Character tokens (D-045), merged as [PR #38](https://github.com/DdraigFawr13/project-terra/pull/38). Awaits Morgan's table photo (VER-07). Steps 2A and 2B: in the archive.
 
 ## Next
 
-0. **Wants review first.** Read `wantsReview` on the [page](https://claude.ai/artifact/P9egMjv9LBUoNJEPdEWBRq) (`ArtifactData` list, limit 200). If it's empty, ask Morgan to answer. Then record the settled choices in DECISIONS (next is D-046, including the streamlining rule if approved) and PLAN, and build Batch 1 when `when` says so: roll pad stays open, Start fight selects Select, turn hands on when the current creature retypes lower (`setInitiative`, `src/core/fight.ts`: Next turn skips those it jumped), hold on Uncover all, sheet on turn. Summary to Morgan before the PR (D-018).
+0. **Step 7n PR.** Morgan's OK on the summary, then open the PR and merge when green (D-018). Morgan then tries it in a mock round: if the sheet on turn gets in the way, take it out (D-046 item 2). Batch 2 waits for the rehearsal photos, Batch 3 comes right after the rehearsal (PLAN.md).
 0a. On hold until Morgan says go: monster portraits for Shattered Obelisk chapters 1–4 ([token choices](https://claude.ai/artifact/XmWb3JnJY8eECwx12SkgmF)). Art order: book art, freely licensed art, a look-alike stand-in, then OpenArt with a price first. The adventure's image files aren't in the library, and art of unclear rights isn't copied from the web. Scratch scripts and the downloaded PDF stayed on the desktop; re-read the book as the library README says. The creature list has to be rebuilt.
 0b. The installed desktop app is built from #38 and has no VTT import. Run Build Windows app (manual, CI-04) for a zip when Morgan wants it.
 0c. Map annotation (D-044): 2B awaits Morgan's test; then 2C rooms, 2D areas and the wall check. Book maps still untraced (trace each before it is played, with the private library's `tools/trace/`): Cragmaw Hideout, Wave Echo Cave, Cragmaw Castle and Redbrand Hideout (keyed handouts only). Each step gets a walkthrough and Morgan's OK before its PR (D-018).
@@ -36,7 +36,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 - Read AGENTS.md, then this file, then the DECISIONS index and LESSONS. Local checks: `npm run check` and `xvfb-run -a npm run test:e2e`.
 - PRs: summary to Morgan first; after approval, open the PR and squash-merge when green (D-018). After a merge, restart the working branch from main by merging main into it (force-push is blocked in cloud sessions).
 - Morgan reads on a phone: short messages, links and taps. Show UI work as screenshots; for design choices, use phone forms (`planning-interview` skill) or a short chat proposal with a recommendation.
-- Keep Terra streamlined (Morgan, 2026-10-30): every review, adversarial ones included, checks for added steps and friction. Prefer defaults and automatic behaviour over new buttons, settings or prompts.
+- Keep Terra streamlined (D-046): no new permanent panel row, no per-scene setting unless the default works untouched; every review, adversarial ones included, checks for added steps and friction. Prefer defaults and automatic behaviour over new buttons, settings or prompts.
 - One building session at a time, or say which step each owns: on 2026-10-29 two sessions both built step 7g from HANDOFF's next step (#26 kept).
 - Screenshot scripts live in the session scratchpad and are lost with it; regenerate with Playwright (`_electron.launch`, `xvfb-run`). A fresh container may lack the Electron binary and its download can fail through the proxy: curl the release zip, check it against `node_modules/electron/checksums.json`, unzip into `node_modules/electron/dist` and write `path.txt` (`electron`).
 
@@ -55,6 +55,6 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Decisions since the last plan update
 
+- 2026-10-31 D-046 streamlining rule; the Wants placed in batches and phases; Batch 1 now (step 7n).
 - 2026-10-30 D-045 player character tokens, per character, dragged by the DM; changes D-027 item 1.
 - 2026-10-29 D-044 map annotation: walls, openings (door, secret door, window, opening), rooms with one-tap uncover, areas, VTT import; four steps 2A–2D.
-- 2026-10-29 D-043 back from the cuts: a DM-only dice roller (Battle drama), line of sight with character markers (Sight), the NPC conversation player defined (Later).

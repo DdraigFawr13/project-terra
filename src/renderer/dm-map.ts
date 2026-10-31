@@ -155,6 +155,7 @@ export function initMaps(
   placeToken: (id: string) => void;
   /** What a tap on a character's token does. */
   tokenTap: (fn: (id: string, at: Point) => void) => void;
+  select: () => void;
 } {
   let state: TableState | null = null;
   let status: TableStatus | null = null;
@@ -1381,7 +1382,14 @@ export function initMaps(
     }),
   );
   const fogAll: FogOp[] = [{ kind: "dimSeen" }, { kind: "revealAll" }, { kind: "coverAll" }];
-  fogBtns.forEach((b, i) => b.addEventListener("click", () => run({ type: "fog", op: fogAll[i]! })));
+  fogBtns.forEach((b, i) => {
+    if (b.id !== "fogRevealAll") b.addEventListener("click", () => run({ type: "fog", op: fogAll[i]! }));
+  });
+  holdToUncoverAll(
+    fogBtns[1]!,
+    () => !!state?.curtain,
+    () => void run({ type: "fog", op: { kind: "revealAll" } }),
+  );
 
   /** V, U (Uncover), G (Dim), M, P and D pick the tool; S steps through brush, outline and box (D-038). Returns whether the key was used. */
   function shortcut(key: string): boolean {
@@ -1489,7 +1497,46 @@ export function initMaps(
   const tokenTap = (fn: (id: string, at: Point) => void) => {
     onTokenTap = fn;
   };
-  return { undo, render, cancel, shortcut, placeParty, placeToken, tokenTap };
+  /** Back to Select, so a tap on a disc opens its HP pad (Start fight does this, D-046). */
+  const select = () => setTool("select");
+  return { undo, render, cancel, shortcut, placeParty, placeToken, tokenTap, select };
+}
+
+/**
+ * Uncover all shows the players the whole map, so it takes a hold of LONG_PRESS_MS, the gesture pins use; a plain tap
+ * only says so on the button. With the curtain down the players see nothing yet, so a tap is enough (D-046). Enter or
+ * Space on the focused button is deliberate and acts at once.
+ */
+function holdToUncoverAll(b: HTMLButtonElement, curtainDown: () => boolean, act: () => void): void {
+  const label = b.textContent ?? "";
+  let timer = 0;
+  let held = false;
+  let hint = 0;
+  const stop = () => {
+    window.clearTimeout(timer);
+    b.classList.remove("holding");
+  };
+  b.addEventListener("pointerdown", (e) => {
+    if (b.disabled || e.button !== 0) return;
+    held = false;
+    b.classList.add("holding");
+    timer = window.setTimeout(() => {
+      held = true;
+      b.classList.remove("holding");
+      act();
+    }, LONG_PRESS_MS);
+  });
+  for (const ev of ["pointerup", "pointerleave", "pointercancel"]) b.addEventListener(ev, stop);
+  // A long touch would otherwise open the context menu.
+  b.addEventListener("contextmenu", (e) => e.preventDefault());
+  b.addEventListener("click", (e) => {
+    stop();
+    if (held) return;
+    if (e.detail === 0 || curtainDown()) return act();
+    b.textContent = "Hold to uncover all";
+    window.clearTimeout(hint);
+    hint = window.setTimeout(() => (b.textContent = label), 2500);
+  });
 }
 
 /** Distance from `p` to the segment from `a` to `b`. */

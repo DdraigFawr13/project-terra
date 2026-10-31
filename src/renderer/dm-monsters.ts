@@ -7,6 +7,7 @@ import {
   CREATURE_TYPES,
   creatureTypeOf,
   DISC_COLOURS,
+  isColour,
   parseGroupInfo,
   discHp,
   discMax,
@@ -20,7 +21,7 @@ import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { discKey } from "./dm-map.ts";
 import { button, COLOUR_NAME, el, field, NUMBER, stat, swatch, wholeOrNull } from "./dom.ts";
-import { sheetWin, forgetSheet, wasOpen, type Sheet } from "./panel.ts";
+import { anySheetOpen, sheetWin, forgetSheet, wasOpen, type Sheet } from "./panel.ts";
 import { numpad, type Numpad } from "./numpad.ts";
 
 /** The symbol choice in Edit: none keeps plain letter discs even after Show picture is pressed. */
@@ -445,12 +446,37 @@ export function initMonsters(
     if (focused) document.querySelector<HTMLElement>(`[data-float] [data-key="${focused}"]`)?.focus();
   }
 
+  /**
+   * Sheet on turn (D-046): when a colour linked to a monster gets the turn, its sheet opens, unless another sheet is
+   * open; one opened this way closes when the turn moves on, unless the DM is editing it.
+   */
+  /** The turn last seen, as round and who; undefined until the first state, since a turn already under way isn't new. */
+  let turn: string | null | undefined;
+  let opened: DiscColour | null = null;
+  function followTurn(s: TableState): void {
+    const now = s.fight?.round && s.fight.current ? `${s.fight.round}:${s.fight.current}` : null;
+    if (now === turn) return;
+    const first = turn === undefined;
+    turn = now;
+    if (first) return;
+    const p = opened && panels.get(opened);
+    if (p && p.win.isOpen() && p.view !== "edit") p.win.close();
+    opened = null;
+    const c = s.fight?.current;
+    if (now && c && isColour(c) && s.map?.groups[c]?.creature && !anySheetOpen()) {
+      opened = c;
+      panel(c).win.open();
+    }
+  }
+
   terra.onState((s) => {
     state = s;
+    followTurn(s);
     render();
   });
   terra.getState().then((s) => {
     state = s;
+    followTurn(s);
     // The sheets open when the DM window last closed open again, for colours that still have discs (D-034).
     for (const c of DISC_COLOURS)
       if (wasOpen(`monster-${c}`)) {

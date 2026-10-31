@@ -16,7 +16,7 @@ import {
 import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { button, COLOUR_NAME, el, swatch, type Attrs } from "./dom.ts";
-import { numpad } from "./numpad.ts";
+import { numpad, type PadAction } from "./numpad.ts";
 import { popover } from "./popover.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -34,9 +34,9 @@ const roundState = $<HTMLSpanElement>("roundState");
 
 /**
  * A box for a roll. Typed with a keyboard, it is sent when the DM leaves it or presses Enter; tapped with the pen or a
- * finger, it opens a number pad beside it instead of the on-screen keyboard (D-032).
+ * finger, it opens the roll pad beside it instead of the on-screen keyboard (D-032).
  */
-function rollBox(value: number | null, attrs: Attrs, who: string, onChange: (v: number | null) => void): HTMLInputElement {
+function rollBox(value: number | null, attrs: Attrs, onPad: (at: DOMRect) => void, onChange: (v: number | null) => void): HTMLInputElement {
   const input = el("input", { type: "number", inputmode: "none", step: "1", min: "-20", max: "99", ...attrs });
   input.value = value === null ? "" : String(value);
   input.addEventListener("change", () => {
@@ -46,21 +46,7 @@ function rollBox(value: number | null, attrs: Attrs, who: string, onChange: (v: 
   input.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse") return;
     e.preventDefault();
-    const r = input.getBoundingClientRect();
-    const acts = [{ label: "Set", kind: "set", className: "primary", zeroOk: true }];
-    if (value !== null) acts.push({ label: "Clear", kind: "clear", className: "", zeroOk: true });
-    const pad = numpad(
-      acts,
-      (kind, roll) => {
-        p.close();
-        onChange(kind === "clear" ? null : Math.max(-20, Math.min(99, roll)));
-      },
-      { signed: true },
-    );
-    pad.setTarget("Roll");
-    const head = el("header", { class: "pop-head" }, el("b", {}, "Initiative"), el("span", { class: "hp-word" }, who));
-    const p = popover({ x: r.right, y: r.top + r.height / 2 }, [head, pad.el]);
-    p.el.classList.add("roll-pad");
+    onPad(input.getBoundingClientRect());
   });
   return input;
 }
@@ -138,6 +124,50 @@ export function initFight(
   /** The colours with discs on the map, in the usual order. */
   const coloursOf = (s: TableState) => DISC_COLOURS.filter((c) => (s.map?.discs ?? []).some((d) => d.colour === c));
 
+  /** Everyone who could join and has no roll yet: the party, then each colour with a disc that isn't down (D-027). */
+  function waitingOf(s: TableState): Who[] {
+    const f = s.fight;
+    const discs = s.map?.discs ?? [];
+    const groups = s.map?.groups ?? {};
+    const rolled = new Set(f?.entries.map((e) => e.who));
+    return [...s.party.map((p) => p.id), ...DISC_COLOURS.filter((c) => takesTurns(c, discs, groups, s.party))].filter(
+      (w) => !rolled.has(w),
+    );
+  }
+
+  /**
+   * The roll pad. After Set it stays open and moves on to the next one without a roll, so a fight's rolls go in one
+   * after another; it closes when everyone has one, or after Clear (D-046).
+   */
+  function openPad(first: Who, r: DOMRect): void {
+    const typed = new Set<Who>();
+    const name = el("span", { class: "hp-word" });
+    const padFor = (who: Who) => {
+      name.textContent = state ? whoName(state, who) : "";
+      const acts: PadAction[] = [{ label: "Set", kind: "set", className: "primary", zeroOk: true }];
+      if (state?.fight?.entries.some((e) => e.who === who)) acts.push({ label: "Clear", kind: "clear", className: "", zeroOk: true });
+      const pad = numpad(
+        acts,
+        (kind, roll) => {
+          run({ type: "initiative", who, init: kind === "clear" ? null : Math.max(-20, Math.min(99, roll)) });
+          typed.add(who);
+          // The state may not have caught up yet, so the ones typed here count as rolled. Next: the first after this one.
+          const order = state && kind !== "clear" ? waitingOf(state).filter((w) => w === who || !typed.has(w)) : [];
+          const i = order.indexOf(who);
+          const next = [...order.slice(i + 1), ...order.slice(0, Math.max(0, i))].find((w) => w !== who);
+          if (!next) return p.close();
+          pad.el.replaceWith(padFor(next).el);
+        },
+        { signed: true },
+      );
+      pad.setTarget("Roll");
+      return pad;
+    };
+    const head = el("header", { class: "pop-head" }, el("b", {}, "Initiative"), name);
+    const p = popover({ x: r.right, y: r.top + r.height / 2 }, [head, padFor(first).el]);
+    p.el.classList.add("roll-pad");
+  }
+
   function renderStrip(s: TableState): void {
     const f = s.fight;
     stripEl.hidden = !f?.round || !f.current;
@@ -188,8 +218,11 @@ export function initFight(
             class: `entry${isColour(e.who) ? " group-row" : ""}${current ? " current" : ""}${takesTurns(e.who, discs, groups, s.party) ? "" : " out"}`,
             "aria-current": current ? "step" : undefined,
           },
-          rollBox(e.init, { "data-key": `init-${e.who}`, "aria-label": "Initiative" }, whoName(s, e.who), (init) =>
-            run({ type: "initiative", who: e.who, init }),
+          rollBox(
+            e.init,
+            { "data-key": `init-${e.who}`, "aria-label": "Initiative" },
+            (r) => openPad(e.who, r),
+            (init) => run({ type: "initiative", who: e.who, init }),
           ),
           ...cellsOf(s, e.who),
           // Arrows only for ties: they settle who goes first between equal rolls (D-027).
@@ -212,19 +245,18 @@ export function initFight(
         );
       }),
     );
-    // Everyone who could join: the party, and each colour with a disc that isn't down. One roll per colour (D-027).
-    const rolled = new Set(f.entries.map((e) => e.who));
-    const waiting = [...s.party.map((p) => p.id), ...DISC_COLOURS.filter((c) => takesTurns(c, discs, groups, s.party))].filter(
-      (w) => !rolled.has(w),
-    );
+    const waiting = waitingOf(s);
     unrolledBox.hidden = waiting.length === 0;
     unrolledEl.replaceChildren(
       ...waiting.map((who) =>
         el(
           "li",
           { class: `entry${isColour(who) ? " group-row" : ""}` },
-          rollBox(null, { "data-key": `init-${who}`, "aria-label": "Initiative roll", placeholder: "Roll" }, whoName(s, who), (init) =>
-            init === null ? undefined : run({ type: "initiative", who, init }),
+          rollBox(
+            null,
+            { "data-key": `init-${who}`, "aria-label": "Initiative roll", placeholder: "Roll" },
+            (r) => openPad(who, r),
+            (init) => (init === null ? undefined : run({ type: "initiative", who, init })),
           ),
           ...cellsOf(s, who),
         ),
