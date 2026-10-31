@@ -1,4 +1,4 @@
-// Map annotation (D-044): walls, pillars and openings traced on a library map, in the map's own inches like fog
+// Map annotation (D-044): walls, pillars, openings and rooms traced on a library map, in the map's own inches like fog
 // (D-025), so they move and turn with the map. DM-only: none of it is ever sent to the table window (D-002). Pure:
 // the editor's tapping, joining and smoothing rules live here so they are tested without a browser.
 import type { Point } from "./homography.ts";
@@ -14,9 +14,13 @@ type Wall = { points: Point[]; closed: boolean };
 type Pillar = { at: Point; r: number };
 /** `open`: how a door starts; each scene keeps its own state from step 2C. */
 type Opening = { kind: OpeningKind; a: Point; b: Point; open: boolean };
-export type Annotation = { walls: Wall[]; pillars: Pillar[]; openings: Opening[] };
+/** A room (step 2C): its own outline, never overlapping another room's, and a short DM-only name or key number. */
+type Room = { outline: Point[]; name: string };
+export type Annotation = { walls: Wall[]; pillars: Pillar[]; openings: Opening[]; rooms: Room[] };
 
-export const ANNOTATION_VERSION = 1;
+/** Version 2 added rooms; a version 1 file loads with none. */
+export const ANNOTATION_VERSION = 2;
+export const MAX_ROOM_NAME = 40;
 /** Taps land on the nearest quarter inch (D-044). */
 const SNAP_IN = 0.25;
 /** Any end this close to a corner joins it, so freehand and tapped walls leave no hairline gaps. */
@@ -28,11 +32,11 @@ export const MAX_POINTS = 2000;
 /** Lines may reach this far past the picture's edge, for walls drawn along it. */
 const EDGE_IN = 1;
 
-export const emptyAnnotation = (): Annotation => ({ walls: [], pillars: [], openings: [] });
+export const emptyAnnotation = (): Annotation => ({ walls: [], pillars: [], openings: [], rooms: [] });
 
 /** Hundredths of an inch, as fog keeps them (D-025); `+ 0` so -0 never reaches a save (AGENTS.md). */
 const round = (v: number): number => Math.round(v * 100) / 100 + 0;
-const pt = (p: Point): Point => ({ x: round(p.x), y: round(p.y) });
+export const pt = (p: Point): Point => ({ x: round(p.x), y: round(p.y) });
 
 export function snapPoint(p: Point, step = SNAP_IN): Point {
   return pt({ x: Math.round(p.x / step) * step, y: Math.round(p.y / step) * step });
@@ -65,7 +69,7 @@ export function placePoint(a: Annotation, p: Point, reach: number, extra: readon
 }
 
 /** Distance from p to the segment ab. */
-function segmentDistance(p: Point, a: Point, b: Point): number {
+export function segmentDistance(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = dx * dx + dy * dy;
@@ -163,9 +167,9 @@ export function eraseAt(a: Annotation, p: Point, reach: number): Annotation {
 }
 
 /** How many things are traced, for the editor's status line. */
-export function countOf(a: Annotation): { walls: number; pillars: number; openings: number } {
+export function countOf(a: Annotation): { walls: number; pillars: number; openings: number; rooms: number } {
   const pieces = a.walls.reduce((n, w) => n + (w.closed ? w.points.length : w.points.length - 1), 0);
-  return { walls: pieces, pillars: a.pillars.length, openings: a.openings.length };
+  return { walls: pieces, pillars: a.pillars.length, openings: a.openings.length, rooms: a.rooms.length };
 }
 
 // ---- Reading saved files ----
@@ -186,15 +190,17 @@ function parsePoints(raw: unknown, b: Bounds, min: number): Point[] | null {
 
 /**
  * A saved annotation for a map with these bounds, or null if any part of it is unusable. The file is `{ version,
- * walls, pillars, openings }`; whole-file refusal keeps a damaged file from being half-loaded and then saved over.
+ * walls, pillars, openings, rooms }`; a version 1 file has no rooms. Whole-file refusal keeps a damaged file from
+ * being half-loaded and then saved over.
  */
 export function parseAnnotation(raw: unknown, b: Bounds): Annotation | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  if (r.version !== ANNOTATION_VERSION) return null;
+  if (r.version !== 1 && r.version !== ANNOTATION_VERSION) return null;
   const { walls, pillars, openings } = r;
-  if (!Array.isArray(walls) || !Array.isArray(pillars) || !Array.isArray(openings)) return null;
-  if (walls.length + pillars.length + openings.length > MAX_ITEMS) return null;
+  const rooms = r.version === 1 ? [] : r.rooms;
+  if (!Array.isArray(walls) || !Array.isArray(pillars) || !Array.isArray(openings) || !Array.isArray(rooms)) return null;
+  if (walls.length + pillars.length + openings.length + rooms.length > MAX_ITEMS) return null;
   const out = emptyAnnotation();
   for (const w of walls) {
     if (!w || typeof w !== "object" || typeof w.closed !== "boolean") return null;
@@ -212,6 +218,12 @@ export function parseAnnotation(raw: unknown, b: Bounds): Annotation | null {
     const [a, bb] = [parsePoint(o.a, b), parsePoint(o.b, b)];
     if (!a || !bb) return null;
     out.openings.push({ kind: o.kind, a, b: bb, open: o.open });
+  }
+  for (const room of rooms) {
+    if (!room || typeof room !== "object" || typeof room.name !== "string" || room.name.length > MAX_ROOM_NAME) return null;
+    const outline = parsePoints(room.outline, b, 3);
+    if (!outline) return null;
+    out.rooms.push({ outline, name: room.name });
   }
   return out;
 }

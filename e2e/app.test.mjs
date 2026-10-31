@@ -334,7 +334,13 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.mouse.down();
     await dm.mouse.move(wc.x + wc.width * 0.6, wc.y + wc.height * 0.2, { steps: 3 });
     await dm.mouse.up();
-    assert.equal(await dm.textContent("#wallsCount"), "4 wall pieces, 0 pillars, 1 opening · not saved yet");
+    // Rooms (D-044 step 2C): a tap inside the walls and the door finds the room, named 1; the name box renames it.
+    await dm.click("button[data-walls-tool='room']");
+    await tap(0.5, 0.5);
+    assert.equal(await dm.inputValue("#roomName"), "1");
+    await dm.fill("#roomName", "Hall");
+    await dm.press("#roomName", "Enter");
+    assert.equal(await dm.textContent("#wallsCount"), "4 wall pieces, 0 pillars, 1 opening, 1 room · not saved yet");
     await dm.click("#wallsDone");
     await dm.waitForSelector("#walls", { state: "hidden" });
     const saved = JSON.parse(fs.readFileSync(path.join(userData, "library", "maps", `${id}.walls.json`), "utf8"));
@@ -350,6 +356,10 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
       },
     ]);
     assert.deepEqual(saved.openings, [{ kind: "door", a: { x: 0.25, y: -1.5 }, b: { x: 1.75, y: -1.5 }, open: false }]);
+    assert.deepEqual(
+      saved.rooms.map((r) => [r.name, r.outline.length]),
+      [["Hall", 4]],
+    );
     assert.equal(await table.evaluate(() => typeof window.terra.loadWalls), "undefined");
     assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("door"));
     const wallPixels = () =>
@@ -403,6 +413,12 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
       return d.some((v, i) => i % 4 !== 3 && v > 60);
     });
     assert.ok((await lit(dm, "tablePreview")) > 0);
+    await dm.keyboard.press("Control+z");
+    await until(table, async () => (await window.terra.getView()).map?.fog.length === 0);
+    // A tap inside the traced room uncovers the whole room as one outline; a drag still paints (D-044 item 6).
+    await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await until(table, async () => (await window.terra.getView()).map?.fog[0]?.kind === "outline");
+    assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("Hall"));
     await dm.keyboard.press("Control+z");
     await until(table, async () => (await window.terra.getView()).map?.fog.length === 0);
     await table.waitForFunction(() => {

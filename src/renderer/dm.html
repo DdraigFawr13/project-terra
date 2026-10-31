@@ -439,8 +439,8 @@
             <section id="walls" class="card wide full-step" aria-labelledby="walls-heading" hidden>
               <h2 id="walls-heading">Walls</h2>
               <p class="hint">
-                For you only: the table never shows these. Rooms, Look from here and line of sight will use them. Draw with the pen; a
-                finger moves the map.
+                For you only: the table never shows these. Rooms uncover in one tap; Look from here and line of sight will use the walls.
+                Draw with the pen; a finger moves the map.
               </p>
               <div class="patchtools">
                 <div class="presets" role="group" aria-label="What to draw">
@@ -451,6 +451,7 @@
                   <button type="button" data-walls-tool="secret" aria-pressed="false">Secret door</button>
                   <button type="button" data-walls-tool="window" aria-pressed="false">Window</button>
                   <button type="button" data-walls-tool="opening" aria-pressed="false">Opening</button>
+                  <button type="button" data-walls-tool="room" aria-pressed="false">Room</button>
                   <button type="button" data-walls-tool="erase" aria-pressed="false">Rub out</button>
                 </div>
                 <div class="presets" role="group" aria-label="Zoom">
@@ -458,6 +459,10 @@
                   <button type="button" data-walls-zoom="2" aria-pressed="false">2×</button>
                   <button type="button" data-walls-zoom="4" aria-pressed="false">4×</button>
                 </div>
+                <label id="roomNameBox" class="room-name" hidden>
+                  Room name
+                  <input id="roomName" type="text" maxlength="40" autocomplete="off" />
+                </label>
                 <button id="wallsFinish" type="button" disabled>Finish line</button>
                 <button id="wallsUndo" type="button" disabled>Undo</button>
               </div>

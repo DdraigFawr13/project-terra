@@ -36,6 +36,7 @@ import { initPatch } from "./dm-patch.ts";
 import { initWalls } from "./dm-walls.ts";
 import { drawWalls } from "./walls-draw.ts";
 import { countOf, type Annotation } from "../core/annotation.ts";
+import { roomAt, roomUncover } from "../core/rooms.ts";
 import { parseVtt, planVttPicture, type VttMap } from "../core/vtt.ts";
 import { icon } from "./icons.ts";
 import { drawDisc, drawLine, drawParty, drawPin, drawToken, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
@@ -688,8 +689,9 @@ export function initMaps(
     ctx.rotate((shown.turns * Math.PI) / 2);
     const img = image(map.id);
     if (img.complete && img.naturalWidth) fog.draw(ctx, img, map.bounds, map.fog, "dm");
-    const traced = showWalls ? wallsFor(map.id) : null;
-    if (traced) drawWalls(ctx, traced, s, true);
+    // Loaded whether or not they show: a tap in a room uses them (D-044).
+    const traced = wallsFor(map.id);
+    if (traced && showWalls) drawWalls(ctx, traced, s, true);
     const ghost = stroke && strokeOp(stroke);
     if (ghost) {
       ctx.fillStyle = ctx.strokeStyle = GHOST[ghost.mode];
@@ -964,7 +966,23 @@ export function initMaps(
     return { kind: "box", mode, x, y, width, height };
   }
 
+  /**
+   * Send a finished stroke. A tap inside a traced room uncovers or dims the whole room instead (D-044 item 6); a drag
+   * still paints.
+   */
   function sendStroke(st: Stroke): void {
+    const map = state?.map;
+    const traced = map && shownWalls?.id === map.id ? shownWalls.walls : null;
+    if (map && traced?.rooms.length) {
+      const r = mapCanvas.getBoundingClientRect();
+      const reach = SLIP_PX / viewport(map, r.width, r.height).s;
+      const from = st.points[0]!;
+      if (st.points.every((p) => Math.hypot(p.x - from.x, p.y - from.y) <= reach)) {
+        const room = roomAt(traced, from);
+        const op = room >= 0 ? roomUncover(traced, room, st.mode) : null;
+        if (op) return void run({ type: "fog", op });
+      }
+    }
     const op = strokeOp(st);
     if (op) void run({ type: "fog", op });
   }

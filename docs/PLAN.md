@@ -40,11 +40,11 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 2. **Map annotation (D-044).** Trace walls, doors, windows, rooms and materials on an imported map. Each wall, door or window blocks light, sight and sound separately (D-040). It brings one-tap room reveal (D-007, D-025), doors and the material tags living effects need (D-014); room notes stay in story tools. The generator later produces the same annotation. Started before session 1 at Morgan's request (2026-10-29).
    - 2A. Walls editor: whole-window Annotate from the map library; tap corners (¼ inch snap) or freehand; pillars; Door, Secret door, Window and Opening lines; undo; a walls switch on the DM map. Morgan tests: trace two rooms of Thundertree with the pen.
    - 2B. VTT import and prep tracing: .dd2vtt/.uvtt become a new library map with walls and doors; Claude traces the book maps into the private library as VTT files. Morgan tests: import the Sleeping Giant and Thundertree, fix one wall.
-   - 2C. Rooms: outline or tap-to-find, names, a tap with Uncover or Dim does the whole room with the clipped ½-inch grow; door state per scene, set back by Reset. Morgan tests: uncover Thundertree room by room on the table. After it: a cue, a hidden group linked to a room that comes on when the room is uncovered (D-046).
+   - 2C. Rooms: outline or tap-to-find, names, a tap with Uncover or Dim does the whole room with the clipped ½-inch grow. Door state per scene moved to Sight, where doors are first opened and closed (2026-10-31). Morgan tests: uncover Thundertree room by room on the table. After it: a cue, a hidden group linked to a room that comes on when the room is uncovered (D-046).
    - 2D. Areas and the wall check: materials and difficult terrain (DM only); light from a tapped point in the editor. Morgan tests: tag a building as wood, find a gap with the wall check.
 3. **Sight (D-040).**
    - Enemy discs in never-seen fog stay off the table: the player view leaves them out (D-002), and the DM map marks them hidden by fog. This only hides; it never shows a disc set Off table.
-   - Doors open and close on annotated maps.
+   - Doors open and close on annotated maps; each scene keeps its doors, and Reset sets them back (D-044 item 4).
    - Look from here: tap where a mini stands, and the table uncovers what can be seen from there, cut off by walls and closed doors and, on a dark map, by the light range (torch, darkvision). One ordinary Uncover per tap. Replaces the light-radius fog shape.
    - More wall kinds (D-046).
    - Line of sight (D-043): a marker per character that Morgan moves on the laptop, and the table uncovers what it sees as it moves. About 3 steps (estimate); its shape is settled in the Sight interview.

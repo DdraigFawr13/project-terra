@@ -64,7 +64,7 @@ function nearSegment(px: number, py: number, a: Point, b: Point, r: number): boo
 }
 
 /** Even-odd rule, the same rule the renderer fills outlines with. */
-function insidePolygon(p: Point, pts: Point[]): boolean {
+export function insidePolygon(p: Point, pts: readonly Point[]): boolean {
   let inside = false;
   for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
     const a = pts[i]!;

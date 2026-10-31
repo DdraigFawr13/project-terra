@@ -36,7 +36,7 @@ test("a tap snaps to the quarter inch, or joins a corner within reach", () => {
 test("a run that ends on its first corner becomes a loop; repeated taps add nothing", () => {
   const a = addWall(emptyAnnotation(), square);
   assert.deepEqual(a.walls, [{ points: square.slice(0, 4), closed: true }]);
-  assert.deepEqual(countOf(a), { walls: 4, pillars: 0, openings: 0 });
+  assert.deepEqual(countOf(a), { walls: 4, pillars: 0, openings: 0, rooms: 0 });
   const b = addWall(emptyAnnotation(), [
     { x: 2, y: 2 },
     { x: 2, y: 2 },
@@ -90,7 +90,7 @@ test("a saved annotation loads back equal; damaged or out-of-bounds files are re
   const file = JSON.parse(JSON.stringify(annotationFile(a)));
   assert.deepEqual(parseAnnotation(file, B), a);
   assert.ok(Object.is(parseAnnotation({ ...file, pillars: [{ at: { x: -0, y: 1 }, r: 1 }] }, B)!.pillars[0]!.at.x, 0));
-  assert.equal(parseAnnotation({ ...file, version: 2 }, B), null);
+  assert.equal(parseAnnotation({ ...file, version: 3 }, B), null);
   assert.equal(parseAnnotation({ ...file, openings: [{ ...file.openings[0], kind: "portcullis" }] }, B), null);
   assert.equal(
     parseAnnotation(
