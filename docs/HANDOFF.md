@@ -8,7 +8,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Just done ([earlier](archive/handoff-2026-10.md))
 
-- 2026-10-31 Step 7n, Wants Batch 1 (D-046), branch `ccr-dec548fa-irhfsu`, awaiting Morgan's OK for the PR: the roll pad stays open and moves to the next one without a roll (`openPad`, `dm-fight.ts`); Start fight picks Select (`maps.select`); retyping the current turn lower hands it on (`setInitiative` takes who still takes turns, `src/core/fight.ts`); Uncover all takes a hold, a tap with the curtain down (`holdToUncoverAll`, `dm-map.ts`); a linked monster's sheet opens on its turn and closes after (`followTurn`, `dm-monsters.ts`). Unit and e2e tests added; screenshots checked. No save change.
+- 2026-10-31 Step 7n, Wants Batch 1 (D-046), [walkthrough](https://claude.ai/artifact/5HEw43sGzb9wD9EqQutMMG), branch `ccr-dec548fa-irhfsu`, awaiting Morgan's OK for the PR: the roll pad stays open and moves to the next one without a roll (`openPad`, `dm-fight.ts`); Start fight picks Select (`maps.select`); retyping the current turn lower hands it on (`setInitiative` takes who still takes turns, `src/core/fight.ts`); Uncover all takes a hold, a tap with the curtain down (`holdToUncoverAll`, `dm-map.ts`); a linked monster's sheet opens on its turn and closes after (`followTurn`, `dm-monsters.ts`). Unit and e2e tests added; screenshots checked. No save change.
 - 2026-10-30 Research and review, no code: [similar apps research](https://claude.ai/artifact/EMsAgY1w1Ls7oyMGWDs6Ma) (76 gaps; Morgan's marks in its `gaps` collection: 18 Want, 36 Later, 22 No) and the [Wants review](https://claude.ai/artifact/P9egMjv9LBUoNJEPdEWBRq); Morgan's answer, read 2026-10-31: "Take all your recommendations" (D-046).
 - 2026-10-30 Character tokens (D-045), merged as [PR #38](https://github.com/DdraigFawr13/project-terra/pull/38). Awaits Morgan's table photo (VER-07). Steps 2A and 2B: in the archive.
 
@@ -51,7 +51,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 - Layout (D-038): [audit](https://claude.ai/artifact/R1TJm1AfCyvqSuktZjiSyD), [round 1](https://claude.ai/artifact/BLvKT9sMLPEecrEdGC5dKX), [review and final](https://claude.ai/artifact/GwwNfsNY3ssddwUbF5tr98); walkthroughs [7h](https://claude.ai/artifact/HCcL6eoXmhosQL5A2t11jb), [7i](https://claude.ai/artifact/CchqNxcz6BnFCVMR5YQHoD), [7j](https://claude.ai/artifact/Uo1wgbKJo7vunUAN9UKWhz)
 - Map annotation (D-044): [round 1](https://claude.ai/artifact/J5kSTU4AS96zwhwsbcudg7), [review](https://claude.ai/artifact/6hkYeaHBJGvFxnrwyQvoTH); walkthroughs [2A](https://claude.ai/artifact/TU2tssgbPPxX2b1wWV2iw4), [2B](https://claude.ai/artifact/X81467bZw6GvVZASdDAwJ1)
 - UI design: [round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)
-- Similar apps: [research](https://claude.ai/artifact/EMsAgY1w1Ls7oyMGWDs6Ma), [Wants review](https://claude.ai/artifact/P9egMjv9LBUoNJEPdEWBRq)
+- Similar apps: [research](https://claude.ai/artifact/EMsAgY1w1Ls7oyMGWDs6Ma), [Wants review](https://claude.ai/artifact/P9egMjv9LBUoNJEPdEWBRq); walkthrough [7n](https://claude.ai/artifact/5HEw43sGzb9wD9EqQutMMG)
 
 ## Decisions since the last plan update
 
