@@ -12,8 +12,6 @@ const PPI = 8;
 const LINE_IN = 0.08;
 /** An uncover grows this far past the room's outline, to show its walls (D-044). */
 const GROW_IN = 0.5;
-/** The grow leaves out cells this close to a secret door, so its paint stays hidden until it is found. */
-const SECRET_IN = 0.6;
 /** Traced outlines keep only corners that stand further than this off the cell edges' staircase. */
 const TRACE_TOL = 0.06;
 
@@ -200,7 +198,8 @@ export function removeRoom(a: Annotation, i: number): Annotation {
 
 /**
  * The fog op that uncovers (or dims) a whole room: inside its outline, and up to GROW_IN past it so the walls show,
- * but never into another room and not near a secret door (D-044). One ordinary outline op, so the table gets only
+ * but never into another room (D-044). The grow is the same past a secret door, so the wall shows unbroken: a gap
+ * there would point at the door; a painted mark is patched out of the table's copy instead. One ordinary outline op, so the table gets only
  * the area itself and never another room's shape (D-002). Every loop goes into one point list, joined through the
  * first corner: the even-odd fill cancels the joins, and holes stay holes.
  */
@@ -212,17 +211,13 @@ export function roomUncover(a: Annotation, i: number, mode: FogMode): FogShape |
   const pad = GROW_IN + 1 / PPI;
   const g = grid(Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) + pad, Math.max(...ys) + pad);
   const others = a.rooms.filter((_, k) => k !== i);
-  const secrets = a.openings.filter((o) => o.kind === "secret");
   const edges = edgesOf(room.outline);
   for (let j = 0; j < g.rows; j++)
     for (let k = 0; k < g.cols; k++) {
       const c = middle(g, k, j);
       const inside = insidePolygon(c, room.outline);
       const grown =
-        !inside &&
-        edges.some(([p, q]) => segmentDistance(c, p, q) <= GROW_IN) &&
-        !others.some((r) => insidePolygon(c, r.outline)) &&
-        !secrets.some((o) => segmentDistance(c, o.a, o.b) <= SECRET_IN);
+        !inside && edges.some(([p, q]) => segmentDistance(c, p, q) <= GROW_IN) && !others.some((r) => insidePolygon(c, r.outline));
       if (inside || grown) g.cells[j * g.cols + k] = 1;
     }
   const loops = trace(g).sort((p, q) => area2(q) - area2(p));

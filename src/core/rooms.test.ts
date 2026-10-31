@@ -75,7 +75,7 @@ test("rooms don't overlap; names start at the next free number and can be change
   );
 });
 
-test("uncovering a room grows past its walls but never into the next room, and stops short of a secret door", () => {
+test("uncovering a room grows past its walls but never into the next room, and past a secret door like any wall", () => {
   let a = building();
   a = addOpening(a, "secret", { x: 2, y: 4 }, { x: 2, y: 5 });
   a = addRoom(a, found(a, { x: 5, y: 5 }), "1")!;
@@ -85,13 +85,14 @@ test("uncovering a room grows past its walls but never into the next room, and s
   const fog = [op];
   const at = (x: number, y: number) => fogAt(fog, { x, y });
   assert.equal(at(5, 5), "seen");
-  // The walls show: the grow reaches past the top wall and out to the left, away from the secret door.
+  // The walls show: the grow reaches past the top wall and out to the left.
   assert.equal(at(5, 1.7), "seen");
   assert.equal(at(1.7, 7), "seen");
   assert.equal(at(5, 1.3), "unexplored");
-  // Not into the right room, and not over the secret door's paint.
+  // Not into the right room. Past the secret door just as past the wall beside it, so no gap points at it.
   assert.equal(at(8.4, 5), "unexplored");
-  assert.equal(at(1.8, 4.5), "unexplored");
+  assert.equal(at(1.7, 4.5), "seen");
+  assert.equal(at(1.3, 4.5), at(1.3, 7));
   // Dim is the same area.
   assert.equal(roomUncover(a, 0, "hide")!.mode, "hide");
   assert.equal(roomUncover(a, 5, "reveal"), null);
