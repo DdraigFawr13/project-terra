@@ -46,6 +46,7 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 - **Sheets:** the Party and monster sheets open in the panel in place of the tab's lists; **Back** returns to the lists. One sheet shows at a time, and the one open when the app closes opens again.
 - **Panel size:** drag the panel's edge to make it wider or narrower (or focus the edge and use the arrow keys); the width is remembered. Tab folds the panel away so the map has the whole window.
 - **Menus:** Table (setup, calibrate, test grid, flip letters, lock, import, earlier saves, problem report), Fight (start or end, Party) and View (the panel's tabs, fold, appearance). Curtain and Next turn stay on the bar; the status bar at the bottom shows the table screen, the round, the zoom and any problem.
+- **Player tokens (D-045):** on the Party sheet, **Picture…** crops a picture for a character, and **Place on map** then a tap puts their token down. Select drags it; a tap opens their HP pad. **Mini on it** moves the initials to a tab, **Faces near/far side** turns it to its player, and the conditions you tick show as icons. Players see no HP, name or notes on it.
 - **HP from the disc:** tap a disc with Select for a small pad beside it: the amount, Damage or Heal, or Sheet for the whole group. With the pen, a tap on an initiative box opens a number pad too.
 
 ## Develop

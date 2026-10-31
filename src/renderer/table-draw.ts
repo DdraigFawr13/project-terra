@@ -1,8 +1,8 @@
 // The table's picture in inches: the map with its fog, the 1-inch grid and the calibration rectangle. The table window
 // draws it onto its warped layer (D-021); the DM window draws the same picture, unwarped, as its live preview (D-025).
 import type { Calibration, Layer } from "../core/calibration.ts";
-import type { Chip, DiscColour, Strip } from "../core/fight.ts";
-import type { Ink, PlayerDisc, PlayerView } from "../core/table.ts";
+import type { Chip, DiscColour, PcCondition, Strip } from "../core/fight.ts";
+import type { Ink, PlayerDisc, PlayerToken, PlayerView } from "../core/table.ts";
 import type { Point } from "../core/homography.ts";
 import type { FogPainter } from "./fog-draw.ts";
 import { drawSymbol } from "./symbols.ts";
@@ -190,6 +190,177 @@ export function drawDisc(
     ctx.stroke();
     letterAt(ctx, disc.letter, bx, bx, r * 0.64, ink);
   }
+  ctx.restore();
+}
+
+/** Characters' token colours (D-045), kept apart from the six enemy colours: square tiles in these read as the party. */
+const TINTS: { fill: string; ink: string }[] = [
+  { fill: "#ffffff", ink: "#111111" },
+  { fill: "#28d7c8", ink: "#111111" },
+  { fill: "#ff5fb4", ink: "#111111" },
+  { fill: "#b6f03c", ink: "#111111" },
+  { fill: "#7fc4ff", ink: "#111111" },
+  { fill: "#d7a6ff", ink: "#111111" },
+  { fill: "#ffb48c", ink: "#111111" },
+  { fill: "#c9c2a5", ink: "#111111" },
+];
+
+/**
+ * A character's token centred at (x, y), `w` units wide (D-045): a square tile, so its corners show round a mini's base
+ * and it never reads as a round enemy disc. It faces its player's side, whichever way Flip letters has turned the discs.
+ * `image` draws in place of the token's own picture, for the crop preview.
+ */
+export function drawToken(ctx: CanvasRenderingContext2D, t: PlayerToken, x: number, y: number, w: number, image?: CanvasImageSource): void {
+  const { fill, ink } = TINTS[t.tint % TINTS.length]!;
+  const r = w / 2;
+  const edge = w * 0.07;
+  const picture = image ?? (t.picture ? portraitImage(t.picture) : null);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(t.farSide ? Math.PI : 0);
+  if (t.turn) {
+    // Whose turn: a bright frame outside the tile, clear of a mini's base.
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = w * 0.09;
+    ctx.strokeRect(-r - w * 0.09, -r - w * 0.09, w + w * 0.18, w + w * 0.18);
+  }
+  ctx.globalAlpha *= t.down ? 0.55 : 1;
+  ctx.fillStyle = TOKEN_GROUND;
+  ctx.fillRect(-r, -r, w, w);
+  if (picture) ctx.drawImage(picture, -r + edge, -r + edge, w - edge * 2, w - edge * 2);
+  ctx.strokeStyle = fill;
+  ctx.lineWidth = edge;
+  ctx.strokeRect(-r + edge / 2, -r + edge / 2, w - edge, w - edge);
+  // The initials: on a tab below when a mini would cover them, else on the tile, large when there's no picture.
+  if (t.mini) {
+    const th = w * 0.42;
+    tag(ctx, -r, r + w * 0.02, w, th, fill);
+    letterAt(ctx, t.initials, 0, r + w * 0.02 + th / 2, th * 0.86, ink);
+  } else if (picture) {
+    const bh = w * 0.27;
+    ctx.fillStyle = fill;
+    ctx.fillRect(-r, r - bh, w, bh);
+    letterAt(ctx, t.initials, 0, r - bh / 2, bh * 0.92, ink);
+  } else letterAt(ctx, t.initials, 0, 0, w * 0.56, "#ffffff");
+  if (t.down) {
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = w * 0.1;
+    ctx.beginPath();
+    (ctx.moveTo(-r * 0.7, -r * 0.7), ctx.lineTo(r * 0.7, r * 0.7));
+    (ctx.moveTo(r * 0.7, -r * 0.7), ctx.lineTo(-r * 0.7, r * 0.7));
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // Conditions in a row above the tile, clear of a mini: three icons at most, then a mark for more.
+  const size = w * 0.36;
+  const shown = t.conditions.slice(0, 3);
+  shown.forEach((c, i) => {
+    const cx = -r + size / 2 + i * (size + w * 0.02);
+    drawConditionIcon(ctx, c, cx, -r - size * 0.62, size);
+  });
+  if (t.conditions.length > shown.length) letterAt(ctx, "+", r - size * 0.1, -r - size * 0.62, size, "#ffffff");
+  ctx.restore();
+}
+
+/** A condition's icon drawn in code: a white mark on a dark chip, simple enough to read at about 16 projector pixels. */
+function drawConditionIcon(ctx: CanvasRenderingContext2D, c: PcCondition, x: number, y: number, size: number): void {
+  const u = size / 2;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = TOKEN_GROUND;
+  ctx.fillRect(-u, -u, size, size);
+  ctx.scale(u, u);
+  ctx.strokeStyle = "#ffffff";
+  ctx.fillStyle = "#ffffff";
+  ctx.lineWidth = 0.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  const line = (...p: number[]) => {
+    ctx.moveTo(p[0]!, p[1]!);
+    for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i]!, p[i + 1]!);
+  };
+  const ring = (cx: number, cy: number, radius: number) => {
+    ctx.moveTo(cx + radius, cy);
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  };
+  let fillIt = false;
+  switch (c) {
+    case "blinded": // An eye, struck through.
+      ctx.ellipse(0, 0, 0.7, 0.38, 0, 0, Math.PI * 2);
+      line(-0.65, 0.65, 0.65, -0.65);
+      break;
+    case "charmed": // A heart.
+      ctx.moveTo(0, 0.7);
+      ctx.bezierCurveTo(-1, 0, -0.55, -0.75, 0, -0.25);
+      ctx.bezierCurveTo(0.55, -0.75, 1, 0, 0, 0.7);
+      fillIt = true;
+      break;
+    case "deafened": // Sound, struck through.
+      ctx.arc(-0.45, 0, 0.45, -0.8, 0.8);
+      ctx.moveTo(-0.45 + 0.8 * Math.cos(-0.8), 0.8 * Math.sin(-0.8));
+      ctx.arc(-0.45, 0, 0.8, -0.8, 0.8);
+      line(-0.65, 0.65, 0.65, -0.65);
+      break;
+    case "exhaustion": // Bars running down.
+      line(-0.55, -0.6, -0.55, 0.6);
+      line(0, -0.2, 0, 0.6);
+      line(0.55, 0.25, 0.55, 0.6);
+      break;
+    case "frightened": // An exclamation mark.
+      line(0, -0.7, 0, 0.2);
+      line(0, 0.62, 0, 0.64);
+      break;
+    case "grappled": // Two hands closing.
+      line(-0.7, -0.5, -0.2, -0.5, -0.2, 0.5, -0.7, 0.5);
+      line(0.7, -0.5, 0.2, -0.5, 0.2, 0.5, 0.7, 0.5);
+      break;
+    case "incapacitated": // No entry.
+      ring(0, 0, 0.68);
+      line(-0.4, 0, 0.4, 0);
+      break;
+    case "invisible": // A dashed circle.
+      ctx.setLineDash([0.32, 0.3]);
+      ring(0, 0, 0.66);
+      break;
+    case "paralyzed": // A bolt.
+      line(0.2, -0.75, -0.35, 0.05, 0.3, 0.05, -0.2, 0.75);
+      break;
+    case "petrified": // A block of stone.
+      line(0, -0.72, 0.65, -0.36, 0.65, 0.36, 0, 0.72, -0.65, 0.36, -0.65, -0.36, 0, -0.72);
+      fillIt = true;
+      break;
+    case "poisoned": // A drop.
+      ctx.moveTo(0, -0.75);
+      ctx.bezierCurveTo(0.8, 0.15, 0.45, 0.72, 0, 0.72);
+      ctx.bezierCurveTo(-0.45, 0.72, -0.8, 0.15, 0, -0.75);
+      fillIt = true;
+      break;
+    case "prone": // Flat on the ground.
+      line(-0.7, 0.55, 0.7, 0.55);
+      line(0, -0.6, 0, 0.15);
+      line(-0.32, -0.15, 0, 0.15, 0.32, -0.15);
+      break;
+    case "restrained": // Two links of chain.
+      ring(-0.3, 0, 0.38);
+      ring(0.3, 0, 0.38);
+      break;
+    case "stunned": // A star.
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const rad = i % 2 ? 0.34 : 0.78;
+        if (i === 0) ctx.moveTo(rad * Math.cos(a), rad * Math.sin(a));
+        else ctx.lineTo(rad * Math.cos(a), rad * Math.sin(a));
+      }
+      ctx.closePath();
+      fillIt = true;
+      break;
+    case "unconscious": // Asleep: a Z.
+      line(-0.55, -0.6, 0.55, -0.6, -0.55, 0.6, 0.55, 0.6);
+      break;
+  }
+  if (fillIt) ctx.fill();
+  else ctx.stroke();
   ctx.restore();
 }
 
@@ -444,6 +615,7 @@ function drawFight(ctx: CanvasRenderingContext2D, scene: TableScene, X: (inches:
       X(1),
     );
   for (const d of view.discs) drawDisc(ctx, d, X(d.x), X(d.y), X(d.size), view.flipLetters ? Math.PI : 0);
+  for (const t of view.tokens) drawToken(ctx, t, X(t.x), X(t.y), X(1));
   for (const p of view.pins) drawPin(ctx, X(p.x), X(p.y), X(1));
   if (view.party) drawParty(ctx, X(view.party.x), X(view.party.y), X(1));
   if (view.strip) {
