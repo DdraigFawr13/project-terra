@@ -52,6 +52,25 @@ export function drawLine(ctx: CanvasRenderingContext2D, points: Point[], ink: In
 }
 
 /** How long a ping lasts on the table, in milliseconds (D-034). */
+/**
+ * A piece of the laser trail (D-046): a bright red line with a glow, `alpha` from 1 down to 0 as it fades. Red is
+ * no disc's colour and reads on light and dark maps alike.
+ */
+export function drawLaser(ctx: CanvasRenderingContext2D, points: Point[], inch: number, alpha: number): void {
+  if (points.length < 2 || alpha <= 0) return;
+  ctx.save();
+  ctx.lineCap = ctx.lineJoin = "round";
+  ctx.beginPath();
+  points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+  ctx.strokeStyle = `rgba(255, 70, 50, ${0.35 * alpha})`;
+  ctx.lineWidth = inch * 0.3;
+  ctx.stroke();
+  ctx.strokeStyle = `rgba(255, 120, 100, ${alpha})`;
+  ctx.lineWidth = inch * 0.1;
+  ctx.stroke();
+  ctx.restore();
+}
+
 export const PING_MS = 2000;
 
 /**

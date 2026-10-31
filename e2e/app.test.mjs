@@ -69,6 +69,7 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     // away (D-002).
     assert.deepEqual(await table.evaluate(() => Object.keys(window.terra).sort()), [
       "getView",
+      "onLaser",
       "onMapPatched",
       "onPing",
       "onSketch",
@@ -1039,10 +1040,53 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await dm.mouse.down();
     await dm.mouse.move(box.x + box.width / 2 + box.width / 6, box.y + box.height / 2, { steps: 4 });
     await dm.mouse.up();
-    await dm.waitForFunction((x) => window.terra.getState().then((s) => s.map.discs[0].x !== x), before.x);
+    await until(dm, async (x) => (await window.terra.getState()).map.discs[0].x !== x, before.x);
     await dm.keyboard.press("Control+z");
-    await dm.waitForFunction((x) => window.terra.getState().then((s) => s.map.discs[0].x === x), before.x);
+    await until(dm, async (x) => (await window.terra.getState()).map.discs[0].x === x, before.x);
     assert.equal((await dm.evaluate(() => window.terra.getState())).party[0].hp, 21);
+
+    // Batch 3 (D-046). Held still for half a second, a disc lifts its whole colour: both yellow discs move together, and
+    // one Ctrl+Z puts both back.
+    await dm.evaluate((d) => window.terra.apply({ type: "placeDisc", colour: "yellow", x: d.x + 2, y: d.y, size: 1 }), before);
+    await until(dm, async () => (await window.terra.getState()).map.discs.length === 2);
+    await dm.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await dm.mouse.down();
+    await dm.waitForTimeout(700);
+    await dm.mouse.move(box.x + box.width / 2 + box.width / 6, box.y + box.height / 2, { steps: 4 });
+    await dm.mouse.up();
+    await until(
+      dm,
+      async (x) => {
+        const ds = (await window.terra.getState()).map.discs;
+        return ds[0].x !== x && ds[1].x - ds[0].x === 2;
+      },
+      before.x,
+    );
+    await dm.keyboard.press("Control+z");
+    await until(dm, async (x) => (await window.terra.getState()).map.discs[0].x === x, before.x);
+    // A drag with Ping is the laser: pieces of its trail reach the table, and no ping or pin is left.
+    await dm.keyboard.press("p");
+    const lasered = table.evaluate(() => new Promise((resolve) => window.terra.onLaser(resolve)));
+    await dm.mouse.move(spot.x, spot.y);
+    await dm.mouse.down();
+    await dm.mouse.move(spot.x + 150, spot.y, { steps: 10 });
+    await dm.mouse.up();
+    assert.equal((await lasered).length, 2);
+    assert.equal((await dm.evaluate(() => window.terra.getState())).map.pins.length, 0);
+    await dm.keyboard.press("v");
+    // Legendary actions: pips on the group's row in the fight; a tap uses one.
+    await dm.evaluate(async () => {
+      const g = (await window.terra.getState()).map.groups.yellow;
+      await window.terra.apply({ type: "group", colour: "yellow", info: { ...g, legendary: 2 } });
+    });
+    await dm.locator(".group-row button.pips", { hasText: "●●" }).click();
+    await until(dm, async () => (await window.terra.getState()).map.groups.yellow.spent === 1);
+    // Place party: one button, then one tap on the map puts the party's tokens down.
+    await openParty(dm);
+    await dm.click("[data-float='party'] [data-key='place-party']");
+    await dm.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.7);
+    await until(dm, async () => (await window.terra.getState()).map.tokens.length === 1);
+    await dm.click(".sheet-back");
     // The Fight tab takes Table setup out of the page; its buttons must still follow the state (they once threw on every
     // change). The Party sheet is left open, to open again next time (D-034).
     assert.deepEqual(errors, []);

@@ -39,7 +39,7 @@ import { countOf, type Annotation } from "../core/annotation.ts";
 import { roomAt, roomUncover } from "../core/rooms.ts";
 import { parseVtt, planVttPicture, type VttMap } from "../core/vtt.ts";
 import { icon } from "./icons.ts";
-import { drawDisc, drawLine, drawParty, drawPin, drawToken, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
+import { drawDisc, drawLaser, drawLine, drawParty, drawPin, drawToken, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const emptyMap = $<HTMLElement>("emptyMap");
@@ -107,10 +107,38 @@ const TABLE_EDGE = "#e8dcc8";
 /** One finger, pen or mouse painting fog, in map inches. Strokes reach the table only when lifted (D-025). */
 type Stroke = { pointer: number; pen: boolean; mode: FogMode; points: Point[] };
 /** A disc being dragged, or a tap with Marker about to place one; `at` is its snapped centre in map inches. */
-type DiscDrag = { pointer: number; pen: boolean; colour: DiscColour; letter: string; from: Point; at: Point };
+/**
+ * `group`: held still for LONG_PRESS_MS, the disc lifted its whole colour, which moves with it (D-046). `start` is the
+ * press in canvas pixels, to tell a hold from a drag; `timer` the hold's timeout.
+ */
+type DiscDrag = {
+  pointer: number;
+  pen: boolean;
+  colour: DiscColour;
+  letter: string;
+  from: Point;
+  at: Point;
+  group: boolean;
+  start: Point;
+  timer: number;
+};
 type Placing = { pointer: number; pen: boolean; at: Point };
-/** A press with Ping: a tap pings, holding for LONG_PRESS_MS leaves a pin, a tap on a pin takes it away (D-034). */
-type Pressing = { pointer: number; pen: boolean; from: Point; at: Point; pin: number | null; done: boolean; timer: number };
+/**
+ * A press with Ping: a tap pings, holding for LONG_PRESS_MS leaves a pin, a tap on a pin takes it away (D-034); a drag
+ * is the laser, whose `trail` (table inches) goes to the table piece by piece (D-046).
+ */
+type Pressing = {
+  pointer: number;
+  pen: boolean;
+  from: Point;
+  at: Point;
+  pin: number | null;
+  done: boolean;
+  timer: number;
+  trail: Point[] | null;
+};
+/** The laser sends a new piece of its trail once the pointer has gone this far, in table inches. */
+const LASER_STEP_IN = 0.15;
 const LONG_PRESS_MS = 500;
 /** A press that wanders further than this, in canvas pixels, is a slip, not a tap. */
 const SLIP_PX = 14;
@@ -152,6 +180,8 @@ export function initMaps(
   shortcut: (key: string) => boolean;
   /** The next tap on the map puts the party marker there (D-039). */
   placeParty: () => void;
+  /** Place party (D-046): the next tap puts the travelling characters' tokens down in a row. */
+  placeRow: () => void;
   /** The next tap on the map puts this character's token there (D-045). */
   placeToken: (id: string) => void;
   /** What a tap on a character's token does. */
@@ -177,6 +207,8 @@ export function initMaps(
   let partyNext = false;
   /** The next tap puts this character's token down (D-045). */
   let tokenNext: string | null = null;
+  /** After Place party (D-046): the next tap puts the travelling characters down in a row. */
+  let rowNext = false;
   /** Select dragging a character's token: where it started and where it would land, in map inches. */
   let tokenDrag: { pointer: number; pen: boolean; id: string; from: Point; at: Point } | null = null;
   let onTokenTap: (id: string, at: Point) => void = () => undefined;
@@ -769,12 +801,21 @@ export function initMaps(
     const now = performance.now();
     for (const l of fading) drawLine(ctx, canvasLine(l.points), l.ink, Math.max(s, 20), sketchAlpha(now - l.start), !l.table);
     if (line && !line.eraser) drawLine(ctx, canvasLine(line.points), ink, Math.max(s, 20), 1, !inkTable);
+    // The laser as it is drawn; on the table each piece fades by itself (D-046).
+    if (pressing?.trail) drawLaser(ctx, canvasLine(pressing.trail.map((t) => tableToMap(map, t))), Math.max(s, 20), 1);
     const picked = selection.get();
     for (const d of map.discs) {
       const moving = discDrag && discKey(discDrag) === discKey(d);
+      const lifted = discDrag?.group && discDrag.colour === d.colour;
       const down = conditionOf(d, map.groups) === "down";
+      // Where it is drawn: under the pointer, moved with its lifted colour (D-046), or where it is.
+      const shownAt = moving
+        ? discDrag!.at
+        : lifted
+          ? snapDisc({ x: d.x + discDrag!.at.x - discDrag!.from.x, y: d.y + discDrag!.at.y - discDrag!.from.y }, d.size)
+          : d;
       // As the players see it: a revealed group's symbol or portrait, the letter on a tab when a mini stands on it (D-036).
-      const { c, w } = draw({ ...d, ...tokenLook(d, map.groups) }, moving ? discDrag!.at : d, down ? 0.3 : d.shown ? 1 : 0.45);
+      const { c, w } = draw({ ...d, ...tokenLook(d, map.groups) }, shownAt, down ? 0.3 : d.shown ? 1 : 0.45);
       const full = down ? null : hpFraction(d, map.groups);
       if (full !== null) hpRing(ctx, c, w, full, conditionOf(d, map.groups));
       if (down) {
@@ -791,6 +832,16 @@ export function initMaps(
         ctx.beginPath();
         ctx.arc(c.x, c.y, w / 2 + 5, 0, Math.PI * 2);
         ctx.stroke();
+      }
+      if (lifted) {
+        // The whole colour is lifted: a dashed ring round each of its discs, so the DM sees what moves.
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, w / 2 + 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
     }
     // Characters' tokens (D-045) just as the players see them, from the same view of the state.
@@ -989,17 +1040,32 @@ export function initMaps(
 
   /** Esc or a second finger: drop the stroke, drag or placement before it reaches the table. */
   function cancel(): boolean {
-    if (!stroke && !drag && !discDrag && !placing && !pan && !pressing && !line && !grabbed && !partyNext && !tokenNext && !tokenDrag)
+    if (
+      !stroke &&
+      !drag &&
+      !discDrag &&
+      !placing &&
+      !pan &&
+      !pressing &&
+      !line &&
+      !grabbed &&
+      !partyNext &&
+      !tokenNext &&
+      !rowNext &&
+      !tokenDrag
+    )
       return false;
     line = null;
     grabbed = null;
     partyNext = false;
     tokenNext = null;
+    rowNext = false;
     tokenDrag = null;
     if (pressing) clearTimeout(pressing.timer);
     pressing = null;
     stroke = null;
     drag = null;
+    if (discDrag) clearTimeout(discDrag.timer);
     discDrag = null;
     placing = null;
     pan = null;
@@ -1044,6 +1110,12 @@ export function initMaps(
       void run({ type: "party", at: mapInchesAt(e) });
       return;
     }
+    if (rowNext) {
+      rowNext = false;
+      const at = mapInchesAt(e);
+      if (at) void run({ type: "placeParty", ...at });
+      return;
+    }
     if (tokenNext) {
       const id = tokenNext;
       tokenNext = null;
@@ -1063,7 +1135,25 @@ export function initMaps(
       const hit = discAt(e, tool === "select" ? GRAB_PX : 0);
       if (hit) {
         const from = { x: hit.x, y: hit.y };
-        discDrag = { pointer: e.pointerId, pen, colour: hit.colour, letter: hit.letter, from, at: from };
+        const d: DiscDrag = {
+          pointer: e.pointerId,
+          pen,
+          colour: hit.colour,
+          letter: hit.letter,
+          from,
+          at: from,
+          group: false,
+          start: canvasPoint(e),
+          timer: 0,
+        };
+        // Held still on a disc with Select, it lifts its whole colour (D-046), as holding with Ping leaves a pin.
+        if (tool === "select")
+          d.timer = window.setTimeout(() => {
+            if (discDrag !== d) return;
+            d.group = true;
+            render();
+          }, LONG_PRESS_MS);
+        discDrag = d;
         render();
         return;
       }
@@ -1097,7 +1187,7 @@ export function initMaps(
       const from = canvasPoint(e);
       const pin = pinAt(e);
       const at = mapInchesAt(e)!;
-      const p: Pressing = { pointer: e.pointerId, pen, from, at, pin, done: false, timer: 0 };
+      const p: Pressing = { pointer: e.pointerId, pen, from, at, pin, done: false, timer: 0, trail: null };
       // Holding still leaves a pin; on a pin, holding does nothing more than a tap.
       if (pin === null)
         p.timer = window.setTimeout(() => {
@@ -1145,7 +1235,22 @@ export function initMaps(
     }
     if (pressing?.pointer === e.pointerId) {
       const p = canvasPoint(e);
-      if (!pressing.done && Math.hypot(p.x - pressing.from.x, p.y - pressing.from.y) > SLIP_PX) cancel();
+      const map = state?.map;
+      // A drag before the hold is up, or off a pin, is the laser (D-046): no ping and no pin.
+      if (!pressing.done && !pressing.trail && map && Math.hypot(p.x - pressing.from.x, p.y - pressing.from.y) > SLIP_PX) {
+        clearTimeout(pressing.timer);
+        pressing.trail = [mapToTable(map, pressing.at)];
+      }
+      const at = mapInchesAt(e);
+      if (pressing.trail && map && at) {
+        const t = mapToTable(map, at);
+        const last = pressing.trail[pressing.trail.length - 1]!;
+        if (Math.hypot(t.x - last.x, t.y - last.y) >= LASER_STEP_IN) {
+          void terra.laser([last, t]);
+          pressing.trail.push(t);
+          render();
+        }
+      }
       return;
     }
     if (grabbed?.pointer === e.pointerId) {
@@ -1176,6 +1281,9 @@ export function initMaps(
     }
     if (discDrag?.pointer === e.pointerId) {
       const disc = state!.map!.discs.find((d) => discKey(d) === discKey(discDrag!));
+      const p = canvasPoint(e);
+      // Moving before the hold is up drags this disc alone.
+      if (Math.hypot(p.x - discDrag.start.x, p.y - discDrag.start.y) > SLIP_PX) clearTimeout(discDrag.timer);
       discDrag.at = snapDisc(at, disc?.size ?? 1);
       render();
       return;
@@ -1201,7 +1309,13 @@ export function initMaps(
   function endDisc(keep: boolean): void {
     const d = discDrag!;
     discDrag = null;
+    clearTimeout(d.timer);
     const moved = d.at.x !== d.from.x || d.at.y !== d.from.y;
+    // A lifted colour drops together, in one undo step; held and let go in place, nothing changes.
+    if (d.group) {
+      if (keep && moved) void run({ type: "moveGroup", colour: d.colour, dx: d.at.x - d.from.x, dy: d.at.y - d.from.y });
+      return render();
+    }
     if (keep && moved) void run({ type: "moveDisc", colour: d.colour, letter: d.letter, ...d.at });
     if (keep) selection.set(discKey(d));
     // A tap opens the disc's HP pad beside it; a drag only moves it.
@@ -1294,7 +1408,7 @@ export function initMaps(
       const p = pressing;
       clearTimeout(p.timer);
       pressing = null;
-      if (!keep || p.done || !state?.map) return;
+      if (!keep || p.done || p.trail || !state?.map) return render();
       if (p.pin !== null) void run({ type: "removePin", id: p.pin });
       else {
         const t = mapToTable(state.map, p.at);
@@ -1509,6 +1623,9 @@ export function initMaps(
   const placeParty = () => {
     partyNext = true;
   };
+  const placeRow = () => {
+    rowNext = true;
+  };
   const placeToken = (id: string) => {
     tokenNext = id;
   };
@@ -1517,7 +1634,7 @@ export function initMaps(
   };
   /** Back to Select, so a tap on a disc opens its HP pad (Start fight does this, D-046). */
   const select = () => setTool("select");
-  return { undo, render, cancel, shortcut, placeParty, placeToken, tokenTap, select };
+  return { undo, render, cancel, shortcut, placeParty, placeToken, placeRow, tokenTap, select };
 }
 
 /**

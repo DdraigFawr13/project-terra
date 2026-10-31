@@ -97,8 +97,26 @@ export function initFight(
       swatch(c),
       el("span", {}, groups[c]?.name || COLOUR_NAME[c], el("small", {}, `${letters.join(" · ")}${hidden ? ` · ${hidden} hidden` : ""}`)),
     );
+    // Legendary actions (D-046): in a fight, a pip for each, filled while unused. A tap uses one; they come back on the
+    // group's turn, and Ctrl+Z takes back a slip. DM only.
+    const g = groups[c];
+    const pips =
+      s.fight && g?.legendary
+        ? [
+            button(
+              "●".repeat(g.legendary - g.spent) + "○".repeat(g.spent),
+              {
+                class: "pips",
+                "aria-label": `Legendary actions: ${g.legendary - g.spent} of ${g.legendary} left. Tap to use one.`,
+                disabled: g.spent >= g.legendary,
+              },
+              () => run({ type: "legendary", colour: c, spent: g.spent + 1 }),
+            ),
+          ]
+        : [];
     return [
       open,
+      ...pips,
       // On table / Off table (D-038): a switch with the word on it, for every disc of the colour.
       button(
         hidden ? "Off table" : "On table",

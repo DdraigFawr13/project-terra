@@ -13,6 +13,7 @@ import {
   MAX_PINS,
   parseCommand,
   parseSave,
+  partyToPlace,
   playerViewOf,
   sceneTitle,
   coverOf,
@@ -275,6 +276,13 @@ test("the same commands give the same state, and any state saves and loads uncha
     }),
     fc.record({ type: fc.constant("swapTie"), who: fc.constantFrom("pc-1", "red"), by: fc.constantFrom(-1, 1, -0) }),
     fc.record({ type: fc.constant("brightness"), value: fc.oneof(anyValue, fc.integer({ min: 40, max: 160 })) }),
+    fc.record({ type: fc.constant("moveGroup"), colour: fc.constantFrom("red", "x"), dx: fc.constantFrom(-0, 1, -2.5), dy: anyValue }),
+    fc.record({
+      type: fc.constant("legendary"),
+      colour: fc.constantFrom("red", "yellow"),
+      spent: fc.oneof(anyValue, fc.integer({ min: -1, max: 4 })),
+    }),
+    fc.record({ type: fc.constant("placeParty"), x: fc.constantFrom(-0, 1.4, "x"), y: fc.constantFrom(0, -0) }),
     fc.record({
       type: fc.constantFrom("addScene", "renameScene"),
       id: fc.constantFrom("scene-1", "scene-2", "x"),
@@ -589,6 +597,65 @@ test("Batch 2 (D-046): a turn ring for the colour whose turn it is, each scene's
   delete old.scenes[0].parked.testGrid;
   const upgraded = parseSave(JSON.stringify({ ...old, version: 16 }));
   assert.ok(upgraded.ok && upgraded.state.brightness === 100 && upgraded.state.scenes[0]!.parked!.testGrid === false);
+});
+
+test("Batch 3 (D-046): a group moves as one, the party lands in a row, legendary actions refill on the group's turn", () => {
+  let s = run([
+    { type: "placeMap", map },
+    { type: "lockMap", on: false },
+    { type: "placeDisc", colour: "red", x: 1, y: 1, size: 1 },
+    { type: "placeDisc", colour: "red", x: 3, y: 2, size: 2 },
+    { type: "placeDisc", colour: "blue", x: 6, y: 6, size: 1 },
+    { type: "addCharacter", character: { name: "Ash", ac: 15, hp: 20, hpMax: 20, passive: 12, speed: 30 } },
+    { type: "addCharacter", character: { name: "Bryn", ac: 15, hp: 20, hpMax: 20, passive: 12, speed: 30 } },
+  ]);
+  const at = (t: TableState) => t.map!.discs.map((d) => `${d.colour}${d.letter}:${d.x},${d.y}`);
+  const moved = run([{ type: "moveGroup", colour: "red", dx: 2, dy: -1 }], s);
+  assert.deepEqual(at(moved), ["redA:3.5,0.5", "redB:5,1", "blueA:6.5,6.5"]);
+  assert.ok(UNDOABLE.has("moveGroup") && UNDOABLE.has("placeParty") && UNDOABLE.has("legendary"));
+  // Place party: with no tokens anywhere yet, the whole party in roster order, left to right from the tapped square.
+  const party = run([{ type: "placeParty", x: 2.2, y: 4.8 }], s);
+  assert.deepEqual(
+    party.map!.tokens.map((t) => [t.id, t.x, t.y]),
+    [
+      ["pc-1", 2.5, 4.5],
+      ["pc-2", 3.5, 4.5],
+    ],
+  );
+  // In the next scene, only those who had a token in the last one: Bryn stayed behind.
+  const onlyAsh = run([{ type: "token", id: "pc-2", at: null }], party);
+  const next = run(
+    [
+      { type: "addScene", name: "Road" },
+      { type: "placeMap", map },
+    ],
+    onlyAsh,
+  );
+  assert.deepEqual(partyToPlace(next), ["pc-1"]);
+  assert.deepEqual(
+    run([{ type: "placeParty", x: 0, y: 0 }], next).map!.tokens.map((t) => t.id),
+    ["pc-1"],
+  );
+  // Legendary actions: only for a group that has them; used ones come back when its turn starts, not before.
+  s = run(
+    [
+      { type: "group", colour: "red", info: { ...blankGroup(), name: "Dragon", legendary: 3 } },
+      { type: "startFight" },
+      { type: "initiative", who: "pc-1", init: 15 },
+      { type: "initiative", who: "red", init: 10 },
+      { type: "nextTurn" },
+      { type: "legendary", colour: "red", spent: 2 },
+      { type: "legendary", colour: "blue", spent: 1 },
+    ],
+    s,
+  );
+  assert.equal(s.map!.groups.red!.spent, 2);
+  assert.equal(s.map!.groups.blue, undefined);
+  assert.equal(run([{ type: "legendary", colour: "red", spent: 7 }], s).map!.groups.red!.spent, 3);
+  const redTurn = run([{ type: "nextTurn" }], s);
+  assert.deepEqual([redTurn.fight!.current, redTurn.map!.groups.red!.spent], ["red", 0]);
+  // Never on the table (D-002).
+  assert.ok(!JSON.stringify(playerViewOf(s, "window")).includes("spent"));
 });
 
 test("scene list (D-039): names, order, copies and the Removed list", () => {

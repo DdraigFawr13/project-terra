@@ -1138,6 +1138,14 @@ button.group-open small {
   color: var(--muted);
   font-weight: 400;
 }
+/* Legendary action pips (D-046): filled while unused, in the accent so they read at a glance. */
+button.pips {
+  flex: none;
+  min-width: 0;
+  padding: 0 4px;
+  color: var(--accent);
+  font-size: 0.8rem;
+}
 button.eye {
   min-width: 92px;
 }

@@ -461,6 +461,12 @@ if (!app.requestSingleInstanceLock()) {
       if (points && INKS.includes(ink as (typeof INKS)[number]) && viewOf(state) === "map")
         send(playerWindow, "player:sketch", { ink, points });
     });
+    // The laser (D-046): a drag with Ping. Each piece of the trail goes to the table as it is drawn and fades there in
+    // about a second; nothing else is sent, and nothing is saved.
+    ipcMain.handle("table:laser", (_e, raw: unknown) => {
+      const points = parseLine(raw);
+      if (points && viewOf(state) === "map") send(playerWindow, "player:laser", points);
+    });
     ipcMain.handle("library:list", () => listMaps(app.getPath("userData")));
     ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown, feet: unknown, walls: unknown) =>
       saveMap(app.getPath("userData"), name, png, bounds, feet, walls),

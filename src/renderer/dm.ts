@@ -444,7 +444,11 @@ const quick = initQuickHp(terra, monsters.show, () => party.show());
 // Starting a fight goes back to Select: with Ping or Uncover still picked, tapping a disc would do nothing useful (D-046).
 $("startFight").addEventListener("click", maps.select);
 const fight = initFight(terra, monsters.show, (id, at) => quick.showCharacter(id, at));
-const party = initParty(terra, (id) => maps.placeToken(id));
+const party = initParty(
+  terra,
+  (id) => maps.placeToken(id),
+  () => maps.placeRow(),
+);
 maps.tokenTap((id, at) => quick.showCharacter(id, at));
 const flipBtn = $<HTMLButtonElement>("flipLetters");
 flipBtn.addEventListener("click", () => terra.apply({ type: "flipLetters", on: flipBtn.getAttribute("aria-pressed") !== "true" }));

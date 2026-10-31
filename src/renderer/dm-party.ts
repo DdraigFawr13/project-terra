@@ -21,13 +21,13 @@ const KEYS = ["name", "ac", "hpMax", "speed", "passive", "insight", "investigati
 type Draft = Record<(typeof KEYS)[number], string>;
 const WORD: Record<Condition, string> = { fine: "Fine", bloodied: "Bloodied", nearDeath: "Near death", down: "Down" };
 
-export function initParty(terra: DmApi, placeToken: (id: string) => void): { show: () => void } {
+export function initParty(terra: DmApi, placeToken: (id: string) => void, placeRow: () => void): { show: () => void } {
   let state: TableState | null = null;
   let tab: string | null = null;
   /** The picture being cropped for a character's token (D-045). */
   let cropping: { id: string; file: File } | null = null;
-  /** Says what the next tap on the map does, after Place on map. */
-  let placingHint = false;
+  /** Says what the next tap on the map does, after Place on map or Place party. */
+  let placingHint: string | null = null;
   /** The card being edited (null id: a new one), with what has been typed so far. */
   let editing: { id: string | null; draft: Draft } | null = null;
   /** Remove asks first: a card is outside undo, so a slip would lose it for good (D-027, D-034). */
@@ -184,15 +184,13 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void): { sho
             ? button(onMap ? "Take off map" : "Place on map", { "data-key": "pc-place" }, () => {
                 if (onMap) return run({ type: "token", id: pc.id, at: null });
                 placeToken(pc.id);
-                placingHint = true;
+                placingHint = "Tap the map where they stand. Drag the token with Select to move it.";
                 render();
               })
             : el("small", {}, "Place a map to put this token on it."),
         ),
       ),
-      ...(placingHint
-        ? [el("p", { class: "hint", role: "status" }, "Tap the map where they stand. Drag the token with Select to move it.")]
-        : []),
+      ...(placingHint ? [el("p", { class: "hint", role: "status" }, placingHint)] : []),
       el(
         "div",
         { class: "row-buttons" },
@@ -258,6 +256,17 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void): { sho
     if (!party.some((c) => c.id === tab)) tab = party[0]?.id ?? null;
     const pc = party.find((c) => c.id === tab);
     win.actions.replaceChildren(
+      // Place party (D-046): one button, then one tap on the map for the whole row.
+      ...(state.map && party.length && !editing
+        ? [
+            button("Place party", { "data-key": "place-party" }, () => {
+              placeRow();
+              placingHint =
+                "Tap where the first one stands; the rest go to their right, in party order. Drag a token with Select to move it.";
+              render();
+            }),
+          ]
+        : []),
       ...(pc && !editing
         ? [
             button("Edit", {}, () => {
@@ -321,7 +330,7 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void): { sho
         tokenSection(pc),
         ...(pc.notes ? [el("p", { class: "notes" }, pc.notes)] : []),
       );
-      placingHint = false;
+      placingHint = null;
     }
     if (focused) win.body.querySelector<HTMLElement>(`[data-key="${focused}"]`)?.focus();
   }
