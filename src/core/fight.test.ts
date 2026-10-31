@@ -28,6 +28,7 @@ const map: PlacedMap = {
   drawings: [],
   spots: [],
   party: null,
+  tokens: [],
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
@@ -257,6 +258,10 @@ test("a version 5 save upgrades: group names become group info, discs and cards 
     investigation: null,
     spellDc: null,
     notes: "",
+    picture: null,
+    farSide: false,
+    mini: false,
+    conditions: [],
   });
 });
 

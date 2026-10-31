@@ -693,6 +693,77 @@ const srdZombie = {
   portrait: `data:image/png;base64,${checkerboardPng().toString("base64")}`,
 };
 
+test("a character's token (D-045): crop a picture, place it, drag it, and only its picture reaches the table", async () => {
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), "terra-e2e-"));
+  const { app, dm, table, errors } = await launch(userData, LAPTOP);
+  try {
+    await dm.setInputFiles("#mapFile", { name: "board.png", mimeType: "image/png", buffer: checkerboardPng() });
+    await dm.fill("#markW", "2");
+    await dm.fill("#markH", "2");
+    await dm.click("#importOk");
+    await table.waitForFunction(() => document.body.dataset.view === "map");
+    await dm.evaluate(() =>
+      window.terra.apply({ type: "addCharacter", character: { name: "Ash Vale", ac: 15, hp: 20, hpMax: 20, passive: 12, speed: 30 } }),
+    );
+    await openParty(dm);
+    const party = dm.locator("[data-float='party']");
+
+    // Pick a picture, crop it, and it's saved square on the card, with a picture id the table can't guess.
+    await party
+      .locator('[data-key="pc-picture-file"]')
+      .setInputFiles({ name: "ash.png", mimeType: "image/png", buffer: checkerboardPng() });
+    await party.locator(".crop-frame").waitFor();
+    await party.getByRole("button", { name: "Use this picture" }).click();
+    await until(dm, async () => (await window.terra.getState()).party[0].picture !== null);
+    const picture = await dm.evaluate(async () => (await window.terra.getState()).party[0].picture);
+
+    // Before the token is on the table, the table can't load the picture. Each try asks the route afresh: a page keeps
+    // an image it has already loaded under the same address.
+    const load = (key) =>
+      new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img.naturalWidth);
+        img.onerror = () => resolve(0);
+        img.src = `terra-portrait://${key}?try=${performance.now()}`;
+      });
+    assert.equal(await table.evaluate(load, `pc/${picture}`), 0);
+
+    // Place on map, then a tap puts it on a square; the table's view holds nothing else from the card.
+    await party.locator('[data-key="pc-place"]').click();
+    const box = await dm.locator("#mapCanvas").boundingBox();
+    await dm.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await until(dm, async () => (await window.terra.getState()).map.tokens.length === 1);
+    const [before] = await dm.evaluate(async () => (await window.terra.getState()).map.tokens);
+    assert.equal((before.x * 2) % 2, 1);
+    assert.equal(await table.evaluate(load, `pc/${picture}`), 512);
+    assert.equal(await table.evaluate(load, `pc/pic-0000000000000000`), 0);
+
+    // Select drags it; a drag doesn't move the map or open its HP pad.
+    await dm.click("button[data-tool='select']");
+    const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    await dm.mouse.move(at.x, at.y);
+    await dm.mouse.down();
+    await dm.mouse.move(at.x + 80, at.y, { steps: 4 });
+    await dm.mouse.up();
+    await until(dm, async (x) => (await window.terra.getState()).map.tokens[0].x !== x, before.x);
+
+    // Conditions and the mini switch save on the card; Take off map stops the picture reaching the table.
+    await party.locator('[data-key="pc-condition-prone"]').click();
+    await party.locator('[data-key="pc-mini"]').click();
+    await until(dm, async () => {
+      const p = (await window.terra.getState()).party[0];
+      return p.mini && p.conditions.includes("prone");
+    });
+    await party.locator('[data-key="pc-place"]').click();
+    await until(dm, async () => (await window.terra.getState()).map.tokens.length === 0);
+    assert.equal(await table.evaluate(load, `pc/${picture}`), 0);
+    assert.deepEqual(errors, []);
+  } finally {
+    await app.close();
+    fs.rmSync(userData, { recursive: true, force: true });
+  }
+});
+
 test("a fight: party and monster windows, discs placed with the pen, HP by number pad, a stat block, and nothing DM-only on the table", async () => {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "terra-e2e-"));
   let { app, dm, table, errors } = await launch(userData, LAPTOP);

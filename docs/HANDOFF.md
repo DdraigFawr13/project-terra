@@ -8,6 +8,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Just done ([earlier](archive/handoff-2026-10.md))
 
+- 2026-10-30 Player character tokens (D-045), branch `pc-tokens`: a character's token on a map (`tokens` on `PlacedMap`, `token` command, `tokenView`, save version 16), a square tile with picture, colour, initials and condition icons (`drawToken`), side and mini per character, crop in `dm-token-crop.ts`, controls on the Party sheet. Awaits Morgan's table photo (VER-07).
 - 2026-10-29 Step 2B (D-044), [walkthrough](https://claude.ai/artifact/X81467bZw6GvVZASdDAwJ1), branch `annotation-b`, awaiting Morgan's test (Sleeping Giant and Thundertree on the PC, fix one wall) and OK for the PR: `src/core/vtt.ts` reads .dd2vtt/.uvtt/library VTT JSON (walls and object outlines → walls, portals → doors open or closed as in the file, points from `map_origin`, pulled onto the picture's edge; lights counted, not kept); `planVttPicture` refuses a picture of the wrong shape. Import map takes VTT files (with the picture picked alongside, or asked for after: `#vttPicture`); the import screen's VTT mode hides the corners and shows the walls; `saveMap` takes the walls and checks them before writing anything. Private library: Thundertree traced as `maps/lmop/vtt/LMoP 3-18 Ruins of Thundertree 28x19.json` (16 buildings, 17 doors) with `tools/trace/` (gridded crops, walls cut at doors). Screenshots from a generated town (D-041).
 - 2026-10-29 Step 2A (D-044), [walkthrough](https://claude.ai/artifact/TU2tssgbPPxX2b1wWV2iw4), merged as [PR #36](https://github.com/DdraigFawr13/project-terra/pull/36): the walls editor (`dm-walls.ts`, `#walls`; Edit walls on the map bar, Walls on each library row with no map placed), pure rules in `src/core/annotation.ts` (¼-inch snap, ⅛-inch join, freehand smoothing, rub out splits a run), saved as `<map>.walls.json` beside the map (`library:walls` / `library:saveWalls`, DM bridge only; a damaged file is set aside), a Walls switch on the DM map (`walls-draw.ts`). The table window gets none of it (e2e checks). No save version change: walls live in the library, not the save. Screenshots from a generated test map (D-041).
 
@@ -49,6 +50,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Steps 1–7j are all merged: map
 
 ## Decisions since the last plan update
 
+- 2026-10-30 D-045 player character tokens, per character, dragged by the DM; changes D-027 item 1.
 - 2026-10-29 D-044 map annotation: walls, openings (door, secret door, window, opening), rooms with one-tap uncover, areas, VTT import; four steps 2A–2D.
 - 2026-10-29 D-043 back from the cuts: a DM-only dice roller (Battle drama), line of sight with character markers (Sight), the NPC conversation player defined (Later).
 - 2026-10-29 D-042 pictures with no squares fill the table, turned if bigger, never stretched; Turn turns about the middle.

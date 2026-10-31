@@ -16,6 +16,8 @@ import {
   parseGroups,
   parseInit,
   parseParty,
+  parsePcTokens,
+  initialsOf,
   placeDisc,
   sameDisc,
   setInitiative,
@@ -35,6 +37,8 @@ import {
   type Fight,
   type GroupInfo,
   type Groups,
+  type PcCondition,
+  type PcToken,
   type Strip,
   type Who,
   tokenLook,
@@ -44,7 +48,7 @@ import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, placedExtent, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
-const SAVE_VERSION = 15;
+const SAVE_VERSION = 16;
 /** Pins on one map at most: plenty for marks, and a stuck pen can't fill the save. */
 export const MAX_PINS = 40;
 
@@ -100,6 +104,8 @@ export type PlacedMap = {
   spots: Spot[];
   /** Where the party is, on a world map (D-039), in the map's own inches. Players see it. */
   party: Point | null;
+  /** The characters with a token on this map (D-045). A newly placed map has none. */
+  tokens: PcToken[];
 };
 
 /** A named place for the map on the table: its corner's position and turn, as `moveMap` and `turnMap` leave them. */
@@ -238,7 +244,9 @@ export type Command =
   /** Link a pin to a scene, or unlink it with null (D-039). A linked pin starts as the DM's own. */
   | { type: "linkPin"; id: number; scene: string | null }
   /** Put the party marker at a point in map inches, or take it away with null. */
-  | { type: "party"; at: Point | null };
+  | { type: "party"; at: Point | null }
+  /** Put a character's token on a square of this map, or take it off with null (D-045). */
+  | { type: "token"; id: string; at: Point | null };
 
 /**
  * Commands the DM can take back with Undo. Switches such as the curtain, calibration drags and character cards are not
@@ -276,6 +284,7 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
   "removeSpot",
   "linkPin",
   "party",
+  "token",
 ]);
 
 export type TableView = "curtain" | "calibrate" | "map" | "testGrid" | "idle";
@@ -321,7 +330,7 @@ export function sceneTitle(state: TableState, scene: Scene): string {
 export function dmStateOf(state: TableState): TableState {
   const light = (c: SceneContent): SceneContent => ({
     ...c,
-    map: c.map && { ...c.map, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null },
+    map: c.map && { ...c.map, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null, tokens: [] },
   });
   // The scene shown as the curtain now comes whole, so the table thumbnail can draw it (D-039).
   const shown = curtainScene(state) ? state.scenes.find((s) => s.id === state.scene)?.curtain : undefined;
@@ -365,6 +374,23 @@ export type PlayerDisc = {
   mini: boolean;
 };
 
+/**
+ * A character's token as the players see it (D-045): only what the DM chose to show them. `tint` picks its colour from
+ * a list of its own, kept apart from the enemy discs' colours; `picture` is the key the table loads the picture by.
+ */
+export type PlayerToken = {
+  initials: string;
+  x: number;
+  y: number;
+  tint: number;
+  picture: string | null;
+  farSide: boolean;
+  mini: boolean;
+  turn: boolean;
+  down: boolean;
+  conditions: PcCondition[];
+};
+
 /** Everything the table window receives. Built field by field, so DM-only data can't leak in by default (D-002). */
 export type PlayerView = {
   view: TableView;
@@ -372,6 +398,8 @@ export type PlayerView = {
   map: Pick<PlacedMap, "id" | "bounds" | "x" | "y" | "turns" | "fog"> | null;
   /** Shown discs that aren't down. */
   discs: PlayerDisc[];
+  /** Characters' tokens on this map. */
+  tokens: PlayerToken[];
   strip: Strip | null;
   /** Discs' letters face the far side of the picture (D-028). */
   flipLetters: boolean;
@@ -406,6 +434,23 @@ function curtainScene(state: TableState): TableState | null {
 /** The state the table shows now: the current scene's, or the scene shown as its curtain. */
 export const onTable = (state: TableState): TableState => curtainScene(state) ?? state;
 
+/** A character's token as the players see it, built field by field (D-002, D-045); null if they've left the party. */
+export function tokenView(state: TableState, map: PlacedMap, t: PcToken): PlayerToken | null {
+  const pc = state.party.find((p) => p.id === t.id);
+  if (!pc) return null;
+  return {
+    initials: initialsOf(pc.name),
+    ...mapToTable(map, t),
+    tint: Number(pc.id.slice(3)),
+    picture: pc.picture && `pc/${pc.picture}`,
+    farSide: pc.farSide,
+    mini: pc.mini,
+    turn: state.fight?.current === pc.id,
+    down: pc.hp === 0,
+    conditions: pc.conditions,
+  };
+}
+
 /** The player view for the surface the table window is on now. */
 export function playerViewOf(state: TableState, surfaceKey: string): PlayerView {
   const shown = curtainScene(state);
@@ -421,6 +466,7 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
         const look = tokenLook(d, m!.groups);
         return { colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size, ...look, mini: d.mini };
       }),
+    tokens: (m?.tokens ?? []).flatMap((t) => tokenView(state, m!, t) ?? []),
     strip: stripOf(state.fight, m?.discs ?? [], m?.groups ?? {}, state.party),
     flipLetters: state.flipLetters,
     grid: state.testGrid,
@@ -471,16 +517,18 @@ export function parsePlacedMap(raw: unknown): PlacedMap | null {
   // And with no spots before scenes, and no party marker before the world map.
   const spots = raw.spots === undefined ? [] : parseSpots(raw.spots);
   const party = raw.party === undefined || raw.party === null ? null : isObject(raw.party) ? point(raw.party) : undefined;
+  // And with no character tokens before D-045.
+  const tokens = raw.tokens === undefined ? [] : parsePcTokens(raw.tokens);
   const feetPerSquare = parseFeetPerSquare(raw.feetPerSquare);
   const b = raw.bounds;
   const bounds = { x: inches(b.x), y: inches(b.y), width: inches(b.width, 1), height: inches(b.height, 1) };
   if (typeof id !== "string" || !MAP_ID.test(id) || typeof name !== "string" || name.length > 120) return null;
   if (bounds.x === null || bounds.y === null || bounds.width === null || bounds.height === null) return null;
   if (inches(x) === null || inches(y) === null || !(turns === 0 || turns === 1 || turns === 2 || turns === 3) || !fog) return null;
-  if (!discs || !groups || !pins || !drawings || !spots || party === undefined || !feetPerSquare) return null;
+  if (!discs || !groups || !pins || !drawings || !spots || party === undefined || !tokens || !feetPerSquare) return null;
   const at = { x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"] };
   const marker = party && { x: hundredths(party.x), y: hundredths(party.y) };
-  return { id, name, bounds: bounds as Bounds, feetPerSquare, ...at, fog, discs, groups, pins, drawings, spots, party: marker };
+  return { id, name, bounds: bounds as Bounds, feetPerSquare, ...at, fog, discs, groups, pins, drawings, spots, party: marker, tokens };
 }
 
 const isTurns = (v: unknown): v is PlacedMap["turns"] => v === 0 || v === 1 || v === 2 || v === 3;
@@ -723,6 +771,12 @@ export function parseCommand(raw: unknown): Command | null {
       const at = isObject(raw.at) ? point(raw.at) : null;
       return at && { type: "party", at };
     }
+    case "token": {
+      if (!isWho(raw.id) || isColour(raw.id)) return null;
+      if (raw.at === null) return { type: "token", id: raw.id, at: null };
+      const at = isObject(raw.at) ? point(raw.at) : null;
+      return at && { type: "token", id: raw.id, at };
+    }
     default:
       return null;
   }
@@ -961,6 +1015,11 @@ export function apply(state: TableState, c: Command): TableState {
     }
     case "party":
       return state.map ? { ...state, map: { ...state.map, party: c.at && { x: hundredths(c.at.x), y: hundredths(c.at.y) } } } : state;
+    case "token": {
+      if (!state.map || !state.party.some((p) => p.id === c.id)) return state;
+      const others = state.map.tokens.filter((t) => t.id !== c.id);
+      return { ...state, map: { ...state.map, tokens: c.at ? [...others, { id: c.id, ...snapDisc(c.at, 1) }] : others } };
+    }
   }
 }
 
@@ -1012,7 +1071,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.

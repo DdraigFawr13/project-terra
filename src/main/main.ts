@@ -488,6 +488,8 @@ if (!app.requestSingleInstanceLock()) {
     // The DM's window may also preview any library creature's picture: terra-portrait://book/<key>.
     protocol.handle("terra-portrait", (req) => {
       const u = new URL(req.url);
+      // The DM's window may load any character's picture: terra-portrait://pc/<id> (D-045).
+      if (u.hostname === "pc") return servePicture(u.pathname.slice(1));
       if (u.hostname !== "book") return servePortrait(req.url);
       return portraitResponse(getCreature(app.getPath("userData"), decodeURIComponent(u.pathname.slice(1)))?.portrait);
     });
@@ -498,7 +500,14 @@ if (!app.requestSingleInstanceLock()) {
       // The map the table shows now: the current scene's, or the world map under its curtain (D-039).
       return serveMap(id === playerViewOf(state, "window").map?.id ? tableMapFile(app.getPath("userData"), id) : null);
     });
-    session.fromPartition(TABLE_PARTITION).protocol.handle("terra-portrait", (req) => servePortrait(req.url));
+    session.fromPartition(TABLE_PARTITION).protocol.handle("terra-portrait", (req) => {
+      const u = new URL(req.url);
+      if (u.hostname !== "pc") return servePortrait(req.url);
+      // A character's picture only while their token is on the table (D-045).
+      const id = u.pathname.slice(1);
+      const on = playerViewOf(state, "window").tokens.some((t) => t.picture === `pc/${id}`);
+      return on ? servePicture(id) : new Response("Not found", { status: 404 });
+    });
     // Curtain pictures (D-039): the DM's window may load any of them; the table only the one its curtain shows now.
     protocol.handle("terra-curtain", (req) => servePicture(new URL(req.url).hostname));
     session.fromPartition(TABLE_PARTITION).protocol.handle("terra-curtain", (req) => {

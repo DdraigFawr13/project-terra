@@ -1395,6 +1395,82 @@ input[type="search"] {
   gap: 4px;
   font-size: 0.92rem;
 }
+/* A character's token on the Party sheet (D-045). */
+.token-section {
+  display: grid;
+  gap: 8px;
+}
+.token-section h4 {
+  margin: 6px 0 0;
+  font: 600 0.85rem var(--body);
+  color: var(--muted);
+}
+.token-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.token-thumb {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border: 2px solid var(--line);
+}
+.token-thumb.none {
+  display: grid;
+  place-items: center;
+  font: 700 1.3rem var(--body);
+}
+.token-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.token-section button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink, #0f1617);
+}
+.condition-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 4px;
+}
+.condition-chips button {
+  min-height: 40px;
+  padding: 0 4px;
+  font-size: 0.78rem;
+}
+.token-crop {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 10px;
+}
+.token-crop > .hint,
+.token-crop > .row-buttons,
+.token-crop > label {
+  grid-column: 1 / -1;
+}
+.crop-frame {
+  width: 170px;
+  aspect-ratio: 1;
+  touch-action: none;
+  cursor: grab;
+  border: 2px solid var(--line);
+}
+.token-crop label {
+  display: grid;
+  gap: 2px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.token-previews {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
 .statblock .portrait {
   width: 96px;
   height: 96px;

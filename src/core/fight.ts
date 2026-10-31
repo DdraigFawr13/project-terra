@@ -105,8 +105,39 @@ export type Character = {
   investigation: number | null;
   spellDc: number | null;
   notes: string;
+  /** The picture on their token (D-045), by its id in the app's data folder; null for colour and initials alone. */
+  picture: string | null;
+  /** Their token faces the far long side of the table, where this player sits (D-045). */
+  farSide: boolean;
+  /** A physical mini stands on their token, so its initials go on a tab below (D-045). */
+  mini: boolean;
+  /** Shown on their token as icons (D-045). */
+  conditions: PcCondition[];
 };
 export type CharacterFields = Omit<Character, "id">;
+
+/** The 15 conditions of the SRD 5.2 rules, as a player character can have them. */
+export const PC_CONDITIONS = [
+  "blinded",
+  "charmed",
+  "deafened",
+  "exhaustion",
+  "frightened",
+  "grappled",
+  "incapacitated",
+  "invisible",
+  "paralyzed",
+  "petrified",
+  "poisoned",
+  "prone",
+  "restrained",
+  "stunned",
+  "unconscious",
+] as const;
+export type PcCondition = (typeof PC_CONDITIONS)[number];
+
+/** A character's token on a map (D-045), centred on a square in the map's own inches. Always 1 inch. */
+export type PcToken = { id: string; x: number; y: number };
 
 /** Who an initiative entry is for: a character's id, or a colour, meaning every disc of that colour. */
 export type Who = string;
@@ -129,6 +160,7 @@ const optInt = (v: unknown, min: number, max: number): number | null | undefined
   v === undefined || v === null ? null : (int(v, min, max) ?? undefined);
 export const MAX_HP = 999;
 const CREATURE_KEY = /^[A-Za-z0-9]{1,20}:[a-z0-9-]{1,80}$/;
+const PICTURE_ID = /^pic-[a-f0-9]{8,32}$/;
 
 export const isColour = (v: unknown): v is DiscColour => DISC_COLOURS.includes(v as DiscColour);
 export const isLetter = (v: unknown): v is string => typeof v === "string" && v.length === 1 && LETTERS.includes(v);
@@ -212,7 +244,62 @@ export function parseCharacterFields(raw: unknown): CharacterFields | null {
   const spellDc = optInt(raw.spellDc, 0, 40);
   if (!name || notes === null || ac === null || hp === null || hpMax === null || tempHp === null) return null;
   if (passive === null || speed === null || insight === undefined || investigation === undefined || spellDc === undefined) return null;
-  return { name, ac, hp: Math.min(hp, hpMax), hpMax, tempHp, speed, passive, insight, investigation, spellDc, notes };
+  // Cards saved before D-045 have no token settings.
+  const picture = raw.picture ?? null;
+  const farSide = raw.farSide ?? false;
+  const mini = raw.mini ?? false;
+  const conditions = raw.conditions ?? [];
+  if (picture !== null && (typeof picture !== "string" || !PICTURE_ID.test(picture))) return null;
+  if (typeof farSide !== "boolean" || typeof mini !== "boolean") return null;
+  if (!Array.isArray(conditions) || !conditions.every((v) => PC_CONDITIONS.includes(v)) || new Set(conditions).size !== conditions.length)
+    return null;
+  return {
+    name,
+    ac,
+    hp: Math.min(hp, hpMax),
+    hpMax,
+    tempHp,
+    speed,
+    passive,
+    insight,
+    investigation,
+    spellDc,
+    notes,
+    picture,
+    farSide,
+    mini,
+    conditions,
+  };
+}
+
+/** A map's character tokens; null if any is wrong or a character has two. */
+export function parsePcTokens(raw: unknown): PcToken[] | null {
+  if (!Array.isArray(raw) || raw.length > MAX_PARTY) return null;
+  const tokens = raw.map((t): PcToken | null => {
+    if (!isObject(t) || typeof t.id !== "string" || !PC_ID.test(t.id)) return null;
+    const x = half(t.x);
+    const y = half(t.y);
+    return x === null || y === null ? null : { id: t.id, x, y };
+  });
+  if (tokens.some((t) => !t) || new Set(tokens.map((t) => t!.id)).size !== tokens.length) return null;
+  return tokens as PcToken[];
+}
+
+/** One or two letters for a token: the first letters of the first and last words of the name. */
+export function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const first = (w: string | undefined) => (w ? Array.from(w)[0]!.toUpperCase() : "");
+  return first(words[0]) + (words.length > 1 ? first(words[words.length - 1]) : "");
+}
+
+/**
+ * The square of a picture a token shows (D-045): as large as the picture allows at zoom 1, smaller as `zoom` grows,
+ * centred on (cx, cy) as fractions of its width and height, and kept inside the picture. All in the picture's pixels.
+ */
+export function cropSquare(width: number, height: number, zoom: number, cx: number, cy: number): { x: number; y: number; size: number } {
+  const size = Math.min(width, height) / Math.max(1, zoom);
+  const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), max);
+  return { x: clamp(cx * width - size / 2, width - size), y: clamp(cy * height - size / 2, height - size), size };
 }
 
 export function parseParty(raw: unknown): Character[] | null {

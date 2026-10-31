@@ -41,6 +41,7 @@ const map: PlacedMap = {
   drawings: [],
   spots: [],
   party: null,
+  tokens: [],
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
@@ -98,6 +99,7 @@ test("the table window gets only the player view: no map name, the calibration f
     drawings: [],
     cover: null,
     party: null,
+    tokens: [],
   });
   assert.equal(playerViewOf(s, "window").calibration, null);
   assert.ok(!JSON.stringify(playerViewOf(s, "display:7")).includes("Secret"));
@@ -341,7 +343,7 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
     ok: true,
     state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
   });
-  assert.equal(parseSave(JSON.stringify({ version: 16, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 17, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });
 

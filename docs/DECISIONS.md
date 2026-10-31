@@ -189,7 +189,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-027 Initiative, markers and character cards
 
-- **Status:** Accepted (2026-10-28), Morgan took all five recommendations in chat ("Go") and asked that everything works with touch and a stylus. Items 3, 4 and 6 changed by D-028.
+- **Status:** Accepted (2026-10-28), Morgan took all five recommendations in chat ("Go") and asked that everything works with touch and a stylus. Items 3, 4 and 6 changed by D-028. Item 1's "Players have no discs" changed by D-045: a character may have a token, per character.
 - **Decision:**
   1. Enemy discs: Marker (M), pick a colour and a size (1 to 4 inches), tap the map. A disc snaps to the squares and takes the next free letter of its colour. Six strong colours, yellow kept. Select drags a disc. Players have no discs: they use their minis. Discs live on the placed map in its inches, like fog, so they move and turn with it, and taking the map off drops them.
   2. New discs start hidden. A colour is a group, with a DM-only name and one eye switch; each disc also has its own (D-006).
@@ -390,3 +390,15 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   8. Wall check: in the editor, a tap shows the light from that point cut by walls and closed doors, DM only, to find gaps before play. It is the visibility shape Look from here needs (D-040, D-041).
   9. Built as four steps (PLAN.md 2A–2D): walls editor; VTT import and prep tracing; rooms; areas and the wall check. If a step runs long, the clipped grow and materials move to Soon first.
 - **Why:** a tap-to-find room leaks through any unmarked gap, hence the Opening line and outlines first. A ½-inch grow passes thin inside walls and shows a secret door's paint, hence the clip. VTT walls are in squares from the picture's corner and only line up on that picture (checked in the library files: portals carry no door, window or secret type). Rooms linked to walls by id would break on every wall edit.
+
+## D-045 Player character tokens
+
+- **Status:** Accepted (2026-10-30), from Morgan's [token choices](https://claude.ai/artifact/XmWb3JnJY8eECwx12SkgmF), then "i approve". Changes D-027 item 1 (players have no discs). The research recommended no moving player token for session 1; Morgan chose tokens knowing the dragging cost.
+- **Decision:**
+  1. Per character: a character may have a token on a map or none, with or without a mini on it. A token lives on the placed map in its own inches (saved with the scene, undone like a disc), always 1 inch, snapped to a square. Save version 16.
+  2. The DM moves tokens: Place on map on the Party sheet, then a tap; Select drags; a tap opens the character's HP pad. The table isn't a touch surface.
+  3. Look: a square tile with the picture, a colour from a list kept apart from the enemy discs' colours, and initials. Square so the corners show round a mini's base and it never reads as a round enemy disc. With a mini on it, the initials move to a tab below.
+  4. Each token faces its player's long side (near or far), whatever Flip letters does to the discs.
+  5. Pictures: pick a file on the Party sheet, crop by hand with a token-size preview, saved as a 512 px square WebP in the app's data folder (the curtain picture store). Never in this repo (D-010).
+  6. The table gets a field-by-field view (D-002): initials, position, colour number, picture key, side, mini, whose turn, down at 0 HP, and the conditions the DM ticks, as icons above the tile (three, then +). Never the name, HP, notes or other card fields. The main process serves a character's picture to the table only while their token is on the table.
+- **Why:** Morgan wants characters shown with images (2026-10-30, "that will actually be important"). The research calculated that a 25 mm base hides nearly all of a 1-inch round token but leaves a square's corners, and that faces alone are weak at about 45 pixels, hence colour and initials. Flip letters would have turned pictures upside down for one side. Keeping the mini test to a table photo (VER-07): whether a picture or a plain light tile suits minis better is still open.

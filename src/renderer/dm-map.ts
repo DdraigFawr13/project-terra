@@ -5,13 +5,24 @@
 // a tap and leaves a pin with a long press. Draw (D-035) draws freehand lines, lasting or fading.
 import { defaultCalibration, screenOutline, visibleRect } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
-import { conditionOf, hpFraction, tokenLook, nextLetter, snapDisc, type Condition, type Disc, type DiscColour } from "../core/fight.ts";
+import {
+  conditionOf,
+  hpFraction,
+  tokenLook,
+  nextLetter,
+  snapDisc,
+  type Condition,
+  type Disc,
+  type DiscColour,
+  type PcToken,
+} from "../core/fight.ts";
 import { MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
 import { fillTable, mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
 import {
   MAX_LINE_POINTS,
   parseFeetPerSquare,
   sceneTitle,
+  tokenView,
   type Command,
   type Ink,
   type PlacedMap,
@@ -27,7 +38,7 @@ import { drawWalls } from "./walls-draw.ts";
 import { countOf, type Annotation } from "../core/annotation.ts";
 import { parseVtt, planVttPicture, type VttMap } from "../core/vtt.ts";
 import { icon } from "./icons.ts";
-import { drawDisc, drawLine, drawParty, drawPin, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
+import { drawDisc, drawLine, drawParty, drawPin, drawToken, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const emptyMap = $<HTMLElement>("emptyMap");
@@ -140,6 +151,10 @@ export function initMaps(
   shortcut: (key: string) => boolean;
   /** The next tap on the map puts the party marker there (D-039). */
   placeParty: () => void;
+  /** The next tap on the map puts this character's token there (D-045). */
+  placeToken: (id: string) => void;
+  /** What a tap on a character's token does. */
+  tokenTap: (fn: (id: string, at: Point) => void) => void;
 } {
   let state: TableState | null = null;
   let status: TableStatus | null = null;
@@ -158,6 +173,11 @@ export function initMaps(
   let grabbed: { pointer: number; pen: boolean; pin: number | null; from: Point; at: Point; moved: boolean } | null = null;
   /** The next tap puts the party marker down. */
   let partyNext = false;
+  /** The next tap puts this character's token down (D-045). */
+  let tokenNext: string | null = null;
+  /** Select dragging a character's token: where it started and where it would land, in map inches. */
+  let tokenDrag: { pointer: number; pen: boolean; id: string; from: Point; at: Point } | null = null;
+  let onTokenTap: (id: string, at: Point) => void = () => undefined;
   /** Whether a new pin is one the players see. */
   let pinTable = true;
   let line: Line | null = null;
@@ -229,7 +249,7 @@ export function initMaps(
         b.addEventListener("click", () =>
           run({
             type: "placeMap",
-            map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null },
+            map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null, tokens: [] },
           }),
         );
         const w = document.createElement("button");
@@ -426,7 +446,7 @@ export function initMaps(
     const { x, y, turns } = at;
     await run({
       type: "placeMap",
-      map: { ...entry, x, y, turns, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null },
+      map: { ...entry, x, y, turns, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null, tokens: [] },
     });
     refreshLibrary();
   }
@@ -770,6 +790,15 @@ export function initMaps(
         ctx.stroke();
       }
     }
+    // Characters' tokens (D-045) just as the players see them, from the same view of the state.
+    if (state) {
+      for (const t of map.tokens) {
+        const look = tokenView(state, map, t);
+        if (!look) continue;
+        const c = px(tokenDrag?.id === t.id ? tokenDrag.at : t);
+        drawToken(ctx, look, c.x, c.y, Math.max(s, MIN_DISC_PX));
+      }
+    }
     // Pins over the discs, as on the table (D-006): the DM's own are hollow copper. Never smaller than a fingertip.
     for (const p of map.pins) {
       const c = px(p);
@@ -820,6 +849,22 @@ export function initMaps(
       if (dist <= reach && (!best || dist < best.dist)) best = { d, dist };
     }
     return best?.d ?? null;
+  }
+
+  /** The character's token under a pointer, the nearest, within a finger's reach. */
+  function tokenAt(e: PointerEvent): PcToken | null {
+    const map = state?.map;
+    if (!map) return null;
+    const r = mapCanvas.getBoundingClientRect();
+    const { s, ox, oy } = viewport(map, r.width, r.height);
+    const p = canvasPoint(e);
+    let best: { t: PcToken; dist: number } | null = null;
+    for (const t of map.tokens) {
+      const c = mapToTable(map, t);
+      const dist = Math.hypot(ox + c.x * s - p.x, oy + c.y * s - p.y);
+      if (dist <= Math.max(s, MIN_DISC_PX) / 2 + GRAB_PX && (!best || dist < best.dist)) best = { t, dist };
+    }
+    return best?.t ?? null;
   }
 
   /** Whether a pointer is on the party marker, within a finger's reach. */
@@ -925,10 +970,13 @@ export function initMaps(
 
   /** Esc or a second finger: drop the stroke, drag or placement before it reaches the table. */
   function cancel(): boolean {
-    if (!stroke && !drag && !discDrag && !placing && !pan && !pressing && !line && !grabbed && !partyNext) return false;
+    if (!stroke && !drag && !discDrag && !placing && !pan && !pressing && !line && !grabbed && !partyNext && !tokenNext && !tokenDrag)
+      return false;
     line = null;
     grabbed = null;
     partyNext = false;
+    tokenNext = null;
+    tokenDrag = null;
     if (pressing) clearTimeout(pressing.timer);
     pressing = null;
     stroke = null;
@@ -940,8 +988,9 @@ export function initMaps(
     return true;
   }
   /** Whether a gesture is under way, and whether the pen is making it (then touches are a resting palm). */
-  const busy = () => !!(stroke || drag || discDrag || placing || pan || pressing || line || grabbed);
-  const penBusy = () => !!(stroke?.pen || drag?.pen || discDrag?.pen || placing?.pen || pressing?.pen || line?.pen || grabbed?.pen);
+  const busy = () => !!(stroke || drag || discDrag || placing || pan || pressing || line || grabbed || tokenDrag);
+  const penBusy = () =>
+    !!(stroke?.pen || drag?.pen || discDrag?.pen || placing?.pen || pressing?.pen || line?.pen || grabbed?.pen || tokenDrag?.pen);
 
   mapCanvas.addEventListener("pointerdown", (e) => {
     if (!state?.map) return;
@@ -975,6 +1024,21 @@ export function initMaps(
       partyNext = false;
       void run({ type: "party", at: mapInchesAt(e) });
       return;
+    }
+    if (tokenNext) {
+      const id = tokenNext;
+      tokenNext = null;
+      void run({ type: "token", id, at: mapInchesAt(e) });
+      return;
+    }
+    if (tool === "select") {
+      const hit = tokenAt(e);
+      if (hit) {
+        const from = { x: hit.x, y: hit.y };
+        tokenDrag = { pointer: e.pointerId, pen, id: hit.id, from, at: from };
+        render();
+        return;
+      }
     }
     if (tool === "select" || tool === "marker") {
       const hit = discAt(e, tool === "select" ? GRAB_PX : 0);
@@ -1086,6 +1150,11 @@ export function initMaps(
     const at = mapInchesAt(e);
     if (!at) return;
     if (e.pointerType !== "touch") hover = at;
+    if (tokenDrag?.pointer === e.pointerId) {
+      tokenDrag.at = snapDisc(at, 1);
+      render();
+      return;
+    }
     if (discDrag?.pointer === e.pointerId) {
       const disc = state!.map!.discs.find((d) => discKey(d) === discKey(discDrag!));
       discDrag.at = snapDisc(at, disc?.size ?? 1);
@@ -1174,6 +1243,21 @@ export function initMaps(
       return;
     }
     if (discDrag?.pointer === e.pointerId) return endDisc(keep);
+    if (tokenDrag?.pointer === e.pointerId) {
+      const t = tokenDrag;
+      tokenDrag = null;
+      const moved = t.at.x !== t.from.x || t.at.y !== t.from.y;
+      if (keep && moved) void run({ type: "token", id: t.id, at: t.at });
+      else if (keep && state?.map) {
+        // A tap opens their HP pad beside the token, as a tap on a disc does.
+        const r = mapCanvas.getBoundingClientRect();
+        const { s, ox, oy } = viewport(state.map, r.width, r.height);
+        const c = mapToTable(state.map, t.from);
+        onTokenTap(t.id, { x: r.left + ox + c.x * s, y: r.top + oy + c.y * s });
+      }
+      render();
+      return;
+    }
     if (grabbed?.pointer === e.pointerId) {
       const g = grabbed;
       grabbed = null;
@@ -1399,7 +1483,13 @@ export function initMaps(
   const placeParty = () => {
     partyNext = true;
   };
-  return { undo, render, cancel, shortcut, placeParty };
+  const placeToken = (id: string) => {
+    tokenNext = id;
+  };
+  const tokenTap = (fn: (id: string, at: Point) => void) => {
+    onTokenTap = fn;
+  };
+  return { undo, render, cancel, shortcut, placeParty, placeToken, tokenTap };
 }
 
 /** Distance from `p` to the segment from `a` to `b`. */
