@@ -408,18 +408,22 @@ export function takesTurns(who: Who, discs: readonly Disc[], groups: Groups, par
 
 // ---- Initiative ----
 
-/** Set or clear a roll. A new roll goes after every entry with the same or a higher roll, so ties keep typed order. */
-export function setInitiative(fight: Fight, who: Who, init: number | null): Fight {
+/**
+ * Set or clear a roll. A new roll goes after every entry with the same or a higher roll, so ties keep typed order. The
+ * creature whose turn it is hands the turn on when it is taken out or retyped lower (a held turn or a wrong roll), to
+ * the first entry from its old place that still takes turns: left current, Next turn would skip everyone it jumped.
+ */
+export function setInitiative(fight: Fight, who: Who, init: number | null, active: (who: Who) => boolean = () => true): Fight {
   const at = fight.entries.findIndex((e) => e.who === who);
   const entries = fight.entries.filter((e) => e.who !== who);
-  let current = fight.current;
-  // Taking out the creature whose turn it is hands the turn to the one after it.
-  if (init === null && current === who) current = fight.entries[at + 1]?.who ?? entries[0]?.who ?? null;
   if (init !== null) {
     const i = entries.findIndex((e) => e.init < init);
     entries.splice(i === -1 ? entries.length : i, 0, { who, init });
   }
-  return { ...fight, entries, current };
+  const handOn = at !== -1 && fight.current === who && (init === null || entries.findIndex((e) => e.who === who) > at);
+  if (!handOn) return { ...fight, entries };
+  const from = [...entries.slice(at), ...entries.slice(0, at)];
+  return { ...fight, entries, current: (from.find((e) => active(e.who)) ?? from[0])?.who ?? null };
 }
 
 /** Swap an entry with its neighbour, only when both rolled the same: that is how ties are settled. */

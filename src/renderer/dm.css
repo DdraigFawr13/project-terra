@@ -526,6 +526,18 @@ body[data-panels="folded"] .panel-split {
   gap: 6px;
   margin-bottom: 8px;
 }
+/* Uncover all takes a hold (D-046): the button fills while it is held. */
+#fogRevealAll {
+  touch-action: none;
+  user-select: none;
+  background-image: linear-gradient(color-mix(in srgb, var(--accent) 45%, transparent), color-mix(in srgb, var(--accent) 45%, transparent));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+}
+#fogRevealAll.holding {
+  background-size: 100% 100%;
+  transition: background-size 0.5s linear;
+}
 .stage {
   min-height: 0;
   height: 100%;
@@ -1560,6 +1572,12 @@ button.pop-close {
 .pop-head .hp-word {
   color: var(--muted);
   font-size: 0.9rem;
+}
+/* The roll pad moves on to the next one after Set (D-046), so who the roll is for has to stand out. */
+.roll-pad .pop-head .hp-word {
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 .pop-body {
   display: grid;
