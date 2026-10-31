@@ -1,4 +1,4 @@
-// DM window, walls editor (D-044 steps 2A and 2C): trace walls, pillars, openings and rooms on a library map in the whole window,
+// DM window, walls editor (D-044 steps 2A, 2C and 2D): trace walls, pillars, openings, rooms and areas on a library map in the whole window,
 // with Cancel and Done (like import, D-038). Pen first: the pen or mouse draws, a finger pans, and a magnifier shows
 // where the pen lands. What is traced is saved beside the map in the library and never reaches the table (D-002).
 import {
@@ -15,10 +15,12 @@ import {
   type OpeningKind,
 } from "../core/annotation.ts";
 import type { Point } from "../core/homography.ts";
+import { addArea, areaAt, freehandOutline, removeArea, setRoomMaterial, tagArea, type Tag } from "../core/areas.ts";
 import { addRoom, findRoom, nextRoomName, removeRoom, renameRoom, roomAt } from "../core/rooms.ts";
+import { lightFrom } from "../core/wallcheck.ts";
 import type { LibraryMap } from "../main/library.ts";
 import type { DmApi } from "../main/dm-preload.ts";
-import { drawWalls, OPENING_STYLE } from "./walls-draw.ts";
+import { drawWalls, MATERIAL_STYLE, OPENING_STYLE, type Picked } from "./walls-draw.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const card = $<HTMLElement>("walls");
@@ -35,10 +37,12 @@ const toolBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-w
 const zoomBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-walls-zoom]")];
 const roomNameBox = $<HTMLLabelElement>("roomNameBox");
 const roomName = $<HTMLInputElement>("roomName");
+const tagRow = $<HTMLDivElement>("tagRow");
+const tagBtns = [...tagRow.querySelectorAll<HTMLButtonElement>("button[data-tag]")];
 
 /** A library map, or the placed map, which carries the same id, name and extent. */
 type WallsMap = Pick<LibraryMap, "id" | "name" | "bounds">;
-type Tool = "wall" | "freehand" | "pillar" | OpeningKind | "room" | "erase";
+type Tool = "wall" | "freehand" | "pillar" | OpeningKind | "room" | "area" | "check" | "erase";
 const MAX_UNDO = 200;
 /** How far, in screen pixels, a tap reaches to join a corner or rub something out: a pen tip is not a pixel. */
 const REACH_PX = 14;
@@ -53,8 +57,10 @@ const HINTS: Record<Tool, string> = {
   secret: "Drag across where the secret door is. On the table it looks like wall.",
   window: "Drag along the window. A window blocks nothing by default (D-040).",
   opening: "Drag across an arch or broken wall: it closes a room but blocks nothing.",
-  room: "Tap inside a room closed by walls, doors and openings. Tap a room to rename it.",
-  erase: "Tap a line or pillar to rub it out, or the inside of a room to forget the room. A long wall loses only the piece you tap.",
+  room: "Tap inside a room closed by walls, doors and openings. Tap a room to rename it or pick its floor.",
+  area: "Draw round an area with the pen, or tap its corners and the first one again. Then pick its floor, Difficult, or both.",
+  check: "Tap a spot: light spreads from it and stops at walls, pillars and closed doors. Light escaping a room shows a gap.",
+  erase: "Tap a line or pillar to rub it out, or inside an area or room to forget it. A long wall loses only the piece you tap.",
 };
 
 /** Set up the walls editor. `onClose(id)` tells the DM map which map's walls may have changed. */
@@ -68,8 +74,12 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
   let zoom = 1;
   /** The run of wall, or the room outline, being tapped out. */
   let draft: Point[] = [];
-  /** The room whose name the name box shows, or -1. */
-  let picked = -1;
+  /** The room or area the name box and the floor buttons show. */
+  let picked: Picked = null;
+  /** What a new area is tagged with: whatever was picked last. */
+  let lastTag: Tag = { material: null, difficult: true };
+  /** The wall check's spot and the light from it, until the next tap or tool. */
+  let lit: { from: Point; outline: Point[] } | null = null;
   /** What the pen is doing now: drawing freehand, dragging a pillar or an opening. Map inches. */
   let press: { pointer: number; from: Point; points: Point[] } | null = null;
   /** Where the pen or mouse is, for the line to the next corner and the magnifier. Map inches. */
@@ -89,7 +99,7 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
 
   function showCount(): void {
     const c = countOf(ann);
-    count.textContent = `${c.walls} wall ${c.walls === 1 ? "piece" : "pieces"}, ${c.pillars} ${c.pillars === 1 ? "pillar" : "pillars"}, ${c.openings} ${c.openings === 1 ? "opening" : "openings"}, ${c.rooms} ${c.rooms === 1 ? "room" : "rooms"}${changed ? " · not saved yet" : ""}`;
+    count.textContent = `${c.walls} wall ${c.walls === 1 ? "piece" : "pieces"}, ${c.pillars} ${c.pillars === 1 ? "pillar" : "pillars"}, ${c.openings} ${c.openings === 1 ? "opening" : "openings"}, ${c.rooms} ${c.rooms === 1 ? "room" : "rooms"}, ${c.areas} ${c.areas === 1 ? "area" : "areas"}${changed ? " · not saved yet" : ""}`;
   }
 
   function commit(next: Annotation): void {
@@ -103,11 +113,23 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
     showCount();
   }
 
-  /** Show the name box for a room, or hide it (-1). */
-  function pick(i: number): void {
-    picked = i;
-    roomNameBox.hidden = i < 0;
-    if (i >= 0) roomName.value = ann.rooms[i]?.name ?? "";
+  /** Show the name box and floor buttons for a room, the floor buttons for an area, or neither. */
+  function pick(next: Picked): void {
+    picked = next;
+    // Kept in place while unseen, so the map never jumps under the pen when they come and go.
+    roomNameBox.classList.toggle("unseen", picked?.kind !== "room");
+    tagRow.classList.toggle("unseen", !picked);
+    if (picked?.kind === "room") roomName.value = ann.rooms[picked.i]?.name ?? "";
+    showTags();
+  }
+  /** Press the picked room's or area's floor; Difficult is for areas only (D-044 item 7). */
+  function showTags(): void {
+    const t =
+      picked?.kind === "room" ? { material: ann.rooms[picked.i]?.material ?? null, difficult: false } : picked ? ann.areas[picked.i] : null;
+    for (const b of tagBtns) {
+      b.classList.toggle("unseen", b.dataset.tag === "difficult" && picked?.kind !== "area");
+      b.setAttribute("aria-pressed", String(!!t && (b.dataset.tag === "difficult" ? t.difficult : t.material === b.dataset.tag)));
+    }
   }
 
   /** Add a room from an outline, named with the next free number, and show its name box. */
@@ -115,14 +137,23 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
     const next = addRoom(ann, outline, nextRoomName(ann));
     if (!next) return say("A room can't overlap another room. Rub out the other room first, or draw inside the gap.");
     commit(next);
-    pick(ann.rooms.length - 1);
-    say(`Room ${ann.rooms.at(-1)!.name} added. Change its name above, or tap inside the next room.`);
+    pick({ kind: "room", i: ann.rooms.length - 1 });
+    say(`Room ${ann.rooms.at(-1)!.name} added. Change its name or floor above, or tap inside the next room.`);
+  }
+
+  /** Add an area tagged like the last one, and show its floor buttons. */
+  function keepArea(outline: Point[]): void {
+    const next = addArea(ann, outline, lastTag);
+    if (!next) return say("An area needs at least three corners.");
+    commit(next);
+    pick({ kind: "area", i: ann.areas.length - 1 });
+    say("Area added. Pick its floor, Difficult, or both, above.");
   }
 
   /** End the run being tapped out, keeping it if it has a piece; a room outline needs three corners. */
   function finishDraft(): void {
-    if (tool === "room") {
-      if (draft.length >= 3) keepRoom(draft);
+    if (tool === "room" || tool === "area") {
+      if (draft.length >= 3) (tool === "room" ? keepRoom : keepArea)(draft);
     } else if (draft.length >= 2) commit(addWall(ann, draft));
     draft = [];
     finishBtn.disabled = true;
@@ -152,8 +183,26 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
     ctx.drawImage(img, b.x, b.y, b.width, b.height);
     const px = w / b.width;
     drawWalls(ctx, ann, px, false, picked);
+    drawLight(ctx, b, px);
     drawPending(ctx, px);
     if (press || (hover && draft.length)) drawLoupe(ctx, k, dpr);
+  }
+
+  /** The wall check: everything the light doesn't reach is shaded, and the spot it comes from is marked. */
+  function drawLight(ctx: CanvasRenderingContext2D, b: WallsMap["bounds"], px: number): void {
+    if (!lit) return;
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.beginPath();
+    ctx.rect(b.x - 2, b.y - 2, b.width + 4, b.height + 4);
+    lit.outline.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+    ctx.closePath();
+    ctx.fill("evenodd");
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(lit.from.x, lit.from.y, 6 / px, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   /** What isn't committed yet: the run being tapped out, a freehand line, a pillar or opening being dragged. */
@@ -171,7 +220,8 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
         ctx.lineTo(next.x, next.y);
       }
     }
-    if (press && tool === "freehand") press.points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+    if (press && (tool === "freehand" || (tool === "area" && !draft.length)))
+      press.points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
     if (press && tool === "pillar" && hover) {
       const r = Math.max(0.125, Math.hypot(hover.x - press.from.x, hover.y - press.from.y));
       ctx.moveTo(press.from.x + r, press.from.y);
@@ -186,7 +236,7 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
     ctx.stroke();
     ctx.setLineDash([]);
     // Where the next tap lands.
-    if (hover && (tool === "wall" || tool in OPENING_STYLE || (tool === "room" && draft.length))) {
+    if (hover && (tool === "wall" || tool in OPENING_STYLE || ((tool === "room" || tool === "area") && draft.length))) {
       const p = placePoint(ann, hover, reach(), draft);
       ctx.fillStyle = accent;
       ctx.beginPath();
@@ -231,7 +281,8 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
   function setTool(t: Tool): void {
     finishDraft();
     tool = t;
-    if (t !== "room") pick(-1);
+    lit = null;
+    if (t !== "room" && t !== "area") pick(null);
     for (const b of toolBtns) b.setAttribute("aria-pressed", String(b.dataset.wallsTool === t));
     say(HINTS[t]);
     draw();
@@ -243,7 +294,8 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
     heading.textContent = `Walls: ${m.name}`;
     undo = [];
     draft = [];
-    pick(-1);
+    lit = null;
+    pick(null);
     changed = false;
     cancelArmed = false;
     undoBtn.disabled = true;
@@ -328,15 +380,24 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
       const first = draft[0]!;
       if (draft.length > 3 && first.x === q.x && first.y === q.y) finishDraft();
     } else if (tool === "room") placeRoom(p);
-    else if (tool === "freehand") commit(addFreehand(ann, s.points));
+    else if (tool === "area") placeArea(s, p);
+    else if (tool === "check") {
+      lit = { from: p, outline: lightFrom(ann, map!.bounds, p) };
+      say("Shaded: where the light from that spot doesn't reach. Light leaking out of a room means a gap: close it with a wall or a door.");
+    } else if (tool === "freehand") commit(addFreehand(ann, s.points));
     else if (tool === "pillar") {
       const r = Math.hypot(p.x - s.from.x, p.y - s.from.y);
       commit(addPillar(ann, s.from, r < reach() ? TAP_PILLAR_IN : r));
     } else if (tool === "erase") {
       const next = eraseAt(ann, p, reach());
       const room = roomAt(ann, p);
+      const area = areaAt(ann, p);
       if (next !== ann) commit(next);
-      else if (room >= 0) {
+      else if (area >= 0) {
+        say("Area forgotten.");
+        pick(null);
+        commit(removeArea(ann, area));
+      } else if (room >= 0) {
         say(`Room ${ann.rooms[room]!.name} forgotten. Its walls stay.`);
         commit(removeRoom(ann, room));
       } else say("Nothing to rub out there. Tap right on a line or a pillar's edge.");
@@ -363,8 +424,8 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
     }
     const inside = roomAt(ann, p);
     if (inside >= 0) {
-      pick(inside);
-      return say(`Room ${ann.rooms[inside]!.name}: change its name above. Rub out forgets a room.`);
+      pick({ kind: "room", i: inside });
+      return say(`Room ${ann.rooms[inside]!.name}: change its name or floor above. Rub out forgets a room.`);
     }
     const found = findRoom(ann, map!.bounds, p);
     if ("outline" in found) return keepRoom(found.outline);
@@ -374,13 +435,61 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
       "That area isn't closed: there's a gap, or it reaches the map's edge. Tap its corners to draw the room, and tap the first corner to close it.",
     );
   }
+  /**
+   * A press with Area: a drag draws round the area freehand; a tap inside an area picks it; any other tap starts its
+   * outline corner by corner, closed on its first corner.
+   */
+  function placeArea(s: { from: Point; points: Point[] }, p: Point): void {
+    if (draft.length) {
+      const q = placePoint(ann, p, reach(), draft);
+      const first = draft[0]!;
+      if (draft.length >= 3 && first.x === q.x && first.y === q.y) return finishDraft();
+      draft.push(q);
+      finishBtn.disabled = draft.length < 3;
+      return;
+    }
+    const dragged = s.points.some((q) => Math.hypot(q.x - s.from.x, q.y - s.from.y) > reach());
+    if (dragged) return keepArea(freehandOutline(s.points));
+    const inside = areaAt(ann, p);
+    if (inside >= 0) {
+      pick({ kind: "area", i: inside });
+      return say("Area picked: change its floor or Difficult above. Rub out forgets it.");
+    }
+    draft = [placePoint(ann, p, reach())];
+    say("Tap the area's corners, and the first one again to close it. Or draw round it with the pen.");
+  }
   roomName.addEventListener("change", () => {
-    if (picked < 0 || !ann.rooms[picked]) return;
-    const next = renameRoom(ann, picked, roomName.value);
-    if (next.rooms[picked]!.name !== ann.rooms[picked]!.name) commit(next);
-    roomName.value = ann.rooms[picked]!.name;
+    if (picked?.kind !== "room" || !ann.rooms[picked.i]) return;
+    const i = picked.i;
+    const next = renameRoom(ann, i, roomName.value);
+    if (next.rooms[i]!.name !== ann.rooms[i]!.name) commit(next);
+    roomName.value = ann.rooms[i]!.name;
     draw();
   });
+  // A floor button sets the picked room's or area's material (a second tap clears it); Difficult switches on and off.
+  for (const b of tagBtns)
+    b.addEventListener("click", () => {
+      if (!picked) return;
+      const tag = b.dataset.tag!;
+      if (picked.kind === "room") {
+        const room = ann.rooms[picked.i];
+        if (!room || tag === "difficult") return;
+        const m = tag as keyof typeof MATERIAL_STYLE;
+        commit(setRoomMaterial(ann, picked.i, room.material === m ? null : m));
+      } else {
+        const area = ann.areas[picked.i];
+        if (!area) return;
+        const m = tag as keyof typeof MATERIAL_STYLE;
+        const next: Tag =
+          tag === "difficult"
+            ? { material: area.material, difficult: !area.difficult }
+            : { material: area.material === m ? null : m, difficult: area.difficult };
+        lastTag = next;
+        commit(tagArea(ann, picked.i, next));
+      }
+      showTags();
+      draw();
+    });
   // Enter in the name box keeps the name and goes back to the map.
   roomName.addEventListener("keydown", (e) => e.key === "Enter" && roomName.blur());
 
@@ -407,7 +516,7 @@ export function initWalls(terra: DmApi, accent: string, onClose: (id: string | n
     const prev = undo.pop();
     if (!prev) return;
     ann = prev;
-    pick(-1);
+    pick(null);
     changed = true;
     undoBtn.disabled = !undo.length;
     showCount();

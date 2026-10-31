@@ -737,6 +737,10 @@ input[type="number"] {
   grid-column: 1 / -1;
 }
 /* Patch tool (D-036): the tool groups wrap; the picture scrolls inside its own box when zoomed. */
+/* Taking up its space while unseen, so nothing below it moves when it comes and goes (the walls editor's name box). */
+.unseen {
+  visibility: hidden;
+}
 .patchtools {
   display: flex;
   flex-wrap: wrap;

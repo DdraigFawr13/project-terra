@@ -340,7 +340,25 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     assert.equal(await dm.inputValue("#roomName"), "1");
     await dm.fill("#roomName", "Hall");
     await dm.press("#roomName", "Enter");
-    assert.equal(await dm.textContent("#wallsCount"), "4 wall pieces, 0 pillars, 1 opening, 1 room · not saved yet");
+    // Floors and areas (D-044 step 2D): the room is wood; an area drawn round with the pen is rubble, difficult terrain;
+    // the wall check from inside the room says what the shading means.
+    await dm.click("#tagRow [data-tag='wood']");
+    await dm.click("button[data-walls-tool='area']");
+    await dm.mouse.move(wc.x + wc.width * 0.3, wc.y + wc.height * 0.6);
+    await dm.mouse.down();
+    for (const [fx, fy] of [
+      [0.45, 0.6],
+      [0.45, 0.75],
+      [0.3, 0.75],
+      [0.3, 0.6],
+    ])
+      await dm.mouse.move(wc.x + wc.width * fx, wc.y + wc.height * fy, { steps: 4 });
+    await dm.mouse.up();
+    assert.equal(await dm.getAttribute("#tagRow [data-tag='difficult']", "aria-pressed"), "true");
+    await dm.click("button[data-walls-tool='check']");
+    await tap(0.5, 0.5);
+    await dm.waitForFunction(() => document.getElementById("wallsStatus").textContent.startsWith("Shaded"));
+    assert.equal(await dm.textContent("#wallsCount"), "4 wall pieces, 0 pillars, 1 opening, 1 room, 1 area · not saved yet");
     await dm.click("#wallsDone");
     await dm.waitForSelector("#walls", { state: "hidden" });
     const saved = JSON.parse(fs.readFileSync(path.join(userData, "library", "maps", `${id}.walls.json`), "utf8"));
@@ -357,8 +375,12 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     ]);
     assert.deepEqual(saved.openings, [{ kind: "door", a: { x: 0.25, y: -1.5 }, b: { x: 1.75, y: -1.5 }, open: false }]);
     assert.deepEqual(
-      saved.rooms.map((r) => [r.name, r.outline.length]),
-      [["Hall", 4]],
+      saved.rooms.map((r) => [r.name, r.outline.length, r.material]),
+      [["Hall", 4, "wood"]],
+    );
+    assert.deepEqual(
+      saved.areas.map((r) => [r.material, r.difficult]),
+      [[null, true]],
     );
     assert.equal(await table.evaluate(() => typeof window.terra.loadWalls), "undefined");
     assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("door"));

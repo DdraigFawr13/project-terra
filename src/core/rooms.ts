@@ -185,7 +185,7 @@ export function nextRoomName(a: Annotation): string {
 export function addRoom(a: Annotation, outline: readonly Point[], name: string): Annotation | null {
   const ps = outline.map(pt);
   if (ps.length < 3 || a.rooms.some((r) => overlaps(ps, r.outline))) return null;
-  return { ...a, rooms: [...a.rooms, { outline: ps, name: name.trim().slice(0, MAX_ROOM_NAME) }] };
+  return { ...a, rooms: [...a.rooms, { outline: ps, name: name.trim().slice(0, MAX_ROOM_NAME), material: null }] };
 }
 
 export function renameRoom(a: Annotation, i: number, name: string): Annotation {

@@ -82,3 +82,4 @@ Finished entries moved out of HANDOFF.md (CTX-02). Newest last.
 ## Just done (archived 2026-10-31)
 
 - 2026-10-30 Character tokens (D-045), merged as [PR #38](https://github.com/DdraigFawr13/project-terra/pull/38). Awaits Morgan's table photo (VER-07). Steps 2A and 2B: in the archive.
+- 2026-10-30 Research and review, no code: [similar apps research](https://claude.ai/artifact/EMsAgY1w1Ls7oyMGWDs6Ma) (76 gaps; Morgan's marks in its `gaps` collection: 18 Want, 36 Later, 22 No) and the [Wants review](https://claude.ai/artifact/P9egMjv9LBUoNJEPdEWBRq); Morgan's answer, read 2026-10-31: "Take all your recommendations" (D-046).
