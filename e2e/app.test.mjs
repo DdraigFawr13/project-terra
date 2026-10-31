@@ -603,6 +603,72 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
       [filled.bounds, filled.x, filled.y, filled.turns],
       [{ x: 0, y: 0, width: fit.widthIn, height: fit.heightIn }, fit.x, fit.y, fit.turns],
     );
+
+    // VTT import (D-044): a library VTT file with no picture inside asks for its picture, then needs no corners. Its
+    // walls and doors are stored with the new map, from the picture's corner, and never reach the table (D-002).
+    const vtt = {
+      format: 0.3,
+      resolution: { map_origin: { x: -0.5, y: 0 }, map_size: { x: 4, y: 4 }, pixels_per_grid: 100 },
+      line_of_sight: [
+        [
+          { x: 0.5, y: 1 },
+          { x: 1.5, y: 1 },
+        ],
+        [
+          { x: 2.5, y: 1 },
+          { x: 3.5, y: 1 },
+        ],
+      ],
+      portals: [
+        {
+          bounds: [
+            { x: 1.5, y: 1 },
+            { x: 2.5, y: 1 },
+          ],
+          closed: false,
+        },
+      ],
+      lights: [{}],
+    };
+    await dm.setInputFiles("#mapFile", { name: "Hall.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(vtt)) });
+    await dm.waitForSelector("#importer:not([hidden])");
+    assert.equal(await dm.textContent("#import-heading"), "Import a VTT map");
+    assert.equal(await dm.textContent("#importOk"), "Choose picture…");
+    assert.ok(await dm.locator("#markW").isHidden());
+    await dm.setInputFiles("#vttPicture", { name: "hall.png", mimeType: "image/png", buffer: checkerboardPng() });
+    await dm.waitForFunction(() => document.getElementById("importOk").textContent === "Import and place");
+    assert.equal(
+      await dm.textContent("#importStatus"),
+      "4 × 4 squares from the file · 2 wall pieces, 1 door (1 open). Windows come in as doors: change them in Walls. 1 light left out until light sources.",
+    );
+    await dm.click("#importOk");
+    await until(dm, async () => (await window.terra.getState()).map?.name === "Hall");
+    const hall = (await dm.evaluate(() => window.terra.getState())).map;
+    assert.deepEqual(hall.bounds, { x: 0, y: 0, width: 4, height: 4 });
+    const hallWalls = JSON.parse(fs.readFileSync(path.join(userData, "library", "maps", `${hall.id}.walls.json`), "utf8"));
+    assert.deepEqual(
+      [hallWalls.walls.map((w) => w.points), hallWalls.openings],
+      [
+        [
+          [
+            { x: 1, y: 1 },
+            { x: 2, y: 1 },
+          ],
+          [
+            { x: 3, y: 1 },
+            { x: 4, y: 1 },
+          ],
+        ],
+        [{ kind: "door", a: { x: 2, y: 1 }, b: { x: 3, y: 1 }, open: true }],
+      ],
+    );
+    await until(table, async (hallId) => (await window.terra.getView()).map?.id === hallId, hall.id);
+    assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("door"));
+    // A .dd2vtt carries its picture inside it, so it goes straight to Import.
+    const dd2vtt = { ...vtt, image: checkerboardPng().toString("base64") };
+    await dm.setInputFiles("#mapFile", { name: "Inn.dd2vtt", mimeType: "", buffer: Buffer.from(JSON.stringify(dd2vtt)) });
+    await dm.waitForFunction(() => document.getElementById("importOk").textContent === "Import and place");
+    await dm.click("#importCancel");
   } finally {
     await app.close();
   }

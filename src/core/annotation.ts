@@ -23,8 +23,8 @@ const SNAP_IN = 0.25;
 const JOIN_IN = 0.125;
 /** Freehand lines keep only corners that bend more than this off the straight line. */
 const SMOOTH_IN = 0.1;
-const MAX_ITEMS = 5000;
-const MAX_POINTS = 2000;
+export const MAX_ITEMS = 5000;
+export const MAX_POINTS = 2000;
 /** Lines may reach this far past the picture's edge, for walls drawn along it. */
 const EDGE_IN = 1;
 
@@ -119,10 +119,10 @@ export function addFreehand(a: Annotation, drawn: readonly Point[]): Annotation 
   return addWall(a, ps);
 }
 
-export function addOpening(a: Annotation, kind: OpeningKind, from: Point, to: Point): Annotation {
+export function addOpening(a: Annotation, kind: OpeningKind, from: Point, to: Point, open = false): Annotation {
   const [p, q] = [pt(from), pt(to)];
   if (p.x === q.x && p.y === q.y) return a;
-  return { ...a, openings: [...a.openings, { kind, a: p, b: q, open: false }] };
+  return { ...a, openings: [...a.openings, { kind, a: p, b: q, open }] };
 }
 
 export function addPillar(a: Annotation, at: Point, r: number): Annotation {

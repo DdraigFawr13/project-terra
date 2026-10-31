@@ -462,8 +462,8 @@ if (!app.requestSingleInstanceLock()) {
         send(playerWindow, "player:sketch", { ink, points });
     });
     ipcMain.handle("library:list", () => listMaps(app.getPath("userData")));
-    ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown, feet: unknown) =>
-      saveMap(app.getPath("userData"), name, png, bounds, feet),
+    ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown, feet: unknown, walls: unknown) =>
+      saveMap(app.getPath("userData"), name, png, bounds, feet, walls),
     );
     ipcMain.handle("curtain:save", (_e, bytes: unknown) => savePicture(app.getPath("userData"), bytes));
     ipcMain.handle("library:patch", (_e, id: unknown, png: unknown) => {

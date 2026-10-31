@@ -41,8 +41,9 @@ const api = {
   problemReport: (): Promise<string> => ipcRenderer.invoke("report:copy"),
   onHistory: (fn: (canUndo: boolean) => void) => ipcRenderer.on("history:changed", (_e, can: boolean) => fn(can)),
   listMaps: (): Promise<LibraryMap[]> => ipcRenderer.invoke("library:list"),
-  saveMap: (name: string, png: Uint8Array, bounds: Bounds, feetPerSquare: FeetPerSquare): Promise<LibraryMap> =>
-    ipcRenderer.invoke("library:save", name, png, bounds, feetPerSquare),
+  /** `walls`: from a VTT file (D-044), stored with the map. */
+  saveMap: (name: string, png: Uint8Array, bounds: Bounds, feetPerSquare: FeetPerSquare, walls?: Annotation): Promise<LibraryMap> =>
+    ipcRenderer.invoke("library:save", name, png, bounds, feetPerSquare, walls),
   /** Store the table's patched copy of a map, or with null go back to the map itself (D-036). */
   savePatch: (id: string, png: Uint8Array | null): Promise<void> => ipcRenderer.invoke("library:patch", id, png),
   /** A map's walls, pillars and openings (D-044); empty if none are traced yet. */

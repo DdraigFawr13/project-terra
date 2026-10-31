@@ -30,11 +30,13 @@ import {
   type TableState,
 } from "../core/table.ts";
 import type { DmApi, TableStatus } from "../main/dm-preload.ts";
+import type { LibraryMap } from "../main/library.ts";
 import { fillFog, type FogPainter } from "./fog-draw.ts";
 import { initPatch } from "./dm-patch.ts";
 import { initWalls } from "./dm-walls.ts";
 import { drawWalls } from "./walls-draw.ts";
-import type { Annotation } from "../core/annotation.ts";
+import { countOf, type Annotation } from "../core/annotation.ts";
+import { parseVtt, planVttPicture, type VttMap } from "../core/vtt.ts";
 import { icon } from "./icons.ts";
 import { drawDisc, drawLine, drawParty, drawPin, drawToken, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
 
@@ -53,6 +55,11 @@ const nameInput = $<HTMLInputElement>("mapName");
 const markW = $<HTMLInputElement>("markW");
 const markH = $<HTMLInputElement>("markH");
 const markFeet = $<HTMLSelectElement>("markFeet");
+const importHeading = $<HTMLElement>("import-heading");
+const importOk = $<HTMLButtonElement>("importOk");
+const markOnly = [...document.querySelectorAll<HTMLElement>("[data-mark-only]")];
+const vttPicture = $<HTMLInputElement>("vttPicture");
+const libraryStatus = $<HTMLParagraphElement>("libraryStatus");
 const mapCanvas = $<HTMLCanvasElement>("mapCanvas");
 const undoBtn = $<HTMLButtonElement>("undo");
 const toolBtns = [...document.querySelectorAll<HTMLButtonElement>("button[data-tool]")];
@@ -84,6 +91,10 @@ const zoomLevel = $<HTMLElement>("zoomLevel");
 const FOLDED = "#ff6b5a";
 
 type Importing = { bitmap: ImageBitmap; corners: Quad; selected: number; busy: boolean };
+/** A VTT file being imported (D-044): its grid and walls, and its picture once there is one. No corners to mark. */
+type VttImport = { vtt: VttMap; bitmap: ImageBitmap | null; busy: boolean };
+/** VTT files are JSON with the picture inside as base64, so a big map is a big file. */
+const MAX_VTT_BYTES = 200 * 1024 * 1024;
 type Tool = "select" | FogMode | "marker" | "ping" | "draw";
 type DrawWith = "brush" | "outline" | "box";
 const DRAW_ORDER: DrawWith[] = ["brush", "outline", "box"];
@@ -148,6 +159,7 @@ export function initMaps(
   let state: TableState | null = null;
   let status: TableStatus | null = null;
   let importing: Importing | null = null;
+  let vttImport: VttImport | null = null;
   /** While dragging the map: how far it has moved so far, in inches. */
   let drag: { pointer: number; pen: boolean; start: Point; dx: number; dy: number } | null = null;
   let tool: Tool = "select";
@@ -255,18 +267,26 @@ export function initMaps(
     const map = state?.map ?? null;
     // The patch tool (D-036) and the walls editor (D-044) take the map window's place while open.
     const patching = patch.isOpen() || walls.isOpen();
-    importer.hidden = !importing;
-    mapView.hidden = !!importing || !map || patching;
-    emptyMap.hidden = !!importing || !!map;
+    const importOpen = !!importing || !!vttImport;
+    importer.hidden = !importOpen;
+    mapView.hidden = importOpen || !map || patching;
+    emptyMap.hidden = importOpen || !!map;
     // The map window's own buttons (its second row) and its tab name follow the map (D-032).
-    mapActions.hidden = !map || !!importing || patching;
+    mapActions.hidden = !map || importOpen || patching;
     const title = map ? map.name + feetNote(map.feetPerSquare) : "Map";
     if (mapTitle.textContent !== title) mapTitle.textContent = title;
-    zoomState.textContent = map && !importing && zoom > 1 ? `Zoom ${Math.round(zoom * 100)}%` : "";
+    zoomState.textContent = map && !importOpen && zoom > 1 ? `Zoom ${Math.round(zoom * 100)}%` : "";
     zoomLevel.textContent = `${Math.round(zoom * 100)}%`;
-    renderTools(!!map && !importing && !patching);
-    if (importing) drawImport(importing);
-    else if (map && !patching) drawMap(map);
+    renderTools(!!map && !importOpen && !patching);
+    if (importOpen) {
+      importHeading.textContent = vttImport ? "Import a VTT map" : "Mark a rectangle on the map";
+      for (const el of markOnly) el.hidden = !!vttImport;
+    }
+    if (vttImport) drawVtt(vttImport);
+    else if (importing) {
+      importOk.textContent = "Straighten and place";
+      drawImport(importing);
+    } else if (map && !patching) drawMap(map);
   }
 
   // ---- Import: mark a rectangle on the picture ----
@@ -361,6 +381,7 @@ export function initMaps(
       { x: w * 0.375, y: h * 0.625 },
     ];
     importing = { bitmap, corners, selected: 0, busy: false };
+    vttImport = null;
     nameInput.value = file.name.replace(/\.[^.]+$/, "").slice(0, 120);
     importStatus.textContent = "";
     render();
@@ -413,26 +434,117 @@ export function initMaps(
       const png = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
       const entry = await terra.saveMap(nameInput.value, png, plan.bounds, parseFeetPerSquare(Number(markFeet.value)) ?? 5);
       importing = null;
-      await run({
-        type: "placeMap",
-        map: {
-          ...entry,
-          x: fit?.x ?? 0,
-          y: fit?.y ?? 0,
-          turns: fit?.turns ?? 0,
-          fog: [],
-          discs: [],
-          groups: {},
-          pins: [],
-          drawings: [],
-          spots: [],
-          party: null,
-          tokens: [],
-        },
-      });
-      refreshLibrary();
+      await placeNew(entry, fit ?? undefined);
     } catch (e) {
       im.busy = false;
+      importStatus.textContent = `The map couldn't be imported: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+
+  /** Put a map just added to the library on the table, and list it. */
+  async function placeNew(entry: LibraryMap, at: { x: number; y: number; turns: 0 | 1 } = { x: 0, y: 0, turns: 0 }): Promise<void> {
+    const { x, y, turns } = at;
+    await run({
+      type: "placeMap",
+      map: { ...entry, x, y, turns, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null, tokens: [] },
+    });
+    refreshLibrary();
+  }
+
+  // ---- Import: a VTT file, whose grid and walls come with it (D-044) ----
+
+  /** Read a VTT file, with its picture if it came without one inside. Problems show under the library. */
+  async function startVtt(file: File, picture: File | undefined): Promise<void> {
+    libraryStatus.textContent = "";
+    const fail = (why: string) => void (libraryStatus.textContent = `“${file.name}” couldn't be imported: ${why}`);
+    if (file.size > MAX_VTT_BYTES) return fail("the file is over 200 MB.");
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await file.text());
+    } catch {
+      return fail("it isn't a VTT file (it can't be read as JSON).");
+    }
+    const vtt = parseVtt(raw);
+    if ("error" in vtt) return fail(vtt.error);
+    let bitmap: ImageBitmap | null = null;
+    try {
+      if (picture) bitmap = await createImageBitmap(picture);
+      else if (vtt.image) bitmap = await createImageBitmap(new Blob([Uint8Array.from(atob(vtt.image), (c) => c.charCodeAt(0))]));
+    } catch {
+      return fail(picture ? "its picture couldn't be opened." : "the picture inside it couldn't be opened.");
+    }
+    importing = null;
+    vttImport = { vtt, bitmap, busy: false };
+    nameInput.value = file.name.replace(/\.[^.]+$/, "").slice(0, 120);
+    importStatus.textContent = "";
+    render();
+  }
+
+  /** What the VTT screen says, and whether its picture is missing or the wrong one. */
+  function vttSummary(v: VttImport): { text: string; needsPicture: boolean } {
+    const { vtt, bitmap } = v;
+    const size = `${+vtt.squares.x.toFixed(2)} × ${+vtt.squares.y.toFixed(2)} squares`;
+    if (!bitmap) return { text: `This file has no picture inside it (${size}). Choose the picture that came with it.`, needsPicture: true };
+    if (!planVttPicture(vtt, bitmap))
+      return {
+        text: `That picture is ${bitmap.width} × ${bitmap.height} pixels, the wrong shape for this file's ${size}. Choose the picture that came with it.`,
+        needsPicture: true,
+      };
+    const n = countOf(vtt.walls);
+    const open = vtt.walls.openings.filter((o) => o.open).length;
+    const plural = (k: number, one: string) => `${k} ${one}${k === 1 ? "" : "s"}`;
+    const doors = `${plural(n.openings, "door")}${open ? ` (${open} open)` : ""}`;
+    const lights = vtt.lights ? ` ${plural(vtt.lights, "light")} left out until light sources.` : "";
+    return {
+      text: `${size} from the file · ${plural(n.walls, "wall piece")}, ${doors}. Windows come in as doors: change them in Walls.${lights}`,
+      needsPicture: false,
+    };
+  }
+
+  /** The picture with the file's walls on it, fitted like the marking screen. A missing picture shows the walls alone. */
+  function drawVtt(v: VttImport): void {
+    const { vtt, bitmap } = v;
+    const summary = vttSummary(v);
+    if (!v.busy && importStatus.textContent !== summary.text) importStatus.textContent = summary.text;
+    importOk.textContent = summary.needsPicture ? "Choose picture…" : "Import and place";
+    const room = importCanvas.parentElement!.clientHeight || window.innerHeight * 0.55;
+    const k = Math.min(importCanvas.clientWidth / vtt.bounds.width, room / vtt.bounds.height);
+    const x0 = (importCanvas.clientWidth - vtt.bounds.width * k) / 2;
+    const dpr = window.devicePixelRatio || 1;
+    const h = Math.round(vtt.bounds.height * k);
+    importCanvas.style.height = `${h}px`;
+    importCanvas.width = Math.round(importCanvas.clientWidth * dpr);
+    importCanvas.height = Math.round(h * dpr);
+    const ctx = importCanvas.getContext("2d")!;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, importCanvas.clientWidth, h);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(x0, 0, vtt.bounds.width * k, h);
+    if (bitmap && !summary.needsPicture) ctx.drawImage(bitmap, x0, 0, vtt.squares.x * k, vtt.squares.y * k);
+    ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * x0, 0);
+    drawWalls(ctx, vtt.walls, k, true);
+  }
+
+  async function finishVtt(): Promise<void> {
+    const v = vttImport;
+    if (!v || v.busy) return;
+    const plan = v.bitmap && planVttPicture(v.vtt, v.bitmap);
+    if (!v.bitmap || !plan) return vttPicture.click();
+    v.busy = true;
+    importStatus.textContent = "Importing…";
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    try {
+      const canvas = new OffscreenCanvas(plan.width, plan.height);
+      const ctx = canvas.getContext("2d")!;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(v.bitmap, 0, 0, plan.drawWidth, plan.drawHeight);
+      const png = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
+      const feet = parseFeetPerSquare(Number(markFeet.value)) ?? 5;
+      const entry = await terra.saveMap(nameInput.value, png, v.vtt.bounds, feet, v.vtt.walls);
+      vttImport = null;
+      await placeNew(entry);
+    } catch (e) {
+      v.busy = false;
       importStatus.textContent = `The map couldn't be imported: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
@@ -1273,7 +1385,7 @@ export function initMaps(
 
   /** V, U (Uncover), G (Dim), M, P and D pick the tool; S steps through brush, outline and box (D-038). Returns whether the key was used. */
   function shortcut(key: string): boolean {
-    if (!state?.map || importing) return false;
+    if (!state?.map || importing || vttImport) return false;
     const k = key.toLowerCase();
     if (k === "v") setTool("select");
     else if (k === "u") setTool("reveal");
@@ -1316,15 +1428,35 @@ export function initMaps(
 
   $<HTMLButtonElement>("importMap").addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => {
-    const file = fileInput.files?.[0];
+    const files = [...(fileInput.files ?? [])];
     fileInput.value = "";
-    if (file) startImport(file).catch(() => (importStatus.textContent = "That picture couldn't be opened."));
+    // A VTT file, with its picture if both were chosen together; else a picture to mark.
+    const vtt = files.find((f) => /\.(dd2vtt|uvtt|json)$/i.test(f.name));
+    const picture = files.find((f) => f.type.startsWith("image/"));
+    if (vtt) void startVtt(vtt, picture);
+    else if (picture) {
+      libraryStatus.textContent = "";
+      startImport(picture).catch(() => (libraryStatus.textContent = `“${picture.name}” couldn't be opened as a picture.`));
+    }
+  });
+  vttPicture.addEventListener("change", () => {
+    const file = vttPicture.files?.[0];
+    vttPicture.value = "";
+    const v = vttImport;
+    if (!file || !v) return;
+    createImageBitmap(file)
+      .then((bitmap) => {
+        v.bitmap = bitmap;
+        render();
+      })
+      .catch(() => (importStatus.textContent = `“${file.name}” couldn't be opened as a picture.`));
   });
   $<HTMLButtonElement>("importCancel").addEventListener("click", () => {
     importing = null;
+    vttImport = null;
     render();
   });
-  $<HTMLButtonElement>("importOk").addEventListener("click", () => void finishImport());
+  importOk.addEventListener("click", () => void (vttImport ? finishVtt() : finishImport()));
   $<HTMLButtonElement>("importFill").addEventListener("click", () => void finishImport(true));
   undoBtn.addEventListener("click", undo);
   window.addEventListener("resize", render);
