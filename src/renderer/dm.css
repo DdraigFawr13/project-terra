@@ -521,6 +521,16 @@ body[data-panels="folded"] .panel-split {
 #previewText:empty {
   display: none;
 }
+/* A labelled slider: the words and the value on one line, the slider below (map brightness, D-046). */
+.slider {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.slider input {
+  flex-basis: 100%;
+}
 .fog-actions {
   display: grid;
   gap: 6px;

@@ -48,7 +48,7 @@ import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, placedExtent, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
-const SAVE_VERSION = 16;
+const SAVE_VERSION = 17;
 /** Pins on one map at most: plenty for marks, and a stuck pen can't fill the save. */
 export const MAX_PINS = 40;
 
@@ -113,8 +113,11 @@ type Spot = { id: number; name: string; x: number; y: number; turns: PlacedMap["
 const MAX_SPOTS = 12;
 export const MAX_SPOT_NAME = 40;
 
-/** What a scene keeps besides its name (D-039). The current scene's lives in the state's own `map`, `fight` and `mapLocked`. */
-export type SceneContent = { map: PlacedMap | null; fight: Fight | null; mapLocked: boolean };
+/**
+ * What a scene keeps besides its name (D-039). The current scene's lives in the state's own `map`, `fight`, `mapLocked`
+ * and `testGrid`: each scene keeps its own grid, off in a new one (D-046).
+ */
+export type SceneContent = { map: PlacedMap | null; fight: Fight | null; mapLocked: boolean; testGrid: boolean };
 /**
  * A place prepared for the table (D-039). `parked` holds the content of every scene but the current one, which is the
  * only scene with none. `name` is DM-only, like a map's, and empty until the DM names it (the list shows its map's name).
@@ -138,6 +141,9 @@ type SceneCurtain =
   /** Another scene as the players know it, such as the world map, while the DM sets this one up (D-039). */
   | { kind: "scene"; id: string };
 export const MAX_TITLE = 80;
+/** The map brightness slider's range, in percent (D-046). */
+const MIN_BRIGHTNESS = 50;
+const MAX_BRIGHTNESS = 150;
 /** Scenes at most, the Removed list included: a busy adventure has a few dozen places, and the save stays small. */
 const MAX_SCENES = 60;
 export const MAX_SCENE_NAME = 60;
@@ -153,8 +159,10 @@ export type TableState = {
   cover: boolean;
   /** Show the calibration pattern while the DM drags the corners. */
   calibrating: boolean;
-  /** Show the 1-inch grid: alone, or over the map to check it lines up. */
+  /** Show the 1-inch grid: alone, or over the map, where players may use it too. Kept per scene (D-046). */
   testGrid: boolean;
+  /** How bright the table draws the map picture, in percent, set once at the rehearsal (D-046). */
+  brightness: number;
   /** Display the player window should use; null means pick automatically. */
   playerDisplayId: number | null;
   /** One calibration per table surface (see `surfaceKey` in displays.ts). */
@@ -205,6 +213,7 @@ export type Command =
   | { type: "characterHp"; id: string; change: number }
   | { type: "tempHp"; id: string; tempHp: number }
   | { type: "flipLetters"; on: boolean }
+  | { type: "brightness"; value: number }
   | { type: "addCharacter"; character: CharacterFields }
   | { type: "updateCharacter"; character: Character }
   | { type: "removeCharacter"; id: string }
@@ -299,6 +308,7 @@ export function defaultState(): TableState {
     cover: false,
     calibrating: false,
     testGrid: true,
+    brightness: 100,
     playerDisplayId: null,
     calibrations: {},
     map: null,
@@ -315,7 +325,7 @@ export function defaultState(): TableState {
 
 /** A scene's content: the state's own for the current scene, else what is parked. */
 export function sceneContent(state: TableState, scene: Scene): SceneContent {
-  return scene.parked ?? { map: state.map, fight: state.fight, mapLocked: state.mapLocked };
+  return scene.parked ?? { map: state.map, fight: state.fight, mapLocked: state.mapLocked, testGrid: state.testGrid };
 }
 
 /** What the scene list calls a scene: its name, else its map's, else "Empty scene". DM-only (D-039). */
@@ -372,6 +382,8 @@ export type PlayerDisc = {
   /** The key the table loads the group's portrait by, or null (`tokenLook`). */
   portrait: string | null;
   mini: boolean;
+  /** Its colour's turn: a ring outside its base (D-046). */
+  turn: boolean;
 };
 
 /**
@@ -404,6 +416,8 @@ export type PlayerView = {
   /** Discs' letters face the far side of the picture (D-028). */
   flipLetters: boolean;
   grid: boolean;
+  /** The map picture's brightness, 1 as it is (D-046). */
+  brightness: number;
   /** Pins the players may see, in table inches (D-034); the DM's own pins never come here. */
   pins: Point[];
   /** Lasting lines the players may see, in table inches (D-035). */
@@ -464,12 +478,14 @@ export function playerViewOf(state: TableState, surfaceKey: string): PlayerView 
       .filter((d) => d.shown && conditionOf(d, m!.groups) !== "down")
       .map((d) => {
         const look = tokenLook(d, m!.groups);
-        return { colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size, ...look, mini: d.mini };
+        const turn = !!state.fight?.round && state.fight.current === d.colour;
+        return { colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size, ...look, mini: d.mini, turn };
       }),
     tokens: (m?.tokens ?? []).flatMap((t) => tokenView(state, m!, t) ?? []),
     strip: stripOf(state.fight, m?.discs ?? [], m?.groups ?? {}, state.party),
     flipLetters: state.flipLetters,
     grid: state.testGrid,
+    brightness: state.brightness / 100,
     pins: (m?.pins ?? []).filter((p) => p.table).map((p) => mapToTable(m!, p)),
     drawings: (m?.drawings ?? []).filter((d) => d.table).map((d) => ({ ink: d.ink, points: d.points.map((p) => mapToTable(m!, p)) })),
     cover: coverOf(state),
@@ -687,6 +703,10 @@ export function parseCommand(raw: unknown): Command | null {
     case "flipLetters":
     case "lockMap":
       return typeof raw.on === "boolean" ? { type: raw.type, on: raw.on } : null;
+    case "brightness":
+      return Number.isInteger(raw.value) && (raw.value as number) >= MIN_BRIGHTNESS && (raw.value as number) <= MAX_BRIGHTNESS
+        ? { type: "brightness", value: (raw.value as number) + 0 }
+        : null;
     case "addCharacter": {
       const character = parseCharacterFields(raw.character);
       return character && { type: "addCharacter", character };
@@ -899,6 +919,8 @@ export function apply(state: TableState, c: Command): TableState {
       return { ...state, party: state.party.map((p) => (p.id === c.id ? { ...p, tempHp: c.tempHp } : p)) };
     case "flipLetters":
       return { ...state, flipLetters: c.on };
+    case "brightness":
+      return { ...state, brightness: c.value };
     case "addCharacter": {
       if (state.party.length >= MAX_PARTY) return state;
       const n = Math.max(state.lastCharacter, ...state.party.map((p) => Number(p.id.slice(3)))) + 1;
@@ -949,7 +971,7 @@ export function apply(state: TableState, c: Command): TableState {
       const made = newScene(state);
       if (!made) return state;
       const at = state.scenes.findIndex((s) => s.id === state.scene) + 1;
-      const empty: SceneContent = { map: null, fight: null, mapLocked: false };
+      const empty: SceneContent = { map: null, fight: null, mapLocked: false, testGrid: false };
       const scene: Scene = { id: made.id, name: c.name, removed: false, parked: empty, curtain: BLACK, ready: null };
       const scenes = state.scenes.toSpliced(at, 0, scene);
       return switchTo({ ...state, scenes, lastScene: made.lastScene }, made.id);
@@ -1043,7 +1065,9 @@ function parseContent(raw: unknown): SceneContent | null {
   const map = raw.map === null ? null : parsePlacedMap(raw.map);
   const fight = raw.fight === null ? null : parseFight(raw.fight);
   if ((raw.map !== null && !map) || (raw.fight !== null && !fight)) return null;
-  return { map, fight, mapLocked: raw.mapLocked };
+  // Scenes saved before each kept its own grid (save version 17) start with it off.
+  if (raw.testGrid !== undefined && typeof raw.testGrid !== "boolean") return null;
+  return { map, fight, mapLocked: raw.mapLocked, testGrid: raw.testGrid === true };
 }
 
 /** The saved scene list: each id once, and exactly one scene with no parked content, the current one. */
@@ -1074,7 +1098,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.
@@ -1089,6 +1113,7 @@ export function parseSave(text: string): ParsedSave {
     { type: "lockMap", on: raw.mapLocked },
     { type: "testGrid", on: raw.testGrid },
     { type: "flipLetters", on: raw.flipLetters },
+    { type: "brightness", value: raw.brightness },
   ];
   const state = fields.reduce<TableState>((s, f) => {
     const c = parseCommand(f);

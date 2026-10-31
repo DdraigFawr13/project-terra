@@ -584,14 +584,18 @@
           <label for="display">Show the table on</label>
           <select id="display"></select>
           <div class="row">
-            <button id="testGrid" type="button" aria-pressed="false">Test grid</button>
+            <button id="testGrid" type="button" aria-pressed="false">Grid</button>
             <button id="flipLetters" type="button" aria-pressed="false" title="Turn the disc letters to face the far side">
               Flip letters
             </button>
           </div>
+          <label for="brightness" class="slider">
+            Map brightness <output id="brightnessValue" for="brightness">100%</output>
+            <input id="brightness" type="range" min="50" max="150" step="5" value="100" />
+          </label>
           <p class="hint">
-            The test grid shows 1-inch squares. Disc letters read upright from the bottom edge of the picture; Flip turns them to face the
-            far side.
+            Grid shows 1-inch squares; each scene keeps its own. Disc letters read upright from the bottom edge of the picture; Flip turns
+            them to face the far side. Set the brightness once, with a map on the table.
           </p>
         </section>
         <section aria-labelledby="cal-heading">

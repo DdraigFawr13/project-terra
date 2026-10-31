@@ -30,11 +30,12 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 7l. **Curtains, spots and reset (D-039).** Black, picture or title curtain per scene; saved spots on big maps; Mark ready and Reset. Morgan tests: a title read from both long sides, a picture in the dark room, jumping between two spots, resetting a scene after a fight.
 7m. **World map (D-039).** Link pins, a party marker and the World map curtain. Morgan tests: travel on the world map, then open a battle map from a pin.
 7n. **Fewer taps (D-046, Batch 1).** The roll pad stays open for the next roll; Start fight picks Select; a held turn hands the turn on; Uncover all takes a hold; a monster's sheet opens on its turn. Morgan tests: a mock round with dice; judge whether the sheet on turn helps.
-8. **Rehearsal.** A full dry run of Thundertree at home, following [REHEARSAL.md](REHEARSAL.md): each part has a pass line and the photo that proves it. Anything that fails is hidden for session 1, not redesigned (D-037). Batch 2 of the Wants (turn mark, light under minis, map brightness, grid, see-through big discs) is judged in the same photos (D-046).
+7o. **Table looks (D-046, Batch 2).** Built before the rehearsal so its photos can judge it: a turn ring on every disc of the colour whose turn it is; a light centre under minis (Mini on it); one map brightness slider in Setup; the grid kept per scene, off in a new one, with a dark edge on its lines; discs of 3 inches or more see-through. Morgan tests: the rehearsal photos (step 8).
+8. **Rehearsal.** A full dry run of Thundertree at home, following [REHEARSAL.md](REHEARSAL.md): each part has a pass line and the photo that proves it. Anything that fails is hidden for session 1, not redesigned (D-037). Step 7o is judged in the same photos.
+8b. **Fewer drags (D-046, Batch 3).** Right after the rehearsal; if session 1 is ready first, it waits until after: hold a disc to lift and move its whole colour; Place party in one tap; legendary action pips; a fading laser trail with Ping. Morgan tests: a mock round on the laptop.
 
 ## After session 1, in order
 
-0. **Wants, Batch 3 (D-046).** Right after the rehearsal, never delaying session 1: group move, Place party, legendary action pips, a laser trail with Ping.
 
 1. **Scenes.** Moved before session 1 as steps 7k–7m (D-039). Left here: scenes grouped by adventure, and editing a scene while another is on the table.
 2. **Map annotation (D-044).** Trace walls, doors, windows, rooms and materials on an imported map. Each wall, door or window blocks light, sight and sound separately (D-040). It brings one-tap room reveal (D-007, D-025), doors and the material tags living effects need (D-014); room notes stay in story tools. The generator later produces the same annotation. Started before session 1 at Morgan's request (2026-10-29).

@@ -127,13 +127,20 @@ export function drawPin(ctx: CanvasRenderingContext2D, x: number, y: number, inc
   ctx.restore();
 }
 
+/** Discs this big or bigger, in inches, are see-through, so the map shows under a large creature (D-046). */
+const SEE_THROUGH_IN = 3;
+/** Under a mini: a light centre, so the mini stands out against it (D-046). */
+const MINI_GROUND = "#efeadf";
+
 /**
  * A disc centred at (x, y) with diameter `d`, in the context's units, its letter once (D-028: an exception to D-008's
- * text twice). `turn` turns the letter, half a turn when the DM flips the letters to face the far side.
+ * text twice). `turn` turns the letter, half a turn when the DM flips the letters to face the far side. With a mini on
+ * it the centre is light and the letter goes on a tab; on its colour's turn a bright ring goes round it, clear of the
+ * mini's base (D-046).
  */
 export function drawDisc(
   ctx: CanvasRenderingContext2D,
-  disc: Pick<PlayerDisc, "colour" | "letter"> & Partial<Pick<PlayerDisc, "symbol" | "portrait" | "mini">>,
+  disc: Pick<PlayerDisc, "colour" | "letter"> & Partial<Pick<PlayerDisc, "symbol" | "portrait" | "mini" | "size" | "turn">>,
   x: number,
   y: number,
   d: number,
@@ -141,17 +148,36 @@ export function drawDisc(
 ): void {
   const { fill, ink } = DISC_HEX[disc.colour];
   const r = d / 2;
-  const revealed = !!(disc.symbol || disc.portrait);
+  const revealed = !disc.mini && !!(disc.symbol || disc.portrait);
   // A portrait shows once its picture has arrived; until then, the symbol.
-  const picture = disc.portrait ? portraitImage(disc.portrait) : null;
+  const picture = revealed && disc.portrait ? portraitImage(disc.portrait) : null;
+  if (disc.turn) {
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.2, 0, Math.PI * 2);
+    ctx.lineWidth = r * 0.24;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.stroke();
+    ctx.lineWidth = r * 0.14;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+  }
+  const seeThrough = (disc.size ?? 0) >= SEE_THROUGH_IN;
+  ctx.globalAlpha = seeThrough ? 0.45 : 1;
   ctx.beginPath();
   ctx.arc(x, y, r * 0.92, 0, Math.PI * 2);
-  ctx.fillStyle = revealed ? TOKEN_GROUND : fill;
+  ctx.fillStyle = disc.mini ? MINI_GROUND : revealed ? TOKEN_GROUND : fill;
   ctx.fill();
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(turn);
-  if (revealed) {
+  if (disc.mini) {
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
+    ctx.lineWidth = r * 0.2;
+    ctx.strokeStyle = fill;
+    ctx.stroke();
+  } else if (revealed) {
     // Revealed (D-036): the portrait, or the symbol on a dark ground, inside a ring of the group's colour.
     if (picture) {
       ctx.save();
@@ -161,16 +187,18 @@ export function drawDisc(
       ctx.drawImage(picture, -r * 0.92, -r * 0.92, r * 1.84, r * 1.84);
       ctx.restore();
     } else if (disc.symbol) drawSymbol(ctx, disc.symbol, 0, 0, r * 0.58, TOKEN_INK, TOKEN_GROUND);
+    ctx.globalAlpha = 1;
     ctx.beginPath();
     ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
     ctx.lineWidth = r * 0.2;
     ctx.strokeStyle = fill;
     ctx.stroke();
   } else {
+    ctx.globalAlpha = 1;
     ctx.lineWidth = r * 0.14;
     ctx.strokeStyle = "#ffffff";
     ctx.stroke();
-    if (!disc.mini) letterAt(ctx, disc.letter, 0, 0, r * 1.15, ink);
+    letterAt(ctx, disc.letter, 0, 0, r * 1.15, ink);
   }
   // The letter is what players call out, so it must stay readable: on a badge inside the ring, or on a tab below the
   // token when a mini stands on it and would cover the badge (D-036). Below means towards the reader, so it turns too.
@@ -191,6 +219,8 @@ export function drawDisc(
     letterAt(ctx, disc.letter, bx, bx, r * 0.64, ink);
   }
   ctx.restore();
+  // Set before the save, so the restore brings back the see-through alpha: put it right for whatever draws next.
+  ctx.globalAlpha = 1;
 }
 
 /** Characters' token colours (D-045), kept apart from the six enemy colours: square tiles in these read as the party. */
@@ -225,9 +255,10 @@ export function drawToken(ctx: CanvasRenderingContext2D, t: PlayerToken, x: numb
     ctx.strokeRect(-r - w * 0.09, -r - w * 0.09, w + w * 0.18, w + w * 0.18);
   }
   ctx.globalAlpha *= t.down ? 0.55 : 1;
-  ctx.fillStyle = TOKEN_GROUND;
+  // Under a mini the tile is light, so the mini stands out; the picture would be hidden under its base anyway (D-046).
+  ctx.fillStyle = t.mini ? MINI_GROUND : TOKEN_GROUND;
   ctx.fillRect(-r, -r, w, w);
-  if (picture) ctx.drawImage(picture, -r + edge, -r + edge, w - edge * 2, w - edge * 2);
+  if (picture && !t.mini) ctx.drawImage(picture, -r + edge, -r + edge, w - edge * 2, w - edge * 2);
   ctx.strokeStyle = fill;
   ctx.lineWidth = edge;
   ctx.strokeRect(-r + edge / 2, -r + edge / 2, w - edge, w - edge);
@@ -644,17 +675,26 @@ export function drawTable(ctx: CanvasRenderingContext2D, scene: TableScene, scal
       ctx.translate(X(map.x), X(map.y));
       ctx.rotate((map.turns * Math.PI) / 2);
       ctx.scale(ppi, ppi);
+      // Map brightness (D-046): set once at the rehearsal, for this projector and room.
+      if (view.brightness !== 1) ctx.filter = `brightness(${view.brightness})`;
       scene.fog.draw(ctx, img, map.bounds, map.fog, "table");
       ctx.restore();
     }
-    // Over a map, the grid is only for checking that the map's squares line up with the table's.
+    // Over a map the grid is the scene's own (D-046): players may use it, and it checks the squares line up.
     if (!view.grid) return drawFight(ctx, scene, X);
   }
-  ctx.strokeStyle = mode === "map" ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.55)";
-  ctx.lineWidth = Math.max(1, ppi / 24);
   ctx.beginPath();
   for (let x = bx; x <= bx + bw; x++) (ctx.moveTo(X(x), X(by)), ctx.lineTo(X(x), X(by + bh)));
   for (let y = by; y <= by + bh; y++) (ctx.moveTo(X(bx), X(y)), ctx.lineTo(X(bx + bw), X(y)));
+  const line = Math.max(1, ppi / 24);
+  if (mode === "map") {
+    // Over a map, a dark edge under each line keeps it readable on light and dark art alike (D-046).
+    ctx.strokeStyle = "rgba(0,0,0,0.45)";
+    ctx.lineWidth = line * 3;
+    ctx.stroke();
+  }
+  ctx.strokeStyle = mode === "map" ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.55)";
+  ctx.lineWidth = line;
   ctx.stroke();
   if (mode === "map") return drawFight(ctx, scene, X);
 
