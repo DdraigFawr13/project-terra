@@ -27,7 +27,8 @@ export type StatBlock = {
   actions: Feature[];
   bonusActions: Feature[];
   reactions: Feature[];
-  legendary: { intro: string; actions: Feature[] } | null;
+  /** `uses`: legendary actions per round, from the stat block's "Uses" line, or null if it gives no number (D-046 pips). */
+  legendary: { intro: string; actions: Feature[]; uses: number | null } | null;
   /** Compared word by word against the page (D-026). Only these can be linked to a disc. */
   checked: boolean;
   /** The creature's picture cropped from the book, as a data URL, or null (D-036). Shown to the table only after Reveal. */
@@ -112,6 +113,8 @@ export function parseCreature(raw: unknown): StatBlock | null {
     ? {
         intro: [str(raw.legendary.uses, 100) && `Uses: ${raw.legendary.uses}.`, str(raw.legendary.intro)].filter(Boolean).join(" "),
         actions: features(raw.legendary.actions),
+        // "3", or "3 (4 in Lair)": the first number is the count outside a lair.
+        uses: Number(/^\s*(\d)/.exec(String(raw.legendary.uses ?? ""))?.[1] ?? NaN) || null,
       }
     : null;
   const tags = strs(raw.tags);

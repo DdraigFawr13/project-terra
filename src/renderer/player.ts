@@ -9,6 +9,7 @@ import { FogPainter } from "./fog-draw.ts";
 import {
   ACCENT,
   drawLine,
+  drawLaser,
   drawPing,
   drawTable,
   FONT,
@@ -39,6 +40,9 @@ let pingLayer: Layer | null = null;
 let pings: { at: Point; start: number }[] = [];
 /** Fading lines (D-035), drawn on the same canvas as pings. */
 let sketches: { ink: Ink; points: Point[]; start: number }[] = [];
+/** The laser trail (D-046), piece by piece, each fading on its own. */
+let lasers: { points: Point[]; start: number }[] = [];
+const LASER_MS = 1200;
 let animating = false;
 let player: PlayerView | null = null;
 
@@ -133,18 +137,20 @@ function draw(): void {
 function drawPings(now: number): void {
   pings = pings.filter((p) => now - p.start < PING_MS);
   sketches = sketches.filter((s) => now - s.start < SKETCH_MS);
+  lasers = lasers.filter((s) => now - s.start < LASER_MS);
   const l = pingLayer;
   pctx.setTransform(1, 0, 0, 1, 0, 0);
   pctx.clearRect(0, 0, pingCanvas.width, pingCanvas.height);
   // The curtain or calibration ends them: they were moments on the map.
-  if (!l) pings = sketches = [];
+  if (!l) pings = sketches = lasers = [];
   const px = (p: Point) => ({ x: (p.x - l!.box.x) * l!.pxPerInch, y: (p.y - l!.box.y) * l!.pxPerInch });
   for (const s of sketches) drawLine(pctx, s.points.map(px), s.ink, l!.pxPerInch, sketchAlpha(now - s.start));
+  for (const s of lasers) drawLaser(pctx, s.points.map(px), l!.pxPerInch, 1 - (now - s.start) / LASER_MS);
   for (const p of pings) {
     const at = px(p.at);
     drawPing(pctx, at.x, at.y, l!.pxPerInch, now - p.start);
   }
-  animating = pings.length + sketches.length > 0;
+  animating = pings.length + sketches.length + lasers.length > 0;
   if (animating) requestAnimationFrame(drawPings);
 }
 function animate(): void {
@@ -154,6 +160,10 @@ function animate(): void {
 }
 terra.onPing((at) => {
   pings.push({ at, start: performance.now() });
+  animate();
+});
+terra.onLaser((points) => {
+  lasers.push({ points, start: performance.now() });
   animate();
 });
 terra.onSketch((s) => {

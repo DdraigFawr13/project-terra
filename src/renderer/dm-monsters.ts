@@ -401,6 +401,9 @@ export function initMonsters(
             // The symbol follows the creature's type unless the DM already chose one (D-036).
             symbol: g.symbol ?? creatureTypeOf(block.kind),
             hasPortrait: !!block.portrait,
+            // Legendary actions per round (D-046): pips on the group's row in a fight.
+            legendary: block.legendary?.uses ?? 0,
+            spent: 0,
           },
         });
         b.choosing = false;

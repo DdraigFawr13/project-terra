@@ -32,6 +32,8 @@ const api = {
   ping: (x: number, y: number): Promise<void> => ipcRenderer.invoke("table:ping", x, y),
   /** A fading line on the table, in table inches: gone in about 10 seconds, nothing saved (D-035). */
   sketch: (ink: Ink, points: Point[]): Promise<void> => ipcRenderer.invoke("table:sketch", ink, points),
+  /** A piece of the laser trail, in table inches (D-046): it fades on the table, nothing saved. */
+  laser: (points: Point[]): Promise<void> => ipcRenderer.invoke("table:laser", points),
   canUndo: (): Promise<boolean> => ipcRenderer.invoke("history:get"),
   /** Earlier saves, newest first, with a few words on each (D-037). */
   listSaves: (): Promise<EarlierSave[]> => ipcRenderer.invoke("saves:list"),

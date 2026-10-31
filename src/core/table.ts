@@ -199,6 +199,12 @@ export type Command =
   | { type: "fog"; op: FogOp }
   | { type: "placeDisc"; colour: DiscColour; x: number; y: number; size: number }
   | { type: "moveDisc"; colour: DiscColour; letter: string; x: number; y: number }
+  /** Hold a disc to lift its whole colour: every disc of it moves by the same amount, in one undo step (D-046). */
+  | { type: "moveGroup"; colour: DiscColour; dx: number; dy: number }
+  /** Set how many legendary actions a group has used this round (D-046). */
+  | { type: "legendary"; colour: DiscColour; spent: number }
+  /** Place party (D-046): the travelling characters' tokens in a row from (x, y), in one undo step (`partyToPlace`). */
+  | { type: "placeParty"; x: number; y: number }
   | { type: "removeDisc"; colour: DiscColour; letter: string }
   /** Show or hide one disc, or with no letter the whole colour group (D-006). */
   | { type: "showDiscs"; colour: DiscColour; letter: string | null; on: boolean }
@@ -269,6 +275,9 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
   "fog",
   "placeDisc",
   "moveDisc",
+  "moveGroup",
+  "legendary",
+  "placeParty",
   "removeDisc",
   "showDiscs",
   "condition",
@@ -664,6 +673,18 @@ export function parseCommand(raw: unknown): Command | null {
     }
     case "removeDisc":
       return isColour(raw.colour) && isLetter(raw.letter) ? { type: "removeDisc", colour: raw.colour, letter: raw.letter } : null;
+    case "moveGroup": {
+      const at = point({ x: raw.dx, y: raw.dy });
+      return isColour(raw.colour) && at ? { type: "moveGroup", colour: raw.colour, dx: at.x, dy: at.y } : null;
+    }
+    case "legendary":
+      return isColour(raw.colour) && Number.isInteger(raw.spent) && (raw.spent as number) >= 0 && (raw.spent as number) <= 9
+        ? { type: "legendary", colour: raw.colour, spent: (raw.spent as number) + 0 }
+        : null;
+    case "placeParty": {
+      const at = point(raw);
+      return at && { type: "placeParty", ...at };
+    }
     case "showDiscs":
       return isColour(raw.colour) && (raw.letter === null || isLetter(raw.letter)) && typeof raw.on === "boolean"
         ? { type: "showDiscs", colour: raw.colour, letter: raw.letter, on: raw.on }
@@ -850,6 +871,16 @@ function switchTo(state: TableState, id: string): TableState {
   return dropMissingCharacters({ ...state, ...target.parked, scenes, scene: id, curtain: true, cover: true });
 }
 
+/**
+ * Who Place party puts down (D-046): in roster order, the characters with a token in another scene, the party's last
+ * map; with none anywhere else, the whole party. An absent player's token still comes, and the DM takes it off.
+ */
+export function partyToPlace(state: TableState): string[] {
+  const elsewhere = new Set(state.scenes.flatMap((s) => (s.id !== state.scene ? (s.parked?.map?.tokens ?? []).map((t) => t.id) : [])));
+  const travelling = state.party.filter((p) => elsewhere.has(p.id)).map((p) => p.id);
+  return travelling.length ? travelling : state.party.map((p) => p.id);
+}
+
 /** The one place the table state changes. */
 export function apply(state: TableState, c: Command): TableState {
   switch (c.type) {
@@ -897,6 +928,23 @@ export function apply(state: TableState, c: Command): TableState {
       return withDiscs(state, (ds) => placeDisc(ds, c.colour, c, c.size));
     case "moveDisc":
       return editDisc(state, c.colour, c.letter, (d) => ({ ...d, ...snapDisc(c, d.size) }));
+    case "moveGroup":
+      return withDiscs(state, (ds) =>
+        ds.map((d) => (d.colour === c.colour ? { ...d, ...snapDisc({ x: d.x + c.dx, y: d.y + c.dy }, d.size) } : d)),
+      );
+    case "legendary": {
+      const g = state.map?.groups[c.colour];
+      if (!state.map || !g?.legendary) return state;
+      const groups = { ...state.map.groups, [c.colour]: { ...g, spent: Math.min(c.spent, g.legendary) } };
+      return { ...state, map: { ...state.map, groups } };
+    }
+    case "placeParty": {
+      const m = state.map;
+      const ids = partyToPlace(state);
+      if (!m || !ids.length) return state;
+      const placed = ids.map((id, i) => ({ id, ...snapDisc({ x: c.x + i, y: c.y }, 1) }));
+      return { ...state, map: { ...m, tokens: [...m.tokens.filter((t) => !ids.includes(t.id)), ...placed] } };
+    }
     case "removeDisc":
       return withDiscs(state, (ds) => ds.filter((d) => !sameDisc(d, c.colour, c.letter)));
     case "showDiscs":
@@ -940,8 +988,14 @@ export function apply(state: TableState, c: Command): TableState {
       return withFight(state, (f) => setInitiative(f, c.who, c.init, takingTurns(state)));
     case "swapTie":
       return withFight(state, (f) => swapTie(f, c.who, c.by));
-    case "nextTurn":
-      return withFight(state, (f) => nextTurn(f, takingTurns(state)));
+    case "nextTurn": {
+      const next = withFight(state, (f) => nextTurn(f, takingTurns(state)));
+      // A group's legendary actions come back at the start of its turn (D-046).
+      const who = next.fight?.current;
+      const g = who && isColour(who) ? next.map?.groups[who] : undefined;
+      if (!next.map || !g?.spent || who === state.fight?.current) return next;
+      return { ...next, map: { ...next.map, groups: { ...next.map.groups, [who as DiscColour]: { ...g, spent: 0 } } } };
+    }
     case "placePin": {
       const m = state.map;
       if (!m || m.pins.length >= MAX_PINS) return state;

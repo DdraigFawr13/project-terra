@@ -48,8 +48,13 @@ export type GroupInfo = {
   hasPortrait: boolean;
   /** Show the portrait on 1-inch tokens too, where by default the symbol reads better (D-036). */
   smallPortrait: boolean;
+  /** Legendary actions per round, from the linked stat block, and how many are used this round (D-046). DM-only. */
+  legendary: number;
+  spent: number;
 };
 export type Groups = Partial<Record<DiscColour, GroupInfo>>;
+/** The most legendary actions a stat block gives in a round. */
+const MAX_LEGENDARY = 9;
 export const blankGroup = (): GroupInfo => ({
   name: "",
   creature: null,
@@ -61,6 +66,8 @@ export const blankGroup = (): GroupInfo => ({
   revealed: false,
   hasPortrait: false,
   smallPortrait: false,
+  legendary: 0,
+  spent: 0,
 });
 
 /** The 2024 creature types, each with a symbol drawn in code (D-036). */
@@ -213,7 +220,24 @@ export function parseGroupInfo(raw: unknown): GroupInfo | null {
   const smallPortrait = raw.smallPortrait ?? false;
   if (symbol !== null && !isCreatureType(symbol)) return null;
   if (typeof revealed !== "boolean" || typeof hasPortrait !== "boolean" || typeof smallPortrait !== "boolean") return null;
-  return { name, creature, ac, speed, hpMax, notes, symbol, revealed, hasPortrait, smallPortrait };
+  // Groups saved before legendary actions (D-046) have none.
+  const legendary = raw.legendary === undefined ? 0 : optInt(raw.legendary, 0, MAX_LEGENDARY);
+  const spent = raw.spent === undefined ? 0 : optInt(raw.spent, 0, MAX_LEGENDARY);
+  if (typeof legendary !== "number" || typeof spent !== "number") return null;
+  return {
+    name,
+    creature,
+    ac,
+    speed,
+    hpMax,
+    notes,
+    symbol,
+    revealed,
+    hasPortrait,
+    smallPortrait,
+    legendary,
+    spent: Math.min(spent, legendary),
+  };
 }
 
 export function parseGroups(raw: unknown): Groups | null {
