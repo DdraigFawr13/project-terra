@@ -1,9 +1,19 @@
 // The Party window (D-028): a floating window with a tab per character, the numbers the DM checks mid-fight, and a
 // number pad for HP and temp HP. An Edit view sets everything else. Cards stay between sessions and outside undo (D-027).
-import { conditionFromHp, MAX_PARTY, parseCharacterFields, type Character, type CharacterFields, type Condition } from "../core/fight.ts";
+import {
+  conditionFromHp,
+  initialsOf,
+  MAX_PARTY,
+  parseCharacterFields,
+  PC_CONDITIONS,
+  type Character,
+  type CharacterFields,
+  type Condition,
+} from "../core/fight.ts";
 import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { button, el, field, NUMBER, stat, wholeOrNull } from "./dom.ts";
+import { cropView } from "./dm-token-crop.ts";
 import { sheetWin } from "./panel.ts";
 import { numpad } from "./numpad.ts";
 
@@ -11,9 +21,13 @@ const KEYS = ["name", "ac", "hpMax", "speed", "passive", "insight", "investigati
 type Draft = Record<(typeof KEYS)[number], string>;
 const WORD: Record<Condition, string> = { fine: "Fine", bloodied: "Bloodied", nearDeath: "Near death", down: "Down" };
 
-export function initParty(terra: DmApi): { show: () => void } {
+export function initParty(terra: DmApi, placeToken: (id: string) => void): { show: () => void } {
   let state: TableState | null = null;
   let tab: string | null = null;
+  /** The picture being cropped for a character's token (D-045). */
+  let cropping: { id: string; file: File } | null = null;
+  /** Says what the next tap on the map does, after Place on map. */
+  let placingHint = false;
   /** The card being edited (null id: a new one), with what has been typed so far. */
   let editing: { id: string | null; draft: Draft } | null = null;
   /** Remove asks first: a card is outside undo, so a slip would lose it for good (D-027, D-034). */
@@ -66,6 +80,10 @@ export function initParty(terra: DmApi): { show: () => void } {
         investigation: n("investigation"),
         spellDc: n("spellDc"),
         notes: d.notes,
+        picture: old?.picture,
+        farSide: old?.farSide,
+        mini: old?.mini,
+        conditions: old?.conditions,
       });
       if (!fields) {
         status.textContent =
@@ -133,8 +151,109 @@ export function initParty(terra: DmApi): { show: () => void } {
     return form;
   }
 
+  /** A character's token: its picture, whether it's on this map, how it stands, and the conditions it shows (D-045). */
+  function tokenSection(pc: Character): HTMLElement {
+    const edit = (change: Partial<Character>) => run({ type: "updateCharacter", character: { ...pc, ...change } });
+    const onMap = !!state?.map?.tokens.some((t) => t.id === pc.id);
+    const file = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp", hidden: true, "data-key": "pc-picture-file" });
+    file.addEventListener("change", () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      cropping = { id: pc.id, file: f };
+      render();
+    });
+    const toggle = (label: string, on: boolean, change: () => void, key: string) =>
+      button(label, { "aria-pressed": String(on), "data-key": key }, change);
+    return el(
+      "section",
+      { class: "token-section" },
+      el("h4", {}, "Token"),
+      el(
+        "div",
+        { class: "token-row" },
+        pc.picture
+          ? el("img", { class: "token-thumb", src: `terra-portrait://pc/${pc.picture}`, alt: `${pc.name}'s token picture` })
+          : el("span", { class: "token-thumb none", "aria-hidden": "true" }, initialsOf(pc.name)),
+        el(
+          "div",
+          { class: "token-actions" },
+          file,
+          button(pc.picture ? "Change picture…" : "Picture…", { "data-key": "pc-picture" }, () => file.click()),
+          ...(pc.picture ? [button("No picture", {}, () => edit({ picture: null }))] : []),
+          state?.map
+            ? button(onMap ? "Take off map" : "Place on map", { "data-key": "pc-place" }, () => {
+                if (onMap) return run({ type: "token", id: pc.id, at: null });
+                placeToken(pc.id);
+                placingHint = true;
+                render();
+              })
+            : el("small", {}, "Place a map to put this token on it."),
+        ),
+      ),
+      ...(placingHint
+        ? [el("p", { class: "hint", role: "status" }, "Tap the map where they stand. Drag the token with Select to move it.")]
+        : []),
+      el(
+        "div",
+        { class: "row-buttons" },
+        toggle("Mini on it", pc.mini, () => edit({ mini: !pc.mini }), "pc-mini"),
+        toggle(pc.farSide ? "Faces far side" : "Faces near side", pc.farSide, () => edit({ farSide: !pc.farSide }), "pc-side"),
+      ),
+      el(
+        "div",
+        { class: "condition-chips", role: "group", "aria-label": "Conditions shown on the token" },
+        ...PC_CONDITIONS.map((c) =>
+          toggle(
+            c[0]!.toUpperCase() + c.slice(1),
+            pc.conditions.includes(c),
+            () => edit({ conditions: pc.conditions.includes(c) ? pc.conditions.filter((x) => x !== c) : [...pc.conditions, c] }),
+            `pc-condition-${c}`,
+          ),
+        ),
+      ),
+    );
+  }
+
   function render(): void {
     if (!state || !win.isOpen()) return;
+    if (cropping && !state.party.some((c) => c.id === cropping!.id)) cropping = null;
+    if (cropping) {
+      const { id, file } = cropping;
+      const pc = state.party.find((c) => c.id === id)!;
+      win.actions.replaceChildren();
+      // Rebuilt only once: a state change mustn't drop the crop under the DM's finger.
+      if (win.body.dataset.cropping !== id) {
+        win.body.dataset.cropping = id;
+        win.body.replaceChildren(
+          cropView(
+            file,
+            {
+              initials: initialsOf(pc.name),
+              tint: Number(pc.id.slice(3)),
+              farSide: false,
+              mini: false,
+              turn: false,
+              down: false,
+              conditions: [],
+            },
+            async (bytes) => {
+              const picture = await terra.savePicture(bytes);
+              const now = state?.party.find((c) => c.id === id);
+              cropping = null;
+              delete win.body.dataset.cropping;
+              if (now) run({ type: "updateCharacter", character: { ...now, picture } });
+              render();
+            },
+            () => {
+              cropping = null;
+              delete win.body.dataset.cropping;
+              render();
+            },
+          ),
+        );
+      }
+      return;
+    }
     const party = state.party;
     if (!party.some((c) => c.id === tab)) tab = party[0]?.id ?? null;
     const pc = party.find((c) => c.id === tab);
@@ -199,8 +318,10 @@ export function initParty(terra: DmApi): { show: () => void } {
           el("span", { class: "hp-word" }, WORD[word]),
         ),
         pad.el,
+        tokenSection(pc),
         ...(pc.notes ? [el("p", { class: "notes" }, pc.notes)] : []),
       );
+      placingHint = false;
     }
     if (focused) win.body.querySelector<HTMLElement>(`[data-key="${focused}"]`)?.focus();
   }
