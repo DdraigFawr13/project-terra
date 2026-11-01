@@ -844,12 +844,18 @@ export function initMaps(
       // As the players see it: a revealed group's symbol or portrait, the letter on a tab when a mini stands on it (D-036).
       const { c, w } = draw({ ...d, ...tokenLook(d, map.groups) }, shownAt, down ? 0.3 : d.shown ? 1 : 0.45);
       // On table but not seen with Sight on (D-047): a slash in the warning colour, so the DM knows the players can't see it.
-      if (d.shown && !discSeen(map, d, sight)) {
-        ctx.strokeStyle = HIDDEN_SLASH;
-        ctx.lineWidth = Math.max(2, w * 0.08);
+      if (d.shown && !discSeen(map, { x: shownAt.x, y: shownAt.y, size: d.size }, sight)) {
+        // A dark edge first, so the slash reads on every disc colour.
         ctx.beginPath();
         (ctx.moveTo(c.x - w * 0.35, c.y + w * 0.35), ctx.lineTo(c.x + w * 0.35, c.y - w * 0.35));
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.75)";
+        ctx.lineWidth = Math.max(4, w * 0.14);
         ctx.stroke();
+        ctx.strokeStyle = HIDDEN_SLASH;
+        ctx.lineWidth = Math.max(2, w * 0.08);
+        ctx.stroke();
+        ctx.lineCap = "butt";
       }
       const full = down ? null : hpFraction(d, map.groups);
       if (full !== null) hpRing(ctx, c, w, full, conditionOf(d, map.groups));

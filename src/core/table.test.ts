@@ -16,6 +16,7 @@ import {
   parseSave,
   partyToPlace,
   playerViewOf,
+  discSeen,
   sceneTitle,
   coverOf,
   dmStateOf,
@@ -927,6 +928,25 @@ test("a size-3 disc shows when only an edge square's centre is seen, and hides w
   assert.deepEqual([large.map!.discs[0]!.x, large.map!.discs[0]!.y], [10, 6]);
   assert.equal(discs(run([box("reveal", 9.9, 5.9, 0.2, 0.2)], large)), 0);
   assert.equal(discs(run([box("reveal", 10.4, 6.4, 0.2, 0.2)], large)), 1);
+  // Odd sizes round: a Tiny disc (0.5) uses its own centre; 1.5 counts as 2 × 2. Off the map nothing is seen.
+  const at = (size: number, x: number, y: number) => ({ ...map, discs: [{ ...s.map!.discs[0]!, size, x, y }] });
+  const seenAt = (m: PlacedMap, fog: FogOp[]) => discSeen({ ...m, fog }, m.discs[0]!, "on");
+  const spot = (x: number, y: number): FogOp[] => [
+    {
+      kind: "outline",
+      mode: "reveal",
+      points: [
+        { x: x - 0.1, y: y - 0.1 },
+        { x: x + 0.1, y: y - 0.1 },
+        { x: x + 0.1, y: y + 0.1 },
+        { x: x - 0.1, y: y + 0.1 },
+      ],
+    },
+  ];
+  assert.deepEqual([seenAt(at(0.5, 3.25, 3.25), spot(3.25, 3.25)), seenAt(at(0.5, 3.25, 3.25), [])], [true, false]);
+  assert.deepEqual([seenAt(at(1.5, 4, 4), spot(4.5, 4.5)), seenAt(at(1.5, 4, 4), spot(4, 4))], [true, false]);
+  assert.equal(seenAt(at(1, -40.5, 2.5), [{ kind: "revealAll" }]), true);
+  assert.equal(seenAt(at(1, -40.5, 2.5), spot(3, 3)), false);
 });
 
 test("a curtain scene with Sight on hides its unseen discs", () => {
