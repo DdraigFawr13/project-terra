@@ -8,6 +8,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { _electron as electron } from "playwright";
 import { defaultCalibration, visibleRect } from "../src/core/calibration.ts";
+import { fogAt } from "../src/core/fog.ts";
 import { fillTable } from "../src/core/map.ts";
 
 /** The DM window's size on the laptop: 1920 x 1080 at Windows' 150%. */
@@ -758,6 +759,61 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.keyboard.press("Control+z");
     await until(dm, async () => Object.keys((await window.terra.getState()).map.doors).length === 0);
     await dm.click("#wallsMap");
+
+    // Sight follows a token (Sight S2, D-047): set On in the scene's menu; with Walls hidden the doors still show and a
+    // Select tap closes this one. A token below the wall sees its side only; opening the door shows the far side, and
+    // Undo takes the door and its re-look back together. The table gets fog, never the walls or doors (D-002).
+    const fogLevels = async (...at) => {
+      const fog = (await table.evaluate(() => window.terra.getView())).map.fog;
+      return at.map((p) => fogAt(fog, p));
+    };
+    /** Polls the table's fog until it reads `want` at the points (LESSONS: wait for state, never read it once). */
+    const fogBecomes = async (want, ...at) => {
+      const end = Date.now() + 10_000;
+      while (JSON.stringify(await fogLevels(...at)) !== JSON.stringify(want)) {
+        if (Date.now() > end) assert.deepEqual(await fogLevels(...at), want);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    };
+    const near = { x: 1.5, y: 3 };
+    const far = { x: 2.5, y: 0.5 };
+    await dm.click(".side-tabs button[data-tab='setup']");
+    await dm.click("#sceneList li.current button.icon");
+    await dm.click("button:has-text('Sight: Off…')");
+    assert.equal(await dm.getAttribute("button:has-text('Off: fog changes only')", "aria-pressed"), "true");
+    await dm.click("button:has-text('On: the table shows what the tokens can see.')");
+    await until(dm, async () => {
+      const st = await window.terra.getState();
+      return st.scenes.find((sc) => sc.id === st.scene).sight === "on";
+    });
+    await dm.mouse.click(doorTap.x, doorTap.y);
+    await until(dm, async (key) => (await window.terra.getState()).map.doors[key] === false, doorKey);
+    await dm.evaluate(async () => {
+      await window.terra.apply({ type: "addCharacter", character: { name: "Ash", ac: 15, hp: 10, hpMax: 10, passive: 12, speed: 30 } });
+    });
+    const pc = (await dm.evaluate(() => window.terra.getState())).party.at(-1).id;
+    await dm.evaluate((id) => window.terra.apply({ type: "token", id, at: { x: 1.5, y: 2.5 } }), pc);
+    await fogBecomes(["seen", "unexplored"], near, far);
+    await dm.mouse.click(doorTap.x, doorTap.y);
+    await until(dm, async (key) => (await window.terra.getState()).map.doors[key] === true, doorKey);
+    await fogBecomes(["seen", "seen"], near, far);
+    assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("door"));
+    await dm.evaluate(() => document.activeElement.blur());
+    await dm.keyboard.press("Control+z");
+    await until(dm, async (key) => (await window.terra.getState()).map.doors[key] === false, doorKey);
+    await fogBecomes(["seen", "unexplored"], near, far);
+    assert.match(await dm.evaluate(() => window.terra.problemReport()), /\nSlowest sight update: \d+\.\d ms\n/);
+    // A long fog list packs into one base in the background worker (D-047 item 8), and nothing is reported.
+    await dm.evaluate(async () => {
+      for (let k = 0; k < 500; k++)
+        await window.terra.apply({ type: "fog", op: { kind: "box", mode: "reveal", x: 0, y: 0, width: 1, height: 1 } });
+    });
+    await until(dm, async () => (await window.terra.getState()).map.fog[0].kind === "base");
+    assert.doesNotMatch(await dm.evaluate(() => window.terra.problemReport()), /Fog packing/);
+    await dm.evaluate(
+      (id) => window.terra.apply({ type: "sceneSight", id, sight: "off" }),
+      (await dm.evaluate(() => window.terra.getState())).scene,
+    );
     // A .dd2vtt carries its picture inside it, so it goes straight to Import.
     const dd2vtt = { ...vtt, image: checkerboardPng().toString("base64") };
     await dm.setInputFiles("#mapFile", { name: "Inn.dd2vtt", mimeType: "", buffer: Buffer.from(JSON.stringify(dd2vtt)) });

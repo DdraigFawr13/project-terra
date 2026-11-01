@@ -21,6 +21,7 @@ import {
   serialize,
   viewOf,
   UNDOABLE,
+  type Command,
   type TableState,
 } from "../core/table.ts";
 import { isColour, tokenLook } from "../core/fight.ts";
@@ -28,6 +29,12 @@ import { describeSave, dueForEarlier, earlierName, earlierSaves, earlierTime, ea
 import { countCreatures, findCreatures, getCreature, importCreatures } from "./creatures.ts";
 import { listMaps, loadAnnotation, mapFile, saveAnnotation, saveMap, savePatch, tableMapFile } from "./library.ts";
 import { pictureFile, savePicture } from "./curtains.ts";
+import { startPacking } from "./fog-pack.ts";
+import { afterCommand } from "../core/sight.ts";
+import { blockIndex } from "../core/wallcheck.ts";
+import type { Annotation } from "../core/annotation.ts";
+import type { Doors } from "../core/doors.ts";
+import type { Bounds } from "../core/map.ts";
 
 /** Going back to an earlier save keeps the rig as it is now: the screens, the calibration and the curtain (D-037). */
 function keepOnRestore(s: TableState): Partial<TableState> {
@@ -92,6 +99,36 @@ function logProblem(text: string): void {
   console.error(text);
   problems.push(`${new Date().toISOString()} ${text}`);
   if (problems.length > 50) problems.shift();
+}
+
+/**
+ * Sight (D-047): the current map's walls file and its wall index, kept until the map, its door record or its walls file
+ * changes, so a re-look reads neither the disk nor builds the index again.
+ */
+let walls: { id: string; annotation: Annotation } | null = null;
+let wallIndex: { annotation: Annotation; doors: Doors; index: ReturnType<typeof blockIndex> } | null = null;
+function wallsOf(id: string): Annotation {
+  if (walls?.id !== id) walls = { id, annotation: loadAnnotation(app.getPath("userData"), id) };
+  return walls.annotation;
+}
+function indexFor(annotation: Annotation, doors: Doors, b: Bounds): ReturnType<typeof blockIndex> {
+  if (wallIndex?.annotation !== annotation || wallIndex.doors !== doors)
+    wallIndex = { annotation, doors, index: blockIndex(annotation, doors, b) };
+  return wallIndex.index;
+}
+/** The slowest re-look this run, in ms, for the Problem report (not saved). */
+let slowestRelookMs: number | null = null;
+
+/** The state after a command, with Sight's re-look when one is due, timed when it runs. */
+function withSight(prev: TableState, next: TableState, command: Command): TableState {
+  // With Sight Off nothing is read from disk: today's Terra (D-047 item 1).
+  if (!next.map || next.scenes.find((sc) => sc.id === next.scene)?.sight === "off") return next;
+  // The walls file is read before the clock starts: a first read from disk isn't part of a re-look.
+  const annotation = wallsOf(next.map.id);
+  const t0 = performance.now();
+  const out = afterCommand(prev, next, command, annotation, indexFor);
+  if (out !== next) slowestRelookMs = Math.max(slowestRelookMs ?? 0, performance.now() - t0);
+  return out;
 }
 
 /** When the newest earlier save was taken this run, or null before the first. */
@@ -369,7 +406,15 @@ function commit(next: TableState): void {
   sendPlayerView();
   saveSoon();
   if (state.playerDisplayId !== before) placePlayerWindow();
+  // After undo and restore too: a long fog list packs in the background (D-047 item 8).
+  packer?.maybePack(state);
 }
+
+/**
+ * The fog-pack worker, started with the windows. A finished pack goes the way a parsed command does, minus the undo
+ * step; it lands only if those ops are still the scene's (D-047 item 8).
+ */
+let packer: ReturnType<typeof startPacking> | null = null;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -393,13 +438,19 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle("state:get", () => dmStateOf(state));
     ipcMain.handle("player:get", () => playerViewOf(state, placement().surfaceKey));
     ipcMain.handle("table:status", () => tableStatus());
+    packer = startPacking((pack) => {
+      const next = apply(state, { type: "packFog", ...pack });
+      if (next !== state) commit(next);
+    }, logProblem);
     // Neither returns the state: `commit` has already sent it, and with a long fog list each copy costs (D-029).
     ipcMain.handle("state:apply", (_e, raw: unknown) => {
       const command = parseCommand(raw);
       if (!command) return;
-      const next = apply(state, command);
+      const applied = apply(state, command);
       // A command that changes nothing, such as moving a locked map, leaves no undo step behind.
-      if (next === state) return;
+      if (applied === state) return;
+      // Sight's re-look shares the command's undo step (D-047 item 6).
+      const next = withSight(state, applied, command);
       if (UNDOABLE.has(command.type)) {
         const h = history();
         h.push(state);
@@ -444,6 +495,7 @@ if (!app.requestSingleInstanceLock()) {
         calibrated: Object.keys(state.calibrations),
         saveBytes: fs.existsSync(file) ? fs.statSync(file).size : null,
         earlier: listEarlier().length,
+        slowestRelookMs,
         notices: [notice, saveProblem].filter((n): n is string => !!n),
         log: problems,
       });
@@ -479,7 +531,12 @@ if (!app.requestSingleInstanceLock()) {
     });
     // Walls, pillars and openings (D-044): the DM window only. The table window's bridge has no channel to these (D-002).
     ipcMain.handle("library:walls", (_e, id: unknown) => loadAnnotation(app.getPath("userData"), id));
-    ipcMain.handle("library:saveWalls", (_e, id: unknown, raw: unknown) => saveAnnotation(app.getPath("userData"), id, raw));
+    ipcMain.handle("library:saveWalls", (_e, id: unknown, raw: unknown) => {
+      const saved = saveAnnotation(app.getPath("userData"), id, raw);
+      // Sight reads the new walls from the next re-look on.
+      if (walls?.id === id) walls = null;
+      return saved;
+    });
     // Stat blocks: the DM window only (D-028). The table window's bridge has no channel to these.
     ipcMain.handle("creatures:import", (_e, text: unknown) => importCreatures(app.getPath("userData"), text));
     ipcMain.handle("creatures:search", (_e, query: unknown) => findCreatures(app.getPath("userData"), query));

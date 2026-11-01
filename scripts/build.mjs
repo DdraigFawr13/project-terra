@@ -7,7 +7,8 @@ fs.rmSync("dist", { recursive: true, force: true });
 const common = { bundle: true, sourcemap: true, logLevel: "warning", target: "es2023" };
 await build({
   ...common,
-  entryPoints: ["src/main/main.ts", "src/main/dm-preload.ts", "src/main/player-preload.ts"],
+  // The fog-pack worker lands beside main.cjs, which loads it by path (D-047 item 8).
+  entryPoints: ["src/main/main.ts", "src/main/dm-preload.ts", "src/main/player-preload.ts", "src/main/fog-pack-worker.ts"],
   outdir: "dist",
   // The package is "type": "module", so CommonJS output for Electron needs the .cjs extension.
   outExtension: { ".js": ".cjs" },

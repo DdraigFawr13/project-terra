@@ -112,6 +112,10 @@ From Morgan's answers in the two rounds:
 - `blockersFor(annotation, doors)` returns only walls, pillars and closed doors; `blockIndex` adds the map-edge box from the bounds. S2's "no walls" test reads `blockersFor` as empty.
 - Until S2 adds `afterCommand`, `npm run bench:sight` times a stand-in re-look: the index, `sightFrom` per token, a `dimSeen` and one reveal per token through `apply`, and `playerViewOf`.
 
+**Build decision** (S2, 2026-11-01, Morgan in the build session's question form, option "Move to S4"):
+
+- Darkvision and light join `sightKey` in S4, with the dark ranges and the `Character` fields that S4 adds. The check `a darkvision edit re-looks on a dark scene` moves to S4. Until S4, "On, dark" sees as far as On. (The planning session relayed "hide Dark until S4" as its own recommendation; Morgan's direct answer in the build session kept all three choices.)
+
 ## Alternatives rejected
 
 - **Look from here on a tap:** Morgan's own test is sight that follows the tokens, and a tap per look fails it whenever the party moves often.
@@ -193,7 +197,7 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
   - the map id and `feetPerSquare`
   - each token's id and centre
   - the door record
-  - each token's character darkvision and light
+  - each token's character darkvision and light (from S4; build decision)
   - which tokens' characters are blinded, incapacitated, paralyzed, petrified, stunned, unconscious or down (HP 0). Stunned is included because the SRD 5.2 Stunned condition includes Incapacitated; checked against the SRD text at S2.
 - **`afterCommand(prev, next, command, annotation)`** returns `next` unchanged when any of these holds:
   - the current scene's Sight is Off
@@ -283,7 +287,6 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
   - `relook: blinded, stunned and down tokens add nothing`.
   - `off-map tokens add nothing`.
   - `no seeing token only dims`.
-  - `a darkvision edit re-looks on a dark scene`.
   - `outlines read back through parseFogOp unchanged`.
   - `1,000 re-looks keep the fog list under MAX_FOG_OPS and the save round-trips` (with no packs landing, so the 1,900 fallback is exercised).
   - In `src/core/fog.test.ts`: `addFog appends past 500 and bakes at 1,900`, `fogCheck gives the same value for equal lists and differs when one op's kind, mode or a point changes`.
@@ -313,7 +316,7 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
 ### S4 Dark scenes
 
 - **Morgan tries:** a cave with Sight Dark, one character with darkvision and one with a torch.
-- **Checks that fail now:** J4, `parse: darkvision and light`, and `an old save reads darkvision 0 and light none`.
+- **Checks that fail now:** J4, `parse: darkvision and light`, `an old save reads darkvision 0 and light none`, and `a darkvision edit re-looks on a dark scene` (moved from S2, build decision).
 - **Files:** `src/core/fight.ts` (fields, parse), `src/core/sight.ts` (ranges), `src/renderer/dm-party.ts`, tests.
 - **Waits on:** S2, and the SRD 5.2 check of torch and hooded lantern radii.
 

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fc from "fast-check";
 import { defaultCalibration } from "./calibration.ts";
 import { blankGroup, creatureTypeOf } from "./fight.ts";
+import { bake, fogAt, fogCheck, type FogOp } from "./fog.ts";
 import { placedExtent } from "./map.ts";
 import {
   parsePlacedMap,
@@ -317,6 +318,11 @@ test("the same commands give the same state, and any state saves and loads uncha
       type: fc.constant("door"),
       key: fc.constantFrom("d:2.00,1.00,3.00,1.00", "s:-0.00,1.00,0.00,2.00", "d:2,1,3,1", "__proto__"),
       open: fc.oneof(fc.boolean(), anyValue),
+    }),
+    fc.record({
+      type: fc.constant("sceneSight"),
+      id: fc.constantFrom("scene-1", "scene-2", "x"),
+      sight: fc.constantFrom("off", "on", "dark", "x"),
     }),
     fc.record({ type: fc.constant("party"), at: fc.oneof(fc.constant(null), anyValue, fc.record({ x: anyValue, y: anyValue })) }),
     fc.record({
@@ -707,7 +713,7 @@ test("saves before scenes upgrade to one scene; a damaged scene list keeps the f
   const parsed = parseSave(JSON.stringify(v12));
   assert.ok(parsed.ok);
   assert.deepEqual(parsed.state.scenes, [
-    { id: "scene-1", name: "", removed: false, parked: null, curtain: { kind: "black" }, ready: null },
+    { id: "scene-1", name: "", removed: false, parked: null, curtain: { kind: "black" }, ready: null, sight: "off" },
   ]);
   const two = run([
     { type: "placeMap", map },
@@ -835,4 +841,99 @@ test("the world map (D-039): link pins, the party marker, and the world map as a
   assert.equal(run([{ type: "party", at: null }], s).map!.party, null);
   // The DM window's thumbnail draws the same: the world comes whole while it is the curtain.
   assert.deepEqual(playerViewOf(dmStateOf(s), "window"), view);
+});
+
+/** A fog list of `n` small reveals and hides over the map, different enough that baking matters. */
+const fogList = (n: number): FogOp[] =>
+  Array.from({ length: n }, (_, k) => ({
+    kind: "box" as const,
+    mode: k % 3 ? ("reveal" as const) : ("hide" as const),
+    x: ((k * 7) % 26) - 2,
+    y: ((k * 3) % 16) - 3,
+    width: 2 + (k % 3),
+    height: 1 + (k % 2),
+  }));
+const withFog = (fog: FogOp[]) => run([{ type: "placeMap", map: { ...map, fog } }]);
+const packOf = (s: TableState, count: number) => ({
+  type: "packFog",
+  scene: s.scene,
+  count,
+  check: fogCheck(s.map!.fog.slice(0, count)),
+  base: bake(s.map!.fog.slice(0, count), s.map!.bounds),
+});
+
+test("packFog replaces the first count ops with the base, and fogAt gives the same level at every cell centre inside the bounds", () => {
+  const s = withFog(fogList(40));
+  const c = parseCommand(JSON.parse(JSON.stringify(packOf(s, 30))));
+  assert.ok(c);
+  assert.equal(UNDOABLE.has(c.type), false);
+  const next = apply(s, c);
+  assert.equal(next.map!.fog.length, 11);
+  assert.equal(next.map!.fog[0]!.kind, "base");
+  assert.deepEqual(next.map!.fog.slice(1), s.map!.fog.slice(30));
+  const b = s.map!.bounds;
+  for (let y = b.y + 0.5; y < b.y + b.height; y++)
+    for (let x = b.x + 0.5; x < b.x + b.width; x++)
+      assert.equal(fogAt(next.map!.fog, { x, y }), fogAt(s.map!.fog, { x, y }), `at ${x}, ${y}`);
+  // Bad parts are refused.
+  const good = packOf(s, 30);
+  for (const bad of [
+    { ...good, scene: "" },
+    { ...good, scene: "x".repeat(81) },
+    { ...good, count: 0 },
+    { ...good, count: 2001 },
+    { ...good, count: 1.5 },
+    { ...good, check: "ABCDEF12" },
+    { ...good, check: "abc" },
+    { ...good, base: { kind: "dimSeen" } },
+  ])
+    assert.equal(parseCommand(bad), null);
+});
+
+test("packFog is ignored after the ops changed, on another scene, past the list, or with other bounds", () => {
+  const s = withFog(fogList(40));
+  const pack = parseCommand(packOf(s, 30))!;
+  // The ops changed meanwhile: Reveal all, or an undo to a different list.
+  const changed = run([{ type: "fog", op: { kind: "revealAll" } }], s);
+  assert.equal(apply(changed, pack), changed);
+  const other = withFog(fogList(41).slice(1));
+  assert.equal(apply(other, pack), other);
+  // Another scene is on the table.
+  const away = run(
+    [
+      { type: "addScene", name: "Elsewhere" },
+      { type: "placeMap", map: { ...map, fog: fogList(40) } },
+    ],
+    s,
+  );
+  assert.equal(apply(away, pack), away);
+  // Past the end of the list: the check matches the 20 ops there, so only the length guard refuses it.
+  const short = withFog(fogList(20));
+  const long = parseCommand({ ...packOf(short, 20), count: 30 })!;
+  assert.equal(apply(short, long), short);
+  // Bounds that differ from the map's.
+  const moved = parseCommand({ ...packOf(s, 30), base: bake(s.map!.fog.slice(0, 30), { ...s.map!.bounds, width: 31 }) })!;
+  assert.equal(apply(s, moved), s);
+});
+
+test("Sight setting (D-047): Off by default, kept per scene, outside Reset and undo, copied with the scene", () => {
+  let s = run([
+    { type: "placeMap", map },
+    { type: "markReady", id: "scene-1" },
+  ]);
+  assert.equal(s.scenes[0]!.sight, "off");
+  s = run([{ type: "sceneSight", id: "scene-1", sight: "on" }], s);
+  assert.equal(s.scenes[0]!.sight, "on");
+  assert.equal(UNDOABLE.has("sceneSight"), false);
+  assert.equal(run([{ type: "resetScene" }], s).scenes[0]!.sight, "on");
+  const copied = run([{ type: "copyScene", id: "scene-1" }], s);
+  assert.equal(copied.scenes[1]!.sight, "on");
+  assert.equal(run([{ type: "addScene", name: "New" }], s).scenes[1]!.sight, "off");
+  assert.equal(parseCommand({ type: "sceneSight", id: "scene-1", sight: "bright" }), null);
+  // Saves before Sight read Off.
+  const old = JSON.parse(serialize(s));
+  delete old.scenes[0].sight;
+  const back = parseSave(JSON.stringify(old));
+  assert.ok(back.ok);
+  assert.equal(back.state.scenes[0]!.sight, "off");
 });

@@ -57,6 +57,8 @@ export type ReportInfo = {
   calibrated: string[];
   saveBytes: number | null;
   earlier: number;
+  /** The slowest Sight re-look this run, in ms (D-047), or null before the first. Not saved. */
+  slowestRelookMs: number | null;
   notices: string[];
   /** Recent problems, oldest first, each starting with its time. */
   log: string[];
@@ -79,6 +81,7 @@ export function problemReport(r: ReportInfo): string {
     ...r.displays.map(display),
     `Table uses ${r.surfaceKey}${r.fullscreen ? ", fullscreen" : ", in a window"}; calibrated for ${r.calibrated.join(", ") || "nothing"}`,
     `Save: ${r.saveBytes === null ? "none yet" : `${r.saveBytes} bytes`}; ${r.earlier} earlier saves`,
+    `Slowest sight update: ${r.slowestRelookMs === null ? "none yet" : `${r.slowestRelookMs.toFixed(1)} ms`}`,
     "",
     "Notices:",
     ...(r.notices.length ? r.notices.map((n) => `- ${n}`) : ["- none"]),

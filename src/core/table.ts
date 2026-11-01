@@ -45,7 +45,7 @@ import {
   type CreatureType,
 } from "./fight.ts";
 import { isDoorKey, parseDoors, setDoor } from "./doors.ts";
-import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
+import { addFog, fogCheck, MAX_FOG_OPS, parseFog, parseFogOp, type FogBase, type FogOp } from "./fog.ts";
 import { mapToTable, placedExtent, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
@@ -138,7 +138,14 @@ export type Scene = {
   curtain: SceneCurtain;
   /** A copy taken with Mark ready, for Reset to go back to (D-039). */
   ready: SceneContent | null;
+  /**
+   * Sight (D-047): Off, fog changes only by hand; On, the table shows what the tokens can see; Dark, as On limited by
+   * darkvision and light. Not part of `SceneContent`, so Reset leaves it alone. Saves before it read Off.
+   */
+  sight: Sight;
 };
+const SIGHTS = ["off", "on", "dark"] as const;
+export type Sight = (typeof SIGHTS)[number];
 /** A scene's curtain: black, a title (player-facing text, shown twice, D-008), or a picture the DM chose. */
 type SceneCurtain =
   | { kind: "black" }
@@ -269,7 +276,14 @@ export type Command =
   /** Put a character's token on a square of this map, or take it off with null (D-045). */
   | { type: "token"; id: string; at: Point | null }
   /** Open or close a door or secret door in this scene, by `doorKey` (D-047). */
-  | { type: "door"; key: string; open: boolean };
+  | { type: "door"; key: string; open: boolean }
+  /** A scene's Sight setting (D-047). Not undoable: scenes survive undo. */
+  | { type: "sceneSight"; id: string; sight: Sight }
+  /**
+   * A fog list packed in the background (D-047 item 8): the first `count` ops of the current scene's fog, named by their
+   * `fogCheck`, become `base`. Ignored when those ops have changed meanwhile.
+   */
+  | { type: "packFog"; scene: string; count: number; check: string; base: FogBase };
 
 /**
  * Commands the DM can take back with Undo. Switches such as the curtain, calibration drags and character cards are not
@@ -317,7 +331,7 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
 export type TableView = "curtain" | "calibrate" | "map" | "testGrid" | "idle";
 
 const BLACK: SceneCurtain = { kind: "black" };
-const FIRST_SCENE: Scene = { id: "scene-1", name: "", removed: false, parked: null, curtain: BLACK, ready: null };
+const FIRST_SCENE: Scene = { id: "scene-1", name: "", removed: false, parked: null, curtain: BLACK, ready: null, sight: "off" };
 
 export function defaultState(): TableState {
   return {
@@ -460,7 +474,8 @@ function curtainScene(state: TableState): TableState | null {
   const c = state.curtain && state.cover ? state.scenes.find((s) => s.id === state.scene)?.curtain : undefined;
   const other = c?.kind === "scene" ? state.scenes.find((s) => s.id === c.id && !s.removed) : undefined;
   if (!other?.parked?.map) return null;
-  return { ...state, ...other.parked, fight: null, curtain: false, cover: false, calibrating: false, testGrid: false };
+  // `scene` too, so whatever reads the shown scene's settings (its Sight) reads that scene's (D-047).
+  return { ...state, ...other.parked, scene: other.id, fight: null, curtain: false, cover: false, calibrating: false, testGrid: false };
 }
 
 /** The state the table shows now: the current scene's, or the scene shown as its curtain. */
@@ -518,6 +533,8 @@ const SURFACE_KEY = /^(window|display:-?\d{1,20})$/;
 const MAP_ID = /^map-[a-z0-9-]{1,60}$/;
 const SCENE_ID = /^scene-\d{1,3}$/;
 const isSceneId = (v: unknown): v is string => typeof v === "string" && SCENE_ID.test(v);
+const isSight = (v: unknown): v is Sight => SIGHTS.includes(v as Sight);
+const FOG_CHECK = /^[0-9a-f]{8}$/;
 const sceneName = (v: unknown): string | null => (typeof v === "string" && v.length <= MAX_SCENE_NAME ? v : null);
 const REACH_IN = 500;
 
@@ -846,6 +863,24 @@ export function parseCommand(raw: unknown): Command | null {
     }
     case "door":
       return isDoorKey(raw.key) && typeof raw.open === "boolean" ? { type: "door", key: raw.key, open: raw.open } : null;
+    case "sceneSight":
+      return isSceneId(raw.id) && isSight(raw.sight) ? { type: "sceneSight", id: raw.id, sight: raw.sight } : null;
+    case "packFog": {
+      const base = parseFogOp(raw.base);
+      const ok =
+        typeof raw.scene === "string" &&
+        raw.scene.length >= 1 &&
+        raw.scene.length <= 80 &&
+        Number.isInteger(raw.count) &&
+        (raw.count as number) >= 1 &&
+        (raw.count as number) <= MAX_FOG_OPS &&
+        typeof raw.check === "string" &&
+        FOG_CHECK.test(raw.check) &&
+        base?.kind === "base";
+      return ok
+        ? { type: "packFog", scene: raw.scene as string, count: (raw.count as number) + 0, check: raw.check as string, base }
+        : null;
+    }
     default:
       return null;
   }
@@ -1054,7 +1089,7 @@ export function apply(state: TableState, c: Command): TableState {
       if (!made) return state;
       const at = state.scenes.findIndex((s) => s.id === state.scene) + 1;
       const empty: SceneContent = { map: null, fight: null, mapLocked: false, testGrid: false };
-      const scene: Scene = { id: made.id, name: c.name, removed: false, parked: empty, curtain: BLACK, ready: null };
+      const scene: Scene = { id: made.id, name: c.name, removed: false, parked: empty, curtain: BLACK, ready: null, sight: "off" };
       const scenes = state.scenes.toSpliced(at, 0, scene);
       return switchTo({ ...state, scenes, lastScene: made.lastScene }, made.id);
     }
@@ -1133,6 +1168,25 @@ export function apply(state: TableState, c: Command): TableState {
       const doors = setDoor(state.map.doors, c.key, c.open);
       return doors === state.map.doors ? state : { ...state, map: { ...state.map, doors } };
     }
+    case "sceneSight":
+      return state.scenes.some((s) => s.id === c.id && s.sight !== c.sight)
+        ? withScene(state, c.id, (s) => ({ ...s, sight: c.sight }))
+        : state;
+    case "packFog": {
+      // Only onto the same ops it was baked from, over the same bounds: anything else changed meanwhile (D-047 item 8).
+      const m = state.map;
+      const b = c.base;
+      const same =
+        c.scene === state.scene &&
+        m &&
+        m.fog.length >= c.count &&
+        b.x === m.bounds.x &&
+        b.y === m.bounds.y &&
+        b.cols === m.bounds.width * b.ppi &&
+        b.rows === m.bounds.height * b.ppi &&
+        fogCheck(m.fog.slice(0, c.count)) === c.check;
+      return same ? { ...state, map: { ...m, fog: [b, ...m.fog.slice(c.count)] } } : state;
+    }
   }
 }
 
@@ -1170,7 +1224,10 @@ function parseScenes(raw: unknown, current: unknown): Scene[] | null {
     const curtain = s.curtain === undefined ? BLACK : parseSceneCurtain(s.curtain);
     const ready = s.ready === undefined || s.ready === null ? null : parseContent(s.ready);
     if (name === null || (s.parked !== null && !parked) || !curtain || (s.ready != null && !ready)) return null;
-    scenes.push({ id: s.id, name, removed: s.removed, parked, curtain, ready });
+    // Scenes saved before Sight (D-047) read Off.
+    const sight = s.sight === undefined ? "off" : isSight(s.sight) ? s.sight : null;
+    if (sight === null) return null;
+    scenes.push({ id: s.id, name, removed: s.removed, parked, curtain, ready, sight });
   }
   const here = scenes.filter((s) => !s.parked);
   return here.length === 1 && here[0]!.id === current && !here[0]!.removed ? scenes : null;

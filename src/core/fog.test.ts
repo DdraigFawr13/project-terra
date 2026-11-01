@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fc from "fast-check";
-import { addFog, bake, COMPACT_AT, fogAt, parseFog, parseFogOp, type FogBase, type FogOp } from "./fog.ts";
+import { addFog, bake, BAKE_NOW_AT, fogAt, fogCheck, parseFog, parseFogOp, type FogBase, type FogOp } from "./fog.ts";
 
 /** The map the fog lies on, in inches. */
 const B = { x: -2, y: -1, width: 34, height: 12 };
@@ -47,16 +47,6 @@ test("reveal makes an area seen; hide and 'party moves on' leave it explored; co
   // Reveal all and cover all make earlier ops irrelevant, so the list starts afresh.
   assert.deepEqual(add(fog, { kind: "revealAll" }), [{ kind: "revealAll" }]);
   assert.equal(fogAt(add(fog, { kind: "coverAll" }), { x: 3, y: 1 }), "unexplored");
-  // A long list is baked into a base and keeps taking strokes (D-029): it never stops, and stays short.
-  const long = Array.from({ length: COMPACT_AT }, () => room);
-  const next = add(long, brush);
-  assert.deepEqual(
-    next.map((op) => op.kind),
-    ["base", "brush"],
-  );
-  assert.equal(fogAt(next, { x: 1, y: 1 }), "seen");
-  assert.equal(fogAt(next, { x: 12, y: 0.5 }), "seen");
-  assert.equal(add(next, outline).length, 3);
 });
 
 test("baked fog reads the same as the ops it came from, at every cell, and saves and loads unchanged", () => {
@@ -156,4 +146,40 @@ test("fog ops from untrusted data are checked, rounded to hundredths, and -0 bec
   assert.deepEqual(parseFog([room, { kind: "dimSeen" }]), [room, { kind: "dimSeen" }]);
   assert.equal(parseFog([room, { kind: "explode" }]), null);
   assert.equal(parseFog({}), null);
+});
+
+test("addFog appends past 500 and bakes at 1,900", () => {
+  // Packing runs in the background (D-047 item 8), so a list grows past 500 untouched. Small boxes keep the bake quick.
+  const square: FogOp = { kind: "box", mode: "reveal", x: 0, y: 0, width: 1, height: 1 };
+  const full = add(
+    Array.from({ length: BAKE_NOW_AT - 1 }, () => square),
+    room,
+  );
+  assert.equal(BAKE_NOW_AT, 1900);
+  assert.equal(full.length, 1900);
+  assert.ok(full.every((op) => op.kind !== "base"));
+  // At 1,900 it is baked into a base in place and keeps taking strokes (D-029): it never stops, and stays short.
+  const next = add(full, brush);
+  assert.deepEqual(
+    next.map((op) => op.kind),
+    ["base", "brush"],
+  );
+  assert.equal(fogAt(next, { x: 1, y: 1 }), "seen");
+  assert.equal(fogAt(next, { x: 12, y: 0.5 }), "seen");
+  assert.equal(add(next, outline).length, 3);
+});
+
+test("fogCheck gives the same value for equal lists and differs when one op's kind, mode or a point changes", () => {
+  const list: FogOp[] = [room, brush, outline, { kind: "dimSeen" }];
+  const check = fogCheck(list);
+  assert.match(check, /^[0-9a-f]{8}$/);
+  assert.equal(fogCheck(JSON.parse(JSON.stringify(list))), check);
+  assert.equal(fogCheck([]), fogCheck([]));
+  const changes: FogOp[][] = [
+    [room, brush, outline, { kind: "coverAll" }],
+    [{ ...room, mode: "hide" }, brush, outline, { kind: "dimSeen" }],
+    [room, brush, { ...outline, points: [{ x: 20, y: 0.01 }, ...outline.points.slice(1)] }, { kind: "dimSeen" }],
+    [room, brush, outline],
+  ];
+  for (const other of changes) assert.notEqual(fogCheck(other), check);
 });
