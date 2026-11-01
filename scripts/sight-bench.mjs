@@ -40,7 +40,8 @@ for (const [n, at] of points.entries()) {
 function relook(s) {
   const index = blockIndex(annotation, s.map.doors, s.map.bounds);
   let next = apply(s, { type: "fog", op: { kind: "dimSeen" } });
-  for (const t of s.map.tokens) {
+  // The spec's four test points, not the tokens' snapped squares, so numbers compare with the prototype's.
+  for (const t of points) {
     const outline = sightFrom(index, t, null);
     if (outline.length) next = apply(next, { type: "fog", op: { kind: "outline", mode: "reveal", points: outline } });
   }
@@ -66,7 +67,7 @@ let pointsPer = [];
 for (let k = 0; k < runs; k++) {
   const [ims, index] = time(() => blockIndex(annotation, state.map.doors, state.map.bounds));
   indexMs.push(ims);
-  for (const t of state.map.tokens) {
+  for (const t of points) {
     const [oms, outline] = time(() => sightFrom(index, t, null));
     outlineMs.push(oms);
     if (k === 0) pointsPer.push(outline.length);

@@ -101,7 +101,14 @@ test("fast outline agrees with the reference", () => {
     a.pillars.push({ at: { x: r.int(2, 18), y: r.int(2, 10) }, r: 0.5 });
     a.openings.push({ kind: "door", a: { x: 5, y: r.int(1, 11) }, b: { x: 6, y: r.int(1, 11) }, open: r.chance(0.5) });
     a.openings.push({ kind: "window", a: { x: 9, y: 3 }, b: { x: 9, y: 5 }, open: false });
-    const p = { x: r.range(0.3, 19.7), y: r.range(0.3, 11.7) };
+    // Most points anywhere on the map; every fifth on whole inches (a cell corner, so rays start on cell borders and
+    // some run along them), and one off the map, where the grid isn't used.
+    const p =
+      n === 49
+        ? { x: -0.6, y: 5.5 }
+        : n % 5 === 0
+          ? { x: r.int(1, 19), y: r.int(1, 11) }
+          : { x: r.range(0.3, 19.7), y: r.range(0.3, 11.7) };
     const fast = lightFrom(a, bounds, p);
     for (const q of referenceLight(a, bounds, p))
       assert.ok(offOutline(q, fast) < 1e-6, `point ${n}: (${q.x}, ${q.y}) is off the fast outline`);
