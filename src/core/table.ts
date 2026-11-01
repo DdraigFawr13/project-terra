@@ -44,11 +44,12 @@ import {
   tokenLook,
   type CreatureType,
 } from "./fight.ts";
+import { isDoorKey, parseDoors, setDoor } from "./doors.ts";
 import { addFog, parseFog, parseFogOp, type FogOp } from "./fog.ts";
 import { mapToTable, placedExtent, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
-const SAVE_VERSION = 17;
+const SAVE_VERSION = 18;
 /** Pins on one map at most: plenty for marks, and a stuck pen can't fill the save. */
 export const MAX_PINS = 40;
 
@@ -106,6 +107,11 @@ export type PlacedMap = {
   party: Point | null;
   /** The characters with a token on this map (D-045). A newly placed map has none. */
   tokens: PcToken[];
+  /**
+   * Doors and secret doors the DM has opened or closed in this scene, by `doorKey` (true is open); any other door is as
+   * the library map has it (D-047). DM-only: never sent to the table window (D-002). Saves before version 18 have none.
+   */
+  doors: Record<string, boolean>;
 };
 
 /** A named place for the map on the table: its corner's position and turn, as `moveMap` and `turnMap` leave them. */
@@ -261,7 +267,9 @@ export type Command =
   /** Put the party marker at a point in map inches, or take it away with null. */
   | { type: "party"; at: Point | null }
   /** Put a character's token on a square of this map, or take it off with null (D-045). */
-  | { type: "token"; id: string; at: Point | null };
+  | { type: "token"; id: string; at: Point | null }
+  /** Open or close a door or secret door in this scene, by `doorKey` (D-047). */
+  | { type: "door"; key: string; open: boolean };
 
 /**
  * Commands the DM can take back with Undo. Switches such as the curtain, calibration drags and character cards are not
@@ -303,6 +311,7 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
   "linkPin",
   "party",
   "token",
+  "door",
 ]);
 
 export type TableView = "curtain" | "calibrate" | "map" | "testGrid" | "idle";
@@ -544,6 +553,8 @@ export function parsePlacedMap(raw: unknown): PlacedMap | null {
   const party = raw.party === undefined || raw.party === null ? null : isObject(raw.party) ? point(raw.party) : undefined;
   // And with no character tokens before D-045.
   const tokens = raw.tokens === undefined ? [] : parsePcTokens(raw.tokens);
+  // And with no door state before save version 18; bad entries are dropped, keeping the map.
+  const doors = parseDoors(raw.doors);
   const feetPerSquare = parseFeetPerSquare(raw.feetPerSquare);
   const b = raw.bounds;
   const bounds = { x: inches(b.x), y: inches(b.y), width: inches(b.width, 1), height: inches(b.height, 1) };
@@ -553,7 +564,22 @@ export function parsePlacedMap(raw: unknown): PlacedMap | null {
   if (!discs || !groups || !pins || !drawings || !spots || party === undefined || !tokens || !feetPerSquare) return null;
   const at = { x: inches(x)!, y: inches(y)!, turns: (turns + 0) as PlacedMap["turns"] };
   const marker = party && { x: hundredths(party.x), y: hundredths(party.y) };
-  return { id, name, bounds: bounds as Bounds, feetPerSquare, ...at, fog, discs, groups, pins, drawings, spots, party: marker, tokens };
+  return {
+    id,
+    name,
+    bounds: bounds as Bounds,
+    feetPerSquare,
+    ...at,
+    fog,
+    discs,
+    groups,
+    pins,
+    drawings,
+    spots,
+    party: marker,
+    tokens,
+    doors,
+  };
 }
 
 const isTurns = (v: unknown): v is PlacedMap["turns"] => v === 0 || v === 1 || v === 2 || v === 3;
@@ -818,6 +844,8 @@ export function parseCommand(raw: unknown): Command | null {
       const at = isObject(raw.at) ? point(raw.at) : null;
       return at && { type: "token", id: raw.id, at };
     }
+    case "door":
+      return isDoorKey(raw.key) && typeof raw.open === "boolean" ? { type: "door", key: raw.key, open: raw.open } : null;
     default:
       return null;
   }
@@ -1099,6 +1127,12 @@ export function apply(state: TableState, c: Command): TableState {
       const others = state.map.tokens.filter((t) => t.id !== c.id);
       return { ...state, map: { ...state.map, tokens: c.at ? [...others, { id: c.id, ...snapDisc(c.at, 1) }] : others } };
     }
+    case "door": {
+      // A full record takes no new key, and the state stays the same object.
+      if (!state.map) return state;
+      const doors = setDoor(state.map.doors, c.key, c.open);
+      return doors === state.map.doors ? state : { ...state, map: { ...state.map, doors } };
+    }
   }
 }
 
@@ -1152,7 +1186,7 @@ export function parseSave(text: string): ParsedSave {
   }
   if (!isObject(raw)) return { ok: false, reason: "not an object" };
   // Older versions read the same; fields they lack (calibrations, map, a map's fog and discs, party, fight) start at their defaults.
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, SAVE_VERSION].includes(raw.version as number)) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, SAVE_VERSION].includes(raw.version as number)) {
     return { ok: false, reason: `save version ${String(raw.version)} is newer or unknown (this app reads 1 to ${SAVE_VERSION})` };
   }
   // Each field goes through the same checks as a command, so a hand-edited save can't hold what the DM couldn't set.

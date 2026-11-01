@@ -35,8 +35,8 @@ test("every terrain keeps its walls on the map, and its objects and lights on cl
     }
 });
 
-test("the generator concept stays out of the app until its design phase (D-041)", () => {
-  const concept = /\/core\/(mapgen|mapdraw|detect|light|rng)\.ts/;
+test("the generator concept and the sight fixtures stay out of the app (D-041)", () => {
+  const concept = /\/core\/(mapgen|mapdraw|detect|light|rng|sight-fixtures)\.ts/;
   for (const dir of ["src/main", "src/renderer"])
     for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".ts")))
       assert.ok(!concept.test(fs.readFileSync(path.join(dir, f), "utf8")), `${dir}/${f} imports the generator concept`);

@@ -43,6 +43,7 @@ const map: PlacedMap = {
   spots: [],
   party: null,
   tokens: [],
+  doors: {},
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
@@ -312,6 +313,11 @@ test("the same commands give the same state, and any state saves and loads uncha
       id: anyValue,
     }),
     fc.record({ type: fc.constant("linkPin"), id: fc.constantFrom(1, 2, -0), scene: fc.constantFrom("scene-1", "scene-2", null, "x") }),
+    fc.record({
+      type: fc.constant("door"),
+      key: fc.constantFrom("d:2.00,1.00,3.00,1.00", "s:-0.00,1.00,0.00,2.00", "d:2,1,3,1", "__proto__"),
+      open: fc.oneof(fc.boolean(), anyValue),
+    }),
     fc.record({ type: fc.constant("party"), at: fc.oneof(fc.constant(null), anyValue, fc.record({ x: anyValue, y: anyValue })) }),
     fc.record({
       type: fc.constant("fog"),
@@ -353,7 +359,7 @@ test("older saves upgrade; unreadable or unknown saves are reported, not guessed
     ok: true,
     state: { ...defaultState(), calibrations: { window: cal }, map, mapLocked: true },
   });
-  assert.equal(parseSave(JSON.stringify({ version: 18, curtain: true })).ok, false);
+  assert.equal(parseSave(JSON.stringify({ version: 19, curtain: true })).ok, false);
   assert.equal(parseSave(JSON.stringify({ curtain: true })).ok, false);
 });
 

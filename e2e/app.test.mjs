@@ -720,6 +720,44 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     );
     await until(table, async (hallId) => (await window.terra.getView()).map?.id === hallId, hall.id);
     assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("door"));
+    // Open a door (Sight S1): with Walls shown, a Select tap on a door turns it for this scene, the map stays put and
+    // Undo takes it back; the table gets no door state (D-002). Two pings give the map-to-screen transform: each reports
+    // the exact table inches under a screen point; the curtain hides pings, so it goes up first.
+    await dm.evaluate(() => window.terra.apply({ type: "curtain", on: false }));
+    await table.waitForFunction(() => document.body.dataset.view === "map");
+    const hb = await dm.locator("#mapCanvas").boundingBox();
+    await dm.click("button[data-tool='ping']");
+    const pingAt = async (x, y) => {
+      const pinged = table.evaluate(
+        () =>
+          new Promise((resolve, reject) => {
+            window.terra.onPing(resolve);
+            setTimeout(() => reject(new Error("no ping reached the table")), 5000);
+          }),
+      );
+      await dm.mouse.click(x, y);
+      return { x, y, at: await pinged };
+    };
+    const [p1, p2] = [
+      await pingAt(hb.x + hb.width * 0.3, hb.y + hb.height * 0.3),
+      await pingAt(hb.x + hb.width * 0.7, hb.y + hb.height * 0.7),
+    ];
+    const onScreen = (tx, ty) => ({
+      x: p1.x + ((tx - p1.at.x) * (p2.x - p1.x)) / (p2.at.x - p1.at.x),
+      y: p1.y + ((ty - p1.at.y) * (p2.y - p1.y)) / (p2.at.y - p1.at.y),
+    });
+    const doorKey = "d:2.00,1.00,3.00,1.00";
+    const doorTap = onScreen(hall.x + 2.5, hall.y + 1);
+    await dm.click("#wallsMap");
+    await dm.click("button[data-tool='select']");
+    await dm.mouse.click(doorTap.x, doorTap.y);
+    await until(dm, async (key) => (await window.terra.getState()).map.doors[key] === false, doorKey);
+    assert.equal((await dm.evaluate(() => window.terra.getState())).map.x, hall.x);
+    assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("door"));
+    await dm.evaluate(() => document.activeElement.blur());
+    await dm.keyboard.press("Control+z");
+    await until(dm, async () => Object.keys((await window.terra.getState()).map.doors).length === 0);
+    await dm.click("#wallsMap");
     // A .dd2vtt carries its picture inside it, so it goes straight to Import.
     const dd2vtt = { ...vtt, image: checkerboardPng().toString("base64") };
     await dm.setInputFiles("#mapFile", { name: "Inn.dd2vtt", mimeType: "", buffer: Buffer.from(JSON.stringify(dd2vtt)) });

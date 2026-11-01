@@ -36,6 +36,7 @@ import { initPatch } from "./dm-patch.ts";
 import { initWalls } from "./dm-walls.ts";
 import { drawWalls } from "./walls-draw.ts";
 import { countOf, type Annotation } from "../core/annotation.ts";
+import { doorAt, doorKey, doorOpen } from "../core/doors.ts";
 import { roomAt, roomUncover } from "../core/rooms.ts";
 import { parseVtt, planVttPicture, type VttMap } from "../core/vtt.ts";
 import { icon } from "./icons.ts";
@@ -146,6 +147,8 @@ const SLIP_PX = 14;
 type Line = { pointer: number; pen: boolean; from: Point; points: Point[]; eraser: boolean };
 /** A line within this many canvas pixels of a tap or the eraser is hit. */
 const LINE_HIT_PX = 12;
+/** A Select tap this close to a drawn door or secret door, in map inches, opens or closes it (D-047). */
+const DOOR_HIT_IN = 0.25;
 /** Fingers find a disc within this many pixels of its edge, however small the map draws it (D-027). */
 const GRAB_PX = 22;
 /** Discs are drawn at least this wide on the DM's map so their letters stay readable. */
@@ -231,6 +234,8 @@ export function initMaps(
   let pinch: { dist: number; mid: Point } | null = null;
   /** Panning the zoomed view by dragging: Select on a locked map, or the middle mouse button. Canvas pixels. */
   let pan: { pointer: number; last: Point } | null = null;
+  /** Where a Select press that started a map drag or pan began: in canvas pixels, and the map inches under it. */
+  let doorPress: { pointer: number; from: Point; at: Point } | null = null;
   /** The DM's own view of the map (D-030): zoom past fitting the whole map, and the table point at the canvas centre. */
   let zoom = 1;
   let centre: Point | null = null;
@@ -283,7 +288,21 @@ export function initMaps(
         b.addEventListener("click", () =>
           run({
             type: "placeMap",
-            map: { ...m, x: 0, y: 0, turns: 0, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null, tokens: [] },
+            map: {
+              ...m,
+              x: 0,
+              y: 0,
+              turns: 0,
+              fog: [],
+              discs: [],
+              groups: {},
+              pins: [],
+              drawings: [],
+              spots: [],
+              party: null,
+              tokens: [],
+              doors: {},
+            },
           }),
         );
         const w = document.createElement("button");
@@ -480,7 +499,7 @@ export function initMaps(
     const { x, y, turns } = at;
     await run({
       type: "placeMap",
-      map: { ...entry, x, y, turns, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null, tokens: [] },
+      map: { ...entry, x, y, turns, fog: [], discs: [], groups: {}, pins: [], drawings: [], spots: [], party: null, tokens: [], doors: {} },
     });
     refreshLibrary();
   }
@@ -723,7 +742,7 @@ export function initMaps(
     if (img.complete && img.naturalWidth) fog.draw(ctx, img, map.bounds, map.fog, "dm");
     // Loaded whether or not they show: a tap in a room uses them (D-044).
     const traced = wallsFor(map.id);
-    if (traced && showWalls) drawWalls(ctx, traced, s, true);
+    if (traced && showWalls) drawWalls(ctx, traced, s, true, null, map.doors);
     const ghost = stroke && strokeOp(stroke);
     if (ghost) {
       ctx.fillStyle = ctx.strokeStyle = GHOST[ghost.mode];
@@ -1069,6 +1088,7 @@ export function initMaps(
     discDrag = null;
     placing = null;
     pan = null;
+    doorPress = null;
     render();
     return true;
   }
@@ -1165,7 +1185,8 @@ export function initMaps(
         grabbed = { pointer: e.pointerId, pen, pin, from: canvasPoint(e), at: state.map.party ?? mapInchesAt(e)!, moved: false };
         return;
       }
-      // A locked map stays put: a drag that misses every disc pans the zoomed view instead.
+      // A locked map stays put: a drag that misses every disc pans the zoomed view instead. Either may be a tap on a door.
+      doorPress = { pointer: e.pointerId, from: canvasPoint(e), at: mapInchesAt(e)! };
       if (!state.mapLocked) drag = { pointer: e.pointerId, pen, start: inchesAt(e), dx: 0, dy: 0 };
       else pan = { pointer: e.pointerId, last: canvasPoint(e) };
       return;
@@ -1366,6 +1387,24 @@ export function initMaps(
     }
     render();
   }
+  /**
+   * A Select tap that started a map drag or pan, on a door or secret door that is drawn (Walls shown), opens or closes it
+   * for this scene (D-047). True when it did. With no walls file loaded yet there is nothing to hit.
+   */
+  function tapDoor(e: PointerEvent, keep: boolean): boolean {
+    const press = doorPress;
+    if (press?.pointer !== e.pointerId) return false;
+    doorPress = null;
+    const map = state?.map;
+    const p = canvasPoint(e);
+    if (!keep || !map || !showWalls || Math.hypot(p.x - press.from.x, p.y - press.from.y) > SLIP_PX) return false;
+    const traced = wallsFor(map.id);
+    const door = traced && doorAt(traced, press.at, DOOR_HIT_IN);
+    if (!door) return false;
+    void run({ type: "door", key: doorKey(door), open: !doorOpen(door, map.doors) });
+    return true;
+  }
+
   const endPointer = (e: PointerEvent, keep: boolean) => {
     touches.delete(e.pointerId);
     // The finger left after a pinch stays inert until it lifts too.
@@ -1373,6 +1412,7 @@ export function initMaps(
     if (e.pointerType === "touch") hover = null;
     if (pan?.pointer === e.pointerId) {
       pan = null;
+      if (tapDoor(e, keep)) render();
       return;
     }
     if (discDrag?.pointer === e.pointerId) return endDisc(keep);
@@ -1420,7 +1460,9 @@ export function initMaps(
     if (drag?.pointer === e.pointerId) {
       const { dx, dy } = drag;
       drag = null;
-      if (keep && (dx || dy)) run({ type: "moveMap", dx, dy });
+      // A tap on a door turns it and moves nothing.
+      if (tapDoor(e, keep)) render();
+      else if (keep && (dx || dy)) run({ type: "moveMap", dx, dy });
       else render();
       return;
     }
