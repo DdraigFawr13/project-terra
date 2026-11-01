@@ -31,6 +31,7 @@ const map: PlacedMap = {
   spots: [],
   party: null,
   tokens: [],
+  doors: {},
 };
 const ash = { name: "Ash Vale", ac: 15, hp: 20, hpMax: 20, passive: 12, speed: 30, notes: "Owes the guild money" };
 const run = (commands: unknown[], from: TableState = defaultState()) =>

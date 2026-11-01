@@ -13,7 +13,7 @@ type Wall = { points: Point[]; closed: boolean };
 /** A round pillar, boulder or tree trunk that blocks sight. */
 type Pillar = { at: Point; r: number };
 /** `open`: how a door starts; each scene keeps its own state from step 2C. */
-type Opening = { kind: OpeningKind; a: Point; b: Point; open: boolean };
+export type Opening = { kind: OpeningKind; a: Point; b: Point; open: boolean };
 /** What a floor is made of (D-044 item 7), for living effects later (D-014). */
 const MATERIALS = ["stone", "wood", "earth", "grass", "water", "ice"] as const;
 export type Material = (typeof MATERIALS)[number];

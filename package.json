@@ -20,7 +20,8 @@
     "test:e2e": "npm run build && node --test \"e2e/*.test.mjs\"",
     "check": "npm run format:check && npm run typecheck && npm run knip && npm test",
     "dist:win": "npm run build && electron-builder --win zip --x64 --publish never",
-    "knip": "knip"
+    "knip": "knip",
+    "bench:sight": "node scripts/sight-bench.mjs"
   },
   "build": {
     "appId": "com.ddraigfawr13.projectterra",

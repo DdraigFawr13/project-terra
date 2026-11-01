@@ -29,6 +29,7 @@ const map: PlacedMap = {
   spots: [],
   party: null,
   tokens: [],
+  doors: {},
 };
 const run = (commands: unknown[], from: TableState = defaultState()) =>
   commands.reduce<TableState>((s, raw) => {
