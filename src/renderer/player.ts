@@ -45,6 +45,8 @@ let lasers: { points: Point[]; start: number }[] = [];
 const LASER_MS = 1200;
 let animating = false;
 let player: PlayerView | null = null;
+/** Live sight while the DM drags a token (Sight S5, D-047), in map inches, or null. Never saved. */
+let live: Point[] | null = null;
 
 const fog = new FogPainter();
 const image = mapImages(draw);
@@ -72,7 +74,8 @@ function drawLayer(cal: Calibration, mode: TableMode, calibrated: boolean): void
   pingCanvas.height = layerCanvas.height;
   pingCanvas.style.cssText = layerCanvas.style.cssText;
   pingCanvas.hidden = !pingLayer;
-  if (player) drawTable(lctx, { cal, layer, mode, calibrated, view: player, image, fog, area: visibleRect(cal, surface), picture }, 1);
+  if (player)
+    drawTable(lctx, { cal, layer, mode, calibrated, view: player, image, fog, area: visibleRect(cal, surface), picture, live }, 1);
 }
 
 /**
@@ -113,6 +116,8 @@ function draw(): void {
   sctx.fillStyle = "#000000";
   sctx.fillRect(0, 0, s.width, s.height);
   const view = player?.view ?? "curtain";
+  // The curtain or calibration ends a live outline, as it ends pings.
+  if (view !== "map") live = null;
   const calibration = player?.calibration ?? null;
   document.body.dataset.view = view;
   document.body.dataset.calibrated = String(!!calibration);
@@ -165,6 +170,10 @@ terra.onPing((at) => {
 terra.onLaser((points) => {
   lasers.push({ points, start: performance.now() });
   animate();
+});
+terra.onSightLive((points) => {
+  live = points;
+  draw();
 });
 terra.onSketch((s) => {
   sketches.push({ ...s, start: performance.now() });

@@ -633,6 +633,8 @@ export type TableScene = {
   area: Area;
   /** Curtain pictures, for the cover mode. */
   picture?: (id: string) => HTMLImageElement;
+  /** Live sight while the DM drags a token (Sight S5): an outline in map inches, drawn uncovered over the fog. */
+  live?: Point[] | null;
 };
 
 /** A scene's curtain over the part of the table the projector reaches: its picture fitted whole, or its title twice. */
@@ -697,6 +699,14 @@ export function drawTable(ctx: CanvasRenderingContext2D, scene: TableScene, scal
       // Map brightness (D-046): set once at the rehearsal, for this projector and room.
       if (view.brightness !== 1) ctx.filter = `brightness(${view.brightness})`;
       scene.fog.draw(ctx, img, map.bounds, map.fog, "table");
+      // Nothing stored: the map shows clear inside the dragged token's view until the drop's re-look (Sight S5).
+      if (scene.live && scene.live.length >= 3) {
+        ctx.beginPath();
+        scene.live.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        ctx.closePath();
+        ctx.clip("evenodd");
+        ctx.drawImage(img, map.bounds.x, map.bounds.y, map.bounds.width, map.bounds.height);
+      }
       ctx.restore();
     }
     // Over a map the grid is the scene's own (D-046): players may use it, and it checks the squares line up.

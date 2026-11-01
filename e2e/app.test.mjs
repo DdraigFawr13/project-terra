@@ -73,6 +73,7 @@ test("DM controls what the table shows, and it survives a restart", async () => 
       "onLaser",
       "onMapPatched",
       "onPing",
+      "onSightLive",
       "onSketch",
       "onView",
     ]);
@@ -834,6 +835,36 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await enemyBecomes({ strip: true, disc: false, chip: false });
     await dm.evaluate(() => window.terra.apply({ type: "endFight" }));
     assert.match(await dm.evaluate(() => window.terra.problemReport()), /\nSlowest sight update: \d+\.\d ms\n/);
+    // Live sight (Sight S5, D-047): while a token is dragged, the table gets the dragged token's outline on
+    // `table:sight-live`; nothing is stored until the drop, and nothing is sent while the curtain is down.
+    await table.evaluate(() => {
+      window.liveSeen = [];
+      window.terra.onSightLive((points) => window.liveSeen.push(points));
+    });
+    const liveSeen = () => table.evaluate(() => window.liveSeen);
+    const fogCount = async () => (await dm.evaluate(() => window.terra.getState())).map.fog.length;
+    const fogBefore = await fogCount();
+    const grab = onScreen(hall.x + 1.5, hall.y + 2.5);
+    const left = onScreen(hall.x + 0.5, hall.y + 2.5);
+    const right = onScreen(hall.x + 2.5, hall.y + 2.5);
+    await dm.mouse.move(grab.x, grab.y);
+    await dm.mouse.down();
+    await dm.mouse.move(left.x, left.y, { steps: 5 });
+    await until(table, () => window.liveSeen.some((p) => Array.isArray(p) && p.length >= 3));
+    assert.equal(await fogCount(), fogBefore, "no fog op until the drop");
+    await dm.evaluate(() => window.terra.apply({ type: "curtain", on: true }));
+    await table.waitForFunction(() => document.body.dataset.view === "curtain");
+    const sentBefore = (await liveSeen()).length;
+    await dm.mouse.move(right.x, right.y, { steps: 5 });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal((await liveSeen()).length, sentBefore, "nothing on table:sight-live while the curtain is down");
+    await dm.evaluate(() => window.terra.apply({ type: "curtain", on: false }));
+    await table.waitForFunction(() => document.body.dataset.view === "map");
+    assert.equal(await fogCount(), fogBefore, "still no fog op before the drop");
+    await dm.mouse.up();
+    await until(dm, async (id) => (await window.terra.getState()).map.tokens.find((t) => t.id === id)?.x === 2.5, pc);
+    await until(table, () => window.liveSeen.at(-1) === null);
+    assert.ok((await fogCount()) > fogBefore, "the drop runs the normal re-look");
     // A long fog list packs into one base in the background worker (D-047 item 8), and nothing is reported.
     await dm.evaluate(async () => {
       for (let k = 0; k < 500; k++)

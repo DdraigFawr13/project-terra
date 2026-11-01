@@ -19,6 +19,7 @@ import {
   parseLine,
   playerViewOf,
   serialize,
+  sightOf,
   viewOf,
   UNDOABLE,
   type Command,
@@ -30,7 +31,7 @@ import { countCreatures, findCreatures, getCreature, importCreatures } from "./c
 import { listMaps, loadAnnotation, mapFile, saveAnnotation, saveMap, savePatch, tableMapFile } from "./library.ts";
 import { pictureFile, savePicture } from "./curtains.ts";
 import { startPacking } from "./fog-pack.ts";
-import { afterCommand } from "../core/sight.ts";
+import { afterCommand, liveSight } from "../core/sight.ts";
 import { blockIndex } from "../core/wallcheck.ts";
 import type { Annotation } from "../core/annotation.ts";
 import type { Doors } from "../core/doors.ts";
@@ -518,6 +519,18 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle("table:laser", (_e, raw: unknown) => {
       const points = parseLine(raw);
       if (points && viewOf(state) === "map") send(playerWindow, "player:laser", points);
+    });
+    // Live sight while a token is dragged (Sight S5, D-047): the dragged token's outline goes to the table as it
+    // moves, drawn uncovered there. Nothing is stored; the drop runs the normal re-look. The curtain hides it, as it
+    // hides pings. A null id ends the drag, and a null outline clears the table's.
+    ipcMain.handle("sight:drag", (_e, id: unknown, x: unknown, y: unknown) => {
+      if (id === null) return send(playerWindow, "table:sight-live", null);
+      const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 500;
+      if (typeof id !== "string" || id.length > 80 || !ok(x) || !ok(y)) return;
+      // With Sight Off nothing is read from disk, as for a re-look (D-047 item 1).
+      if (!state.map || sightOf(state) === "off" || viewOf(state) !== "map") return;
+      const points = liveSight(state, wallsOf(state.map.id), id, { x: x + 0, y: y + 0 }, indexFor);
+      send(playerWindow, "table:sight-live", points);
     });
     ipcMain.handle("library:list", () => listMaps(app.getPath("userData")));
     ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown, feet: unknown, walls: unknown) =>

@@ -108,3 +108,24 @@ export function relook(state: TableState, index: Index): TableState {
   }
   return { ...state, map: { ...m, fog } };
 }
+
+/**
+ * Live sight while a token is dragged (S5): the outline the token with `id` would see standing at `at`, in map inches,
+ * worked out as a re-look would, so the drop shows the same view. Null where a re-look would add none for it: Sight
+ * Off, no traced walls, no such token on the map, a character who can't see or (on a dark scene) has no range, or a
+ * point off the map. Nothing is stored; the drop runs the normal re-look.
+ */
+export function liveSight(
+  state: TableState,
+  annotation: Annotation | null,
+  id: string,
+  at: Point,
+  indexFor: (a: Annotation, doors: Doors, b: Bounds) => Index = blockIndex,
+): Point[] | null {
+  const m = state.map;
+  if (!m || sightOf(state) === "off" || !annotation || !blocksAnything(annotation)) return null;
+  const t = lookers(state).find((l) => l.id === id);
+  if (!t || !t.sees || t.range === 0 || !inside(at, m.bounds)) return null;
+  const points = sightFrom(indexFor(annotation, m.doors, m.bounds), at, t.range);
+  return points.length ? points : null;
+}
