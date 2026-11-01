@@ -256,6 +256,8 @@ test("the same commands give the same state, and any state saves and loads uncha
         hpMax: anyValue,
         passive: anyValue,
         speed: anyValue,
+        darkvision: fc.oneof(anyValue, fc.constantFrom(60, 62.5, -0)),
+        light: fc.oneof(anyValue, fc.constantFrom("torch", "lantern")),
       }),
     }),
     fc.record({

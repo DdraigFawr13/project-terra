@@ -1,5 +1,6 @@
 // Times a Sight re-look on the dense test map with four tokens (docs/specs/sight.md, J6). Not run in CI: timings on
-// shared runners are noise (VER-04). Usage: npm run bench:sight [runs]
+// shared runners are noise (VER-04). Usage: npm run bench:sight [runs] [dark]
+// With `dark`, the scene is dark and each hero has darkvision 60 ft (Sight S4), so outlines stop at 12 inches.
 // The whole look is a token move through `apply`, `afterCommand` and `playerViewOf`. Packing runs in a worker in the
 // app (D-047 item 8), so it stays out of the timed path; one `bake` of 500 ops is timed apart as the worker's cost, with
 // the main thread's share of a pack (two `fogCheck`s and the `packFog` command).
@@ -11,6 +12,7 @@ import { apply, defaultState, playerViewOf } from "../src/core/table.ts";
 import { blockIndex, blockersFor, sightFrom } from "../src/core/wallcheck.ts";
 
 const runs = Number(process.argv[2] ?? 200);
+const dark = process.argv[3] === "dark";
 const { annotation, bounds, points } = denseRooms(20, 12, 60);
 
 let state = apply(defaultState(), {
@@ -34,11 +36,21 @@ let state = apply(defaultState(), {
     doors: {},
   },
 });
-state = apply(state, { type: "sceneSight", id: state.scene, sight: "on" });
+state = apply(state, { type: "sceneSight", id: state.scene, sight: dark ? "dark" : "on" });
 for (const [n, at] of points.entries()) {
   state = apply(state, {
     type: "addCharacter",
-    character: { name: `Hero ${n + 1}`, ac: 12, hp: 10, hpMax: 10, passive: 10, speed: 30, conditions: [] },
+    character: {
+      name: `Hero ${n + 1}`,
+      ac: 12,
+      hp: 10,
+      hpMax: 10,
+      passive: 10,
+      speed: 30,
+      conditions: [],
+      darkvision: dark ? 60 : 0,
+      light: "none",
+    },
   });
   state = apply(state, { type: "token", id: `pc-${n + 1}`, at });
 }
@@ -101,7 +113,7 @@ for (let r = 0; r < runs; r++) {
   const [ims, index] = time(() => blockIndex(annotation, state.map.doors, state.map.bounds));
   indexMs.push(ims);
   for (const t of points) {
-    const [oms, outline] = time(() => sightFrom(index, t, null));
+    const [oms, outline] = time(() => sightFrom(index, t, dark ? 12 : null));
     outlineMs.push(oms);
     if (r === 0) pointsPer.push(outline.length);
   }
@@ -128,7 +140,7 @@ for (let r = 0; r < 5; r++) {
   lands.push(time(() => apply(list, { type: "packFog", scene: list.scene, count: COMPACT_AT, check, base }))[0]);
 }
 console.log(
-  `Dense test map: ${blockersFor(annotation, {}).length} blocking pieces, 4 tokens, 8 discs, ${runs} runs (Node ${process.version}).`,
+  `Dense test map: ${blockersFor(annotation, {}).length} blocking pieces, 4 tokens, 8 discs, ${runs} runs, ${dark ? "dark, darkvision 60 ft" : "lit"} (Node ${process.version}).`,
 );
 console.log(`Index:              ${stats(indexMs)}`);
 console.log(`sightFrom per token: ${stats(outlineMs)}; points ${pointsPer.join(", ")}`);

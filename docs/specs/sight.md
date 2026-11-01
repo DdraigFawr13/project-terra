@@ -116,6 +116,11 @@ From Morgan's answers in the two rounds:
 
 - Darkvision and light join `sightKey` in S4, with the dark ranges and the `Character` fields that S4 adds. The check `a darkvision edit re-looks on a dark scene` moves to S4. Until S4, "On, dark" sees as far as On. (The planning session relayed "hide Dark until S4" as its own recommendation; Morgan's direct answer in the build session kept all three choices.)
 
+**SRD 5.2 check and build default** (S4, 2026-11-01, no question needed):
+
+- Radii from the official SRD 5.2.1 PDF (media.dndbeyond.com, Adventuring Gear, PDF pages 98 and 100): Torch "casting Bright Light in a 20-foot radius and Dim Light for an additional 20 feet"; Lantern, Hooded "Bright Light in a 30-foot radius and Dim Light for an additional 30 feet" (hood up; a lowered hood is not a choice). So a torch sees 40 ft and a hooded lantern 60 ft; a character with both darkvision and a light sees the farther of the two.
+- `sightKey` holds each seeing token's range on a dark scene (from darkvision, light and `feetPerSquare`) instead of the raw fields, so a darkvision or light edit on a lit scene, or for a token that can't see, doesn't re-look and dim what the DM uncovered by hand.
+
 ## Alternatives rejected
 
 - **Look from here on a tap:** Morgan's own test is sight that follows the tokens, and a tap per look fails it whenever the party moves often.
@@ -197,7 +202,7 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
   - the map id and `feetPerSquare`
   - each token's id and centre
   - the door record
-  - each token's character darkvision and light (from S4; build decision)
+  - each seeing token's range on a dark scene, from its character's darkvision and light (S4; see Decisions)
   - which tokens' characters are blinded, incapacitated, paralyzed, petrified, stunned, unconscious or down (HP 0). Stunned is included because the SRD 5.2 Stunned condition includes Incapacitated; checked against the SRD text at S2.
 - **`afterCommand(prev, next, command, annotation)`** returns `next` unchanged when any of these holds:
   - the current scene's Sight is Off
@@ -338,4 +343,4 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
 
 ## Open questions
 
-- Torch and hooded lantern bright and dim radii from the SRD 5.2 text. This is a fact-check before S4, not a decision.
+- None. The torch and hooded lantern radii were checked against the SRD 5.2 at S4 (Decisions).

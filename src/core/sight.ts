@@ -3,6 +3,7 @@
 // token's view is revealed. Main runs it, because the walls live in the library, not the table state. Pure.
 import type { Annotation } from "./annotation.ts";
 import type { Doors } from "./doors.ts";
+import type { Character, Light } from "./fight.ts";
 import { addFog } from "./fog.ts";
 import type { Point } from "./homography.ts";
 import type { Bounds } from "./map.ts";
@@ -17,13 +18,33 @@ type Index = ReturnType<typeof blockIndex>;
  */
 const UNSEEING = new Set(["blinded", "incapacitated", "paralyzed", "petrified", "stunned", "unconscious"]);
 
-/** The current map's tokens, each with whether its character can see now (not blinded and the like, not down). */
-function lookers(state: TableState): { id: string; at: Point; sees: boolean }[] {
+/**
+ * How far each carried light lets its carrier see, in feet: its Bright Light radius plus its additional Dim Light.
+ * Copied from the SRD 5.2 (Sight S4, 2026-11-01), Adventuring Gear:
+ * - Torch: "casting Bright Light in a 20-foot radius and Dim Light for an additional 20 feet."
+ * - Lantern, Hooded: "cast Bright Light in a 30-foot radius and Dim Light for an additional 30 feet." (hood up)
+ */
+const LIGHT_FEET: Record<Light, number> = { none: 0, torch: 40, lantern: 60 };
+
+/**
+ * How far a character sees on the current scene, in map inches: null (to the walls) unless the scene is dark; on a
+ * dark scene the farther of their darkvision and their light's radius, so 0 when they have neither.
+ */
+function rangeOf(state: TableState, pc: Character): number | null {
+  if (sightOf(state) !== "dark" || !state.map) return null;
+  return Math.max(pc.darkvision, LIGHT_FEET[pc.light]) / state.map.feetPerSquare;
+}
+
+/**
+ * The current map's tokens, each with whether its character can see now (not blinded and the like, not down) and how
+ * far (`rangeOf`).
+ */
+function lookers(state: TableState): { id: string; at: Point; sees: boolean; range: number | null }[] {
   return (state.map?.tokens ?? []).flatMap((t) => {
     const pc = state.party.find((p) => p.id === t.id);
     if (!pc) return [];
     const sees = pc.hp > 0 && !pc.conditions.some((c) => UNSEEING.has(c));
-    return [{ id: t.id, at: { x: t.x, y: t.y }, sees }];
+    return [{ id: t.id, at: { x: t.x, y: t.y }, sees, range: rangeOf(state, pc) }];
   });
 }
 
@@ -31,8 +52,9 @@ const inside = (p: Point, b: Bounds): boolean => p.x >= b.x && p.x <= b.x + b.wi
 
 /**
  * Everything a re-look depends on, as text: the scene and its Sight, the map and its feet per square, each token's
- * centre, the door record, and which tokens' characters can't see. A command that leaves it alone needs no re-look.
- * Darkvision and carried light join it in S4, with the dark ranges (build decision, Morgan 2026-11-01).
+ * centre, the door record, which tokens' characters can't see, and on a dark scene how far each sees (from their
+ * darkvision and light, S4). A command that leaves it alone needs no re-look; on a lit scene a darkvision or light
+ * edit changes nothing seen, so it doesn't re-look and dim what the DM uncovered by hand.
  */
 export function sightKey(state: TableState): string {
   const m = state.map;
@@ -41,7 +63,7 @@ export function sightKey(state: TableState): string {
     sightOf(state),
     m?.id ?? null,
     m?.feetPerSquare ?? null,
-    lookers(state).map((t) => [t.id, t.at.x, t.at.y, t.sees]),
+    lookers(state).map((t) => [t.id, t.at.x, t.at.y, t.sees, t.sees ? t.range : null]),
     m?.doors ?? null,
   ]);
 }
@@ -72,15 +94,16 @@ export function afterCommand(
 
 /**
  * The party moves on: a `dimSeen`, then one reveal outline per seeing token on the map, through `addFog`. Packing a
- * long list happens in the background (D-047 item 8). On a dark scene, sight is unlimited until S4 adds the ranges.
+ * long list happens in the background (D-047 item 8). On a dark scene each token sees only as far as its darkvision
+ * or light reaches, and one with neither adds nothing.
  */
 export function relook(state: TableState, index: Index): TableState {
   const m = state.map;
   if (!m) return state;
   let fog = addFog(m.fog, { kind: "dimSeen" }, m.bounds);
   for (const t of lookers(state)) {
-    if (!t.sees || !inside(t.at, m.bounds)) continue;
-    const points = sightFrom(index, t.at, null);
+    if (!t.sees || t.range === 0 || !inside(t.at, m.bounds)) continue;
+    const points = sightFrom(index, t.at, t.range);
     if (points.length) fog = addFog(fog, { kind: "outline", mode: "reveal", points }, m.bounds);
   }
   return { ...state, map: { ...m, fog } };

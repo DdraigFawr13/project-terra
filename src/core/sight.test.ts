@@ -223,3 +223,105 @@ test("1,000 re-looks keep the fog list under MAX_FOG_OPS and the save round-trip
   assert.deepEqual(back.state.map!.fog, ops(s));
   assert.equal(back.state.scenes[0]!.sight, "on");
 });
+
+/**
+ * A 40 × 20 inch cave with one wall from (20, 0) to (20, 8), on a dark scene. Each character's darkvision and light
+ * are set when added.
+ */
+const cave: Annotation = {
+  ...emptyAnnotation(),
+  walls: [
+    {
+      points: [
+        { x: 20, y: 0 },
+        { x: 20, y: 8 },
+      ],
+      closed: false,
+    },
+  ],
+};
+const caveMap: PlacedMap = { ...map, id: "map-cave", name: "Cave", bounds: { x: 0, y: 0, width: 40, height: 20 } };
+function inCave(feetPerSquare: number, pcs: { at: { x: number; y: number }; darkvision?: number; light?: string }[]): TableState {
+  let s = run([
+    { type: "placeMap", map: { ...caveMap, feetPerSquare } },
+    { type: "sceneSight", id: "scene-1", sight: "dark" },
+  ]);
+  for (const [n, pc] of pcs.entries()) {
+    s = run([{ type: "addCharacter", character: { ...hero, name: `Hero ${n + 1}`, darkvision: pc.darkvision, light: pc.light } }], s);
+    s = run([{ type: "token", id: `pc-${n + 1}`, at: pc.at }], s);
+  }
+  return relook(s, blockIndex(cave, s.map!.doors, s.map!.bounds));
+}
+/** The farthest outline point from `at`, in map inches. */
+const reach = (op: FogOp, at: { x: number; y: number }) =>
+  op.kind === "outline" ? Math.max(...op.points.map((p) => Math.hypot(p.x - at.x, p.y - at.y))) : NaN;
+const outlines = (s: TableState) => ops(s).filter((op) => op.kind === "outline");
+
+test("dark: sight stops at darkvision and at the light's radius", () => {
+  const ash = { x: 5.5, y: 15.5 };
+  const bo = { x: 30.5, y: 12.5 };
+  const cy = { x: 17.5, y: 2.5 };
+  const s = inCave(5, [
+    { at: ash, darkvision: 60 },
+    // SRD 5.2 (Torch): "Bright Light in a 20-foot radius and Dim Light for an additional 20 feet".
+    { at: bo, light: "torch" },
+    { at: cy, darkvision: 60 },
+    { at: { x: 10.5, y: 17.5 } },
+  ]);
+  // Darkvision 60 ft on 5 ft squares: 12 inches. The torch: 20 + 20 ft, so 8 inches.
+  const [a, b, c] = outlines(s);
+  assert.equal(outlines(s).length, 3, "a character with darkvision 0 and no light adds no sight on a dark scene");
+  assert.ok(Math.abs(reach(a!, ash) - 12) < 0.02, `darkvision reach ${reach(a!, ash)}`);
+  assert.ok(Math.abs(reach(b!, bo) - 8) < 0.02, `torch reach ${reach(b!, bo)}`);
+  assert.equal(fogAt(ops(s), { x: ash.x + 11.5, y: ash.y }), "seen");
+  assert.equal(fogAt(ops(s), { x: ash.x + 12.5, y: ash.y }), "unexplored");
+  assert.equal(fogAt(ops(s), { x: bo.x, y: bo.y - 7.5 }), "seen");
+  assert.equal(fogAt(ops(s), { x: bo.x, y: bo.y - 8.5 }), "unexplored");
+  // Both are cut by walls: Cy's 12 inches stop at the wall beside them, but reach round its end.
+  assert.ok(Math.abs(reach(c!, cy) - 12) < 0.02);
+  assert.equal(fogAt(ops(s), { x: 19, y: 2.5 }), "seen");
+  assert.equal(fogAt(ops(s), { x: 22, y: 2.5 }), "unexplored");
+  assert.equal(fogAt(ops(s), { x: 21, y: 11 }), "seen");
+  // On 10 ft squares the ranges halve; darkvision and a light together reach the farther of the two.
+  const lantern = inCave(10, [
+    // SRD 5.2 (Lantern, Hooded): "Bright Light in a 30-foot radius and Dim Light for an additional 30 feet".
+    { at: ash, darkvision: 30, light: "lantern" },
+    { at: bo, darkvision: 60, light: "torch" },
+  ]);
+  const [l, t] = outlines(lantern);
+  assert.ok(Math.abs(reach(l!, ash) - 6) < 0.02, `lantern reach ${reach(l!, ash)}`);
+  assert.ok(Math.abs(reach(t!, bo) - 6) < 0.02, `darkvision over torch ${reach(t!, bo)}`);
+  // A lit scene ignores both: sight runs to the walls.
+  const lit = relook(run([{ type: "sceneSight", id: "scene-1", sight: "on" }], lantern), blockIndex(cave, {}, caveMap.bounds));
+  assert.ok(reach(outlines(lit).at(-1)!, bo) > 12);
+});
+
+test("a darkvision edit re-looks on a dark scene", () => {
+  const s = step(ready("dark"), { type: "token", id: "pc-1", at: { x: 4.5, y: 5.5 } });
+  assert.deepEqual(
+    ops(s).map((op) => op.kind),
+    ["dimSeen"],
+    "darkvision 0, no light: nothing seen",
+  );
+  const pc = s.party[0]!;
+  const seeing = step(s, { type: "updateCharacter", character: { ...pc, darkvision: 30 } });
+  assert.deepEqual(
+    ops(seeing).map((op) => op.kind),
+    ["dimSeen", "dimSeen", "outline"],
+  );
+  assert.equal(fogAt(ops(seeing), { x: 9.5, y: 5.5 }), "seen", "within 6 inches");
+  assert.equal(fogAt(ops(seeing), { x: 4.5, y: 0.2 }), "seen");
+  const lit = step(seeing, { type: "updateCharacter", character: { ...pc, darkvision: 30, light: "torch" } });
+  assert.equal(ops(lit).length, ops(seeing).length + 2, "a light edit re-looks too");
+  // A blinded character's darkvision changes nothing seen, so editing it doesn't re-look.
+  const blind = step(lit, { type: "updateCharacter", character: { ...pc, darkvision: 30, light: "torch", conditions: ["blinded"] } });
+  const blindEdit = step(blind, {
+    type: "updateCharacter",
+    character: { ...pc, darkvision: 120, light: "torch", conditions: ["blinded"] },
+  });
+  assert.equal(ops(blindEdit), ops(blind));
+  // On a lit scene neither changes what a token sees, so an edit doesn't dim what the DM uncovered by hand.
+  const on = step(ready("on"), { type: "token", id: "pc-1", at: { x: 4.5, y: 5.5 } });
+  const edited = step(on, { type: "updateCharacter", character: { ...on.party[0]!, darkvision: 60, light: "lantern" } });
+  assert.equal(ops(edited), ops(on));
+});

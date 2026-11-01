@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blankGroup, conditionFromHp, conditionOf, hpFraction, type Disc } from "./fight.ts";
+import { blankGroup, conditionFromHp, conditionOf, hpFraction, parseCharacterFields, type Disc } from "./fight.ts";
 import {
   apply,
   defaultState,
@@ -158,7 +158,9 @@ test("the turn strip starts at the current turn and holds only what players may 
   const s = run([
     { type: "placeMap", map },
     { type: "lockMap", on: false },
-    { type: "addCharacter", character: { name: "Ash", ...card } },
+    // Darkvision and light are DM-only (Sight S4): her token reaches the table without them.
+    { type: "addCharacter", character: { name: "Ash", ...card, darkvision: 60, light: "torch" } },
+    { type: "token", id: "pc-1", at: { x: 7.5, y: 5.5 } },
     { type: "placeDisc", colour: "yellow", x: 1, y: 1, size: 1 },
     { type: "placeDisc", colour: "yellow", x: 3, y: 1, size: 1 },
     { type: "placeDisc", colour: "red", x: 5, y: 1, size: 1 },
@@ -181,8 +183,25 @@ test("the turn strip starts at the current turn and holds only what players may 
       { kind: "enemy", colour: "yellow", letter: "B", condition: "bloodied", current: false },
     ],
   });
-  const json = JSON.stringify(view);
-  for (const secret of ["Secret", "Ruins", "cultist", "MM2024", "hp", "ac", "passive", "speed", "init", "shown", "notes"])
+  // The token view carries "initials", so it is checked for the S4 fields on its own.
+  assert.equal(view.tokens.length, 1);
+  for (const secret of ["darkvision", "light", "torch", "60"]) assert.ok(!JSON.stringify(view.tokens).includes(secret), secret);
+  const json = JSON.stringify({ ...view, tokens: [] });
+  for (const secret of [
+    "Secret",
+    "Ruins",
+    "cultist",
+    "MM2024",
+    "hp",
+    "ac",
+    "passive",
+    "speed",
+    "init",
+    "shown",
+    "notes",
+    "darkvision",
+    "torch",
+  ])
     assert.ok(!json.includes(secret), secret);
 });
 
@@ -292,6 +311,8 @@ test("a version 5 save upgrades: group names become group info, discs and cards 
     farSide: false,
     mini: false,
     conditions: [],
+    darkvision: 0,
+    light: "none",
   });
 });
 
@@ -318,4 +339,49 @@ test("the condition word from HP: Bloodied at half, Near death at a quarter, Dow
     [hpFraction(d, groups), hpFraction({ ...d, hp: 5 }, groups), hpFraction({ ...d, hp: 5, hpMax: 40 }, groups), hpFraction(d, {})],
     [1, 0.25, 0.125, null],
   );
+});
+
+test("parse: darkvision and light", () => {
+  const read = (extra: Record<string, unknown>) => parseCharacterFields({ name: "Ash", ...card, ...extra });
+  // Missing: darkvision 0 and no light, as on every card saved before S4.
+  assert.deepEqual([read({})?.darkvision, read({})?.light], [0, "none"]);
+  // Feet, rounded to the nearest 5 and kept within 0–300; -0 is stored as 0 (LESSONS).
+  for (const [v, want] of [
+    [60, 60],
+    [62, 60],
+    [63, 65],
+    [2.5, 5],
+    [-0, 0],
+    [-10, 0],
+    [301, 300],
+    [1000, 300],
+  ] as const) {
+    const got = read({ darkvision: v })?.darkvision;
+    assert.ok(Object.is(got, want), `${v} reads as ${want}, got ${got}`);
+  }
+  for (const light of ["none", "torch", "lantern"]) assert.equal(read({ light })?.light, light);
+  // Anything else doesn't read, like the other fields.
+  for (const bad of [
+    { darkvision: "60" },
+    { darkvision: NaN },
+    { darkvision: Infinity },
+    { darkvision: null },
+    { light: "candle" },
+    { light: 1 },
+  ])
+    assert.equal(read(bad), null, JSON.stringify(bad));
+  // Through a command and a save.
+  const s = run([{ type: "addCharacter", character: { name: "Ash", ...card, darkvision: 60, light: "torch" } }]);
+  assert.deepEqual([s.party[0]!.darkvision, s.party[0]!.light], [60, "torch"]);
+  assert.deepEqual(parseSave(serialize(s)), { ok: true, state: s });
+});
+
+test("an old save reads darkvision 0 and light none", () => {
+  const s = run([{ type: "addCharacter", character: { name: "Ash", ...card, darkvision: 60, light: "lantern" } }]);
+  const old = JSON.parse(serialize(s));
+  delete old.party[0].darkvision;
+  delete old.party[0].light;
+  const loaded = parseSave(JSON.stringify({ ...old, version: 17 }));
+  assert.ok(loaded.ok);
+  assert.deepEqual([loaded.state.party[0]!.darkvision, loaded.state.party[0]!.light], [0, "none"]);
 });
