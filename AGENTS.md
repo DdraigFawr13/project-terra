@@ -48,4 +48,4 @@ Sessions on this project may not have the AI-Master-Instructions repo. Everythin
 
 Master rules this project deliberately changes. Each line names the rule id and the reason; the same entry is in `.ai-master.json` "overrides".
 
-- None.
+- **WEB-06** (first-load JavaScript budget): Terra is an Electron app that loads its pages from the laptop's disk, not over a network, so a gzipped first-load budget measures nothing that players or Morgan wait on; start-up speed is checked on the laptop at the rehearsal instead (VER-06).
