@@ -4,6 +4,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: ["**/*.md"]
   push:
     branches: [main]
@@ -19,6 +20,8 @@ concurrency:
 
 jobs:
   check:
+    # Draft PRs don't run CI; marking one ready does (CI-06).
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
