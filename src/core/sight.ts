@@ -6,7 +6,7 @@ import type { Doors } from "./doors.ts";
 import { addFog } from "./fog.ts";
 import type { Point } from "./homography.ts";
 import type { Bounds } from "./map.ts";
-import type { Command, TableState } from "./table.ts";
+import { sightOf, type Command, type TableState } from "./table.ts";
 import { blockIndex, sightFrom } from "./wallcheck.ts";
 
 type Index = ReturnType<typeof blockIndex>;
@@ -16,8 +16,6 @@ type Index = ReturnType<typeof blockIndex>;
  * Incapacitated condition (checked against the SRD 5.2 text at S2).
  */
 const UNSEEING = new Set(["blinded", "incapacitated", "paralyzed", "petrified", "stunned", "unconscious"]);
-
-const sightOf = (state: TableState) => state.scenes.find((s) => s.id === state.scene)?.sight ?? "off";
 
 /** The current map's tokens, each with whether its character can see now (not blinded and the like, not down). */
 function lookers(state: TableState): { id: string; at: Point; sees: boolean }[] {

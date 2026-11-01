@@ -16,6 +16,7 @@ import {
   parseSave,
   partyToPlace,
   playerViewOf,
+  discSeen,
   sceneTitle,
   coverOf,
   dmStateOf,
@@ -841,6 +842,141 @@ test("the world map (D-039): link pins, the party marker, and the world map as a
   assert.equal(run([{ type: "party", at: null }], s).map!.party, null);
   // The DM window's thumbnail draws the same: the world comes whole while it is the curtain.
   assert.deepEqual(playerViewOf(dmStateOf(s), "window"), view);
+});
+
+// ---- Hidden enemies (Sight S3, D-047 item 3) ----
+
+/** A fog op over a map-inch rectangle, as an outline: boxes take whole inches only. Asserts that it parses. */
+const box = (mode: "reveal" | "hide", x: number, y: number, width: number, height: number) => {
+  const c = {
+    type: "fog",
+    op: {
+      kind: "outline",
+      mode,
+      points: [
+        { x, y },
+        { x: x + width, y },
+        { x: x + width, y: y + height },
+        { x, y: y + height },
+      ],
+    },
+  };
+  assert.ok(parseCommand(c));
+  return c;
+};
+/** The table's discs and enemy chips as `colour letter` pairs. */
+const seenOnTable = (s: TableState) => {
+  const v = playerViewOf(s, "window");
+  const chips = (v.strip?.chips ?? []).flatMap((c) => (c.kind === "enemy" ? [`${c.colour} ${c.letter}`] : []));
+  return { discs: v.discs.map((d) => `${d.colour} ${d.letter}`), chips };
+};
+
+test("playerViewOf: with Sight on, discs and strip chips show only where the disc centre is seen", () => {
+  const fight = (sight: string) =>
+    run([
+      { type: "placeMap", map },
+      { type: "sceneSight", id: "scene-1", sight },
+      { type: "placeDisc", colour: "red", x: 5.5, y: 5.5, size: 1 },
+      { type: "showDiscs", colour: "red", letter: "A", on: true },
+      { type: "startFight" },
+      { type: "initiative", who: "red", init: 12 },
+    ]);
+  const shown = { discs: ["red A"], chips: ["red A"] };
+  const none = { discs: [], chips: [] };
+  // Sight Off is today's Terra: On table is enough, whatever the fog (J5).
+  assert.deepEqual(seenOnTable(fight("off")), shown);
+  for (const sight of ["on", "dark"]) {
+    const s = fight(sight);
+    // Unexplored: neither the disc nor its chip reaches the table window (D-002).
+    assert.deepEqual(seenOnTable(s), none, sight);
+    // Seen at its centre: both appear. A reveal that stops short of the centre isn't enough.
+    assert.deepEqual(seenOnTable(run([box("reveal", 4, 4, 1.4, 3)], s)), none, sight);
+    const seen = run([box("reveal", 4, 4, 3, 3)], s);
+    assert.deepEqual(seenOnTable(seen), shown, sight);
+    // The party moves on: explored but not seen hides it again, as does a hand-painted hide.
+    assert.deepEqual(seenOnTable(run([{ type: "fog", op: { kind: "dimSeen" } }], seen)), none, sight);
+    assert.deepEqual(seenOnTable(run([box("hide", 5, 5, 1, 1)], seen)), none, sight);
+    // Off table stays off, seen or not.
+    assert.deepEqual(seenOnTable(run([{ type: "showDiscs", colour: "red", letter: "A", on: false }], seen)), none, sight);
+  }
+});
+
+test("a size-3 disc shows when only an edge square's centre is seen, and hides when none is", () => {
+  const s = run([
+    { type: "placeMap", map },
+    { type: "sceneSight", id: "scene-1", sight: "on" },
+    { type: "placeDisc", colour: "blue", x: 10.5, y: 6.5, size: 3 },
+    { type: "showDiscs", colour: "blue", letter: "A", on: true },
+  ]);
+  const d = s.map!.discs[0]!;
+  assert.deepEqual([d.x, d.y], [10.5, 6.5]);
+  const discs = (t: TableState) => playerViewOf(t, "window").discs.length;
+  assert.equal(discs(s), 0);
+  // Only the right-hand edge square's centre (11.5, 6.5) is seen.
+  assert.equal(discs(run([box("reveal", 11.4, 6.4, 0.2, 0.2)], s)), 1);
+  // Only a corner square's centre (9.5, 7.5).
+  assert.equal(discs(run([box("reveal", 9.4, 7.4, 0.2, 0.2)], s)), 1);
+  // Seen inside the disc but between square centres, and right beside it: still hidden.
+  assert.equal(discs(run([box("reveal", 10.8, 6.8, 0.4, 0.4), box("reveal", 12.1, 5, 2, 3)], s)), 0);
+  // A Large disc sits on a grid corner; its four square centres are half an inch from it.
+  const large = run([
+    { type: "placeMap", map },
+    { type: "sceneSight", id: "scene-1", sight: "on" },
+    { type: "placeDisc", colour: "blue", x: 10, y: 6, size: 2 },
+    { type: "showDiscs", colour: "blue", letter: "A", on: true },
+  ]);
+  assert.deepEqual([large.map!.discs[0]!.x, large.map!.discs[0]!.y], [10, 6]);
+  assert.equal(discs(run([box("reveal", 9.9, 5.9, 0.2, 0.2)], large)), 0);
+  assert.equal(discs(run([box("reveal", 10.4, 6.4, 0.2, 0.2)], large)), 1);
+  // Odd sizes round: a Tiny disc (0.5) uses its own centre; 1.5 counts as 2 × 2. Off the map nothing is seen.
+  const at = (size: number, x: number, y: number) => ({ ...map, discs: [{ ...s.map!.discs[0]!, size, x, y }] });
+  const seenAt = (m: PlacedMap, fog: FogOp[]) => discSeen({ ...m, fog }, m.discs[0]!, "on");
+  const spot = (x: number, y: number): FogOp[] => [
+    {
+      kind: "outline",
+      mode: "reveal",
+      points: [
+        { x: x - 0.1, y: y - 0.1 },
+        { x: x + 0.1, y: y - 0.1 },
+        { x: x + 0.1, y: y + 0.1 },
+        { x: x - 0.1, y: y + 0.1 },
+      ],
+    },
+  ];
+  assert.deepEqual([seenAt(at(0.5, 3.25, 3.25), spot(3.25, 3.25)), seenAt(at(0.5, 3.25, 3.25), [])], [true, false]);
+  assert.deepEqual([seenAt(at(1.5, 4, 4), spot(4.5, 4.5)), seenAt(at(1.5, 4, 4), spot(4, 4))], [true, false]);
+  assert.equal(seenAt(at(1, -40.5, 2.5), [{ kind: "revealAll" }]), true);
+  assert.equal(seenAt(at(1, -40.5, 2.5), spot(3, 3)), false);
+});
+
+test("a curtain scene with Sight on hides its unseen discs", () => {
+  // Scene 1 holds the world map with a shown disc; scene 2's curtain shows scene 1 as its players last saw it.
+  const world = (sight: string, fog: unknown[]) =>
+    run([
+      { type: "placeMap", map: { ...map, id: "map-world" } },
+      { type: "sceneSight", id: "scene-1", sight },
+      { type: "placeDisc", colour: "red", x: 5.5, y: 5.5, size: 1 },
+      { type: "showDiscs", colour: "red", letter: "A", on: true },
+      ...fog,
+      { type: "addScene", name: "Cave" },
+      { type: "placeMap", map },
+      { type: "sceneSight", id: "scene-2", sight: "off" },
+      { type: "sceneCurtain", id: "scene-2", curtain: { kind: "scene", id: "scene-1" } },
+      { type: "switchScene", id: "scene-1" },
+      { type: "switchScene", id: "scene-2" },
+    ]);
+  const discs = (s: TableState) => {
+    const v = playerViewOf(s, "window");
+    assert.equal(v.map?.id, "map-world");
+    return v.discs.length;
+  };
+  // The shown scene's Sight decides, not the current scene's (Off here).
+  assert.equal(discs(world("on", [])), 0);
+  assert.equal(discs(world("on", [box("reveal", 4, 4, 3, 3)])), 1);
+  assert.equal(discs(world("off", [])), 1);
+  // The DM window's thumbnail draws the same.
+  const s = world("on", []);
+  assert.deepEqual(playerViewOf(dmStateOf(s), "window"), playerViewOf(s, "window"));
 });
 
 /** A fog list of `n` small reveals and hides over the map, different enough that baking matters. */
