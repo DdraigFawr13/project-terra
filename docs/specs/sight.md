@@ -1,6 +1,6 @@
 # Sight
 
-- **Status:** Draft, revised after two passes of fresh-context checks
+- **Status:** Approved 2026-11-01 ([approval page](https://claude.ai/artifact/FUdEiS1qeb8WyNhaiJVYsi)), after two passes of fresh-context checks
 - **Planned in:** [round 1](https://claude.ai/artifact/LqReE9S5xvJ8YyGR5biVQw), [review and round 2](https://claude.ai/artifact/TuP8RVmukWHzrtxsT8bVoJ) (2026-11-01). **Decisions:** D-040, D-043, D-044, D-045, D-046; new entry at approval.
 
 ## Problem
@@ -68,7 +68,7 @@ In Morgan's words: "Sight should be dynamic with where the player tokens are and
 - **Given** Sight On, a fight running, and an enemy disc set On table in room B, which is unexplored
 - **When** the table renders
 - **Then** neither the disc nor its turn-strip chip is in the table window's state, and the DM map draws the disc with a diagonal slash.
-  - Once the door opens and a token sees the disc's centre, both appear.
+  - Once the door opens and a token sees the centre of any square the disc covers, both appear.
   - When the party moves on and room B is explored but not seen, both disappear again.
 - **Check:** unit test `playerViewOf: with Sight on, discs and strip chips show only where the disc centre is seen`. e2e `hidden enemy` asserts that no disc and no strip chip with the disc's colour and letter is in the table bridge state (D-002).
 
@@ -102,7 +102,7 @@ From Morgan's answers in the two rounds:
 - **A token sees from its centre** (q2). A character without a token on the map adds no sight (q5).
 - **One Sight setting per scene:** Off / On / On and dark (q3), Off by default. It replaces a separate Dark switch. Off is today's Terra, so D-046 item 1's "unless the default works untouched" holds.
 - **Built before session 1**, Off by default, with rehearsal fixes first (q4). This changes D-003 and PLAN.md's order.
-- **An enemy disc shows only while its centre is seen.** Unexplored and explored both hide it (round 1). This changes D-040 item 4, which named never-seen fog only.
+- **An enemy disc shows only while the centre of a square it covers is seen.** For a disc of one square or less that is its own centre; a Large or bigger disc shows when any of its squares' centres is seen (Morgan, approval page). Unexplored and explored both hide it (round 1). This changes D-040 item 4, which named never-seen fog only.
 - **Doors and secret doors open and close with a tap, per scene** (round 1, review).
 - **Darkvision and carried light are per character on the Party sheet** (round 1). A light lights its area for the whole party (review). On one projector the union of each token's own range already shows that area, so no shared-light model is needed.
 - **Live sight while dragging is kept only if it fits the speed budget on the laptop.** Morgan's note: "only if we can find a more efficient way".
@@ -120,9 +120,8 @@ From Morgan's answers in the two rounds:
 ## Risks
 
 - **A token not under its mini looks from the wrong place, and players can't unsee what was projected.**
-  - Mitigation: Sight is Off by default per scene, and Undo restores the fog (main records an undo step for every re-look). Morgan switches Sight off for scenes that move too fast to mirror.
+  - Mitigation: Sight is Off by default per scene, and Undo after a token move restores the fog. Morgan switches Sight off for scenes that move too fast to mirror.
 - **Each re-look also dims what the DM uncovered by hand.** That is what "the party moves on" means. Accepted, and stated in the walkthrough.
-- **A big disc whose centre is behind a wall stays hidden while its edge is in view.** This is Morgan's choice (q2, round 1). There is a test for a size-3 disc.
 - **Laptop speed is unknown.** The Problem report gives the slowest re-look; live sight (S5) waits for that number.
 - **Old saves:** save version 18 reads versions 1–17 with doors empty, Sight Off, darkvision 0 and light none (GAME-05).
 - **The rehearsal finds fixes:** they come first. Each slice merges only when green and leaves Sight Off by default.
@@ -206,14 +205,14 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
   - When no token sees, only the `dimSeen` is added: the party has moved on.
 - **Main** (`src/main/main.ts`), in `state:apply`:
   - Computes `next = afterCommand(state, apply(state, command), command, annotation)`.
-  - When `afterCommand` changed the state and the command isn't in `UNDOABLE`, main records an undo step from the state before the command. So switching Sight on, a condition or an HP change can be undone back to the earlier fog.
+  - A re-look is part of its command's undo step when that command is undoable: token moves, Place party and doors (`UNDOABLE`, `src/core/table.ts`). Re-looks after other changes (the Sight setting, HP, conditions) aren't undoable: "it's really just movement that needs to have an undo" (Morgan, approval page).
   - `state:undo` restores a snapshot and runs no re-look.
   - Main caches each library map's annotation by id, loaded with `loadAnnotation`; `library:saveWalls` (`main.ts:482`) deletes that id.
   - Main times each `afterCommand` call that re-looks with `performance.now()`.
 - **Problem report:** `ReportInfo.slowestRelookMs: number | null` (this run only, not saved). It prints `Slowest sight update: 4.2 ms` with one decimal, or `Slowest sight update: none yet`.
 
 **Hidden enemies**
-- `discSeen(map, disc, sight)` in `src/core/table.ts`: true when Sight is Off, otherwise `fogAt(map.fog, disc centre) === "seen"`.
+- `discSeen(map, disc, sight)` in `src/core/table.ts`: true when Sight is Off. Otherwise, with `n = Math.round(disc.size)`: for `n <= 1`, true when `fogAt(map.fog, disc centre) === "seen"`; for `n >= 2`, true when any of the n × n square centres `(centre.x + i − (n − 1)/2, centre.y + j − (n − 1)/2)`, for i and j from 0 to n − 1, is seen.
 - `playerViewOf` keeps a disc only if it passes today's filter and `discSeen`, and passes only those discs to `stripOf`. Turn-strip chips and turn rings therefore follow.
 - The DM map draws a disc that is On table but fails `discSeen` with a diagonal slash in the warning colour. Discs that are Off table keep today's 45% look and get no slash.
 
@@ -282,7 +281,7 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
 ### S3 Hidden enemies
 
 - **Morgan tries:** put a goblin in a dark room during a fight; it and its strip chip appear only when a token sees it.
-- **Checks that fail now:** J3's unit test, `a size-3 disc is hidden while its centre is behind a wall`, `a curtain scene with Sight on hides its unseen discs`, and e2e `hidden enemy`.
+- **Checks that fail now:** J3's unit test, `a size-3 disc shows when only an edge square's centre is seen, and hides when none is`, `a curtain scene with Sight on hides its unseen discs`, and e2e `hidden enemy`.
 - **Files:** `src/core/table.ts` (`discSeen`, `playerViewOf`), `src/renderer/dm-map.ts` (the slash), tests, `e2e/app.test.mjs`.
 - **Waits on:** S2
 

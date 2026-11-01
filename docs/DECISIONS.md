@@ -419,3 +419,16 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   5. Later, each in a planned phase: roll tables with the treasure roller in Library (book tables in the private library, D-010; rolls DM-only); a cue as a hidden group linked to a room, uncovered with it, after step 2C, no sound; height tags with Measure in Battle drama; more wall kinds in Sight.
   6. Replaced: an enemy's move shows as a ring where a visible disc lands, not a walking path; fades come later as a soft fade-in on uncover and on lifting the curtain, no setting, and B stays instant.
 - **Why:** the review found most Wants could be built without new buttons, and that entering initiative took about 28 taps for 7 entries (estimate) because the pad closed after each roll. At the laptop's 1280 × 680 the panel is already full at about 7 rows (estimate). A walking path or a B fade would redraw the shared fog canvas and could show a route through fog or the map during a panic blank.
+
+## D-047 Sight: follows tokens, per-scene setting, built before session 1
+
+- **Status:** Accepted (2026-11-01). Morgan approved the spec on the [approval page](https://claude.ai/artifact/FUdEiS1qeb8WyNhaiJVYsi) ("Approved, start building") after [round 1](https://claude.ai/artifact/LqReE9S5xvJ8YyGR5biVQw) and the [review and round 2](https://claude.ai/artifact/TuP8RVmukWHzrtxsT8bVoJ). First use of the `write-spec` skill. Changes D-003 (Sight is built before session 1), D-040 items 1, 2, 3 and 4 (order; sight follows tokens instead of a tap; walls block light and sight only, no sound; enemies hide in dimmed fog too, by any covered square's centre) and D-043 item 2 (live line of sight is the token drag itself, gated on speed).
+- **Decision:** [docs/specs/sight.md](specs/sight.md) is the design. In short:
+  1. One Sight setting per scene, Off / On / On and dark, default Off; Off is today's Terra.
+  2. With Sight on, every change to tokens, doors or who can see re-looks from every token's centre: a `dimSeen` and one reveal outline per seeing token, run by main because the walls live in the library. It doesn't run after switching scenes or Reset, or on a map with no traced walls.
+  3. Enemy discs show to players (discs and turn-strip chips) only while the centre of a square they cover is seen.
+  4. Doors and secret doors open and close per scene with a Select tap whenever doors are drawn.
+  5. Darkvision and carried light per character limit sight on dark scenes.
+  6. Only movement needs undo: a re-look shares its command's undo step when that command is undoable.
+  7. Live sight while dragging is built only if the laptop's slowest sight update is under 8 ms with four tokens.
+- **Why:** Morgan's own words asked for sight "dynamic with where the player tokens are", which a tap per look can't give. A grid-indexed wall check measured 3.0 ms instead of 82.9 ms on a 1,974-piece map (cloud, not the laptop), which makes re-looking on every move affordable. Three fresh-context checks of the spec found the original design ran sight where the walls aren't loaded, leaked hidden enemies through the turn strip, revealed everything on maps without walls, could overflow the fog list in a save, and read the wrong scene under a curtain; all were fixed before approval.
