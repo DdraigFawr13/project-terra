@@ -19,5 +19,7 @@ package-lock.json
 .claude/master/RULES.md
 .claude/master/sync.mjs
 .claude/skills/efficient-github-actions/
+.claude/skills/planning-interview/
+.claude/skills/write-spec/
 .github/workflows/prune-merged-branches.yml
 # ai-master:end

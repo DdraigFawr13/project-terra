@@ -1,7 +1,7 @@
 {
-  "version": "v0.3.0",
-  "commit": "603505d70e799136de4971238ad09de4c224cee5",
-  "manifest": "6a02960df875ab8de50ce620d6cae437e9fb287436125eb94fb9e59e00f884df",
+  "version": "v0.6.0",
+  "commit": "20613ab0dddaafe2b72d3d527857d28d99bd8534",
+  "manifest": "7fbacbba8d33ed35105e8572e325b34b075dce0cb66f59ca6f680e2f96d52c3c",
   "budget": {
     "lines": 200,
     "bytes": 24576
@@ -13,13 +13,17 @@
     ".claude/agents/reviewer.md": "98278f07c43f0ffa5329f50f098c0c8f05d51e29923e9c41a09db675859bdeb2",
     ".claude/agents/test-runner.md": "f6d59450c2d1e3d82db75d7e6645274c1ce44931ff1bddf02b75b9e45f26d85d",
     ".claude/hooks/session-start.sh": "a5936b916dffaf98d8ab875600c5ca195d88194053f22b444bf2d8767d57bfd1",
-    ".claude/master/RULES.md": "1c05a3a08904cec3a202fdeea73790282a8244d2b747dcd203080e0f7c5abece",
-    ".claude/master/sync.mjs": "b253d8cb3c22780bc00b951b1e9cc024aa5ad615243277a822093f8240544d70",
+    ".claude/master/RULES.md": "081c25f92b535b1680ae2ced74915c09d29f731a8f0968db49e11c92844274f2",
+    ".claude/master/sync.mjs": "10464d4a861deca276f55389f236e550f1d38326f142b09c426c331c4dfcdfb4",
     ".claude/skills/efficient-github-actions/references/agent-policy.md": "a45580c978190bbadf21f2977c78936e9ef9aefd9396ca938d2641cf37e484d6",
     ".claude/skills/efficient-github-actions/references/patterns.md": "1ac338cf8f235b47e3b09999fe9620047dcdd0f23c4d28188af3fc03971d505a",
     ".claude/skills/efficient-github-actions/scripts/actions-baseline.py": "0195d3ca65d7a822cf95e3eeba783b7beeb39631e3b154ad985a380d9aa4bd3f",
     ".claude/skills/efficient-github-actions/scripts/ci-scope.template.sh": "de79d6f9ef4dd62a1a8b9465e3168eb0b2bc0cbbeb1aff2d4110d6ee02137fac",
     ".claude/skills/efficient-github-actions/SKILL.md": "fcd2dbfcc40fd835f423fc6b4f21a42b631debf45f5d709ef30e396b62c6d650",
+    ".claude/skills/planning-interview/assets/form.html": "4c3bff3538d74f57e5305ae75ca7f946c1b65cf35b21fa1a04dd9c0b1046c9bd",
+    ".claude/skills/planning-interview/SKILL.md": "fee80389d61bf5cd1f69137d842f588ce50ff231f0281609b9a2c507b211718e",
+    ".claude/skills/write-spec/assets/SPEC.md": "445828f6b430bd9d1fa2d8ba1573019d4e2a7d8b9b74185c909fb5ca09f0a26a",
+    ".claude/skills/write-spec/SKILL.md": "99b5f179bb9994766932813dadb592acb2d3a5cef7851796800915d695d2808a",
     ".github/workflows/prune-merged-branches.yml": "64ef1fe4d4cdfa044caf1ff390284fc916db7489d9ef0fd5da81a3b0ec938e6e"
   }
 }

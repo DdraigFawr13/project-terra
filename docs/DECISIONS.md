@@ -114,7 +114,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-019 The repo carries everything a session needs
 
-- **Status:** Accepted (2026-10-28)
+- **Status:** Accepted (2026-10-28). Changed 2026-11-01: the project moved to master v0.6.0, the project-owned copy (identical to master v0.5.0) was deleted as this entry planned, and `planning-interview` is now synced and listed in `.ai-master.lock`, alongside `write-spec`.
 - **Decision:** Sessions may not have access to AI-Master-Instructions. The synced files (rules, agents, the CI skill, the session hook, the sync script) stay committed. The `planning-interview` skill is a project-owned copy of the AI-Master-Instructions v0.4.0 version, in `.claude/skills/planning-interview/`, not listed in `.ai-master.lock`. Before syncing a master version that includes it (v0.4.0 or later), delete this copy, or sync refuses to overwrite it.
 - **Why:** Morgan's instruction on 2026-10-28. v0.4.0 isn't tagged yet, so the skill can't be synced the normal way.
 
