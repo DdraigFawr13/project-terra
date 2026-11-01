@@ -1,6 +1,6 @@
 # Plan
 
-Approved by Morgan on 2026-10-28 after three planning rounds, a review and a final check. Step 3, UI design, was added at Morgan's request on 2026-10-28 (D-022). Character cards and the library phase were added in the book library interview on 2026-10-28 (D-026). The phases after session 1 were reordered, merged and cut in the plan audit on 2026-10-29 (D-037). The planning pages are linked in [HANDOFF.md](HANDOFF.md). Decisions are in [DECISIONS.md](DECISIONS.md). Sight was added after the Arkenforge research on 2026-10-29 (D-040). The dice roller (DM only), line of sight and the NPC conversation player came back on 2026-10-29 (D-043). Morgan's Wants from the similar-apps research were placed on 2026-10-31 (D-046).
+Approved by Morgan on 2026-10-28 after three planning rounds, a review and a final check. Step 3, UI design, was added at Morgan's request on 2026-10-28 (D-022). Character cards and the library phase were added in the book library interview on 2026-10-28 (D-026). The phases after session 1 were reordered, merged and cut in the plan audit on 2026-10-29 (D-037). The planning pages are linked in [HANDOFF.md](HANDOFF.md). Decisions are in [DECISIONS.md](DECISIONS.md). Sight was added after the Arkenforge research on 2026-10-29 (D-040). The dice roller (DM only), line of sight and the NPC conversation player came back on 2026-10-29 (D-043). Morgan's Wants from the similar-apps research were placed on 2026-10-31 (D-046). Sight was planned on 2026-11-01 and moved before session 1, built behind a per-scene setting that is Off by default (D-047).
 
 ## Goal for session 1
 
@@ -33,6 +33,7 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
 7o. **Table looks (D-046, Batch 2).** Built before the rehearsal so its photos can judge it: a turn ring on every disc of the colour whose turn it is; a light centre under minis (Mini on it); one map brightness slider in Setup; the grid kept per scene, off in a new one, with a dark edge on its lines; discs of 3 inches or more see-through. Morgan tests: the rehearsal photos (step 8).
 8. **Rehearsal.** A full dry run of Thundertree at home, following [REHEARSAL.md](REHEARSAL.md): each part has a pass line and the photo that proves it. Anything that fails is hidden for session 1, not redesigned (D-037). Step 7o is judged in the same photos.
 8b. **Fewer drags (D-046, Batch 3).** Right after the rehearsal; if session 1 is ready first, it waits until after: hold a disc to lift and move its whole colour; Place party in one tap; legendary action pips; a fading laser trail with Ping. Morgan tests: a mock round on the laptop.
+8c. **Sight (D-047).** Built while waiting for the rehearsal, Off by default, rehearsal fixes first. Five slices in [specs/sight.md](specs/sight.md): S1 faster wall check and doors; S2 sight follows tokens; S3 hidden enemies; S4 dark scenes; S5 live while dragging, only if the laptop's slowest sight update is under 8 ms. Morgan tests each slice as the spec says.
 
 ## After session 1, in order
 
@@ -43,12 +44,7 @@ Each step ends with something Morgan tests. A step is done when its tests pass a
    - 2B. VTT import and prep tracing: .dd2vtt/.uvtt become a new library map with walls and doors; Claude traces the book maps into the private library as VTT files. Morgan tests: import the Sleeping Giant and Thundertree, fix one wall.
    - 2C. Rooms: outline or tap-to-find, names, a tap with Uncover or Dim does the whole room with the clipped ½-inch grow. Door state per scene moved to Sight, where doors are first opened and closed (2026-10-31). Morgan tests: uncover Thundertree room by room on the table. After it: a cue, a hidden group linked to a room that comes on when the room is uncovered (D-046).
    - 2D. Areas and the wall check: materials and difficult terrain (DM only); light from a tapped point in the editor. Morgan tests: tag a building as wood, find a gap with the wall check.
-3. **Sight (D-040).**
-   - Enemy discs in never-seen fog stay off the table: the player view leaves them out (D-002), and the DM map marks them hidden by fog. This only hides; it never shows a disc set Off table.
-   - Doors open and close on annotated maps; each scene keeps its doors, and Reset sets them back (D-044 item 4).
-   - Look from here: tap where a mini stands, and the table uncovers what can be seen from there, cut off by walls and closed doors and, on a dark map, by the light range (torch, darkvision). One ordinary Uncover per tap. Replaces the light-radius fog shape.
-   - More wall kinds (D-046).
-   - Line of sight (D-043): a marker per character that Morgan moves on the laptop, and the table uncovers what it sees as it moves. About 3 steps (estimate); its shape is settled in the Sight interview.
+3. **Sight.** Moved before session 1 as step 8c (D-047). Left here: more wall kinds (bars, curtains, low walls), from D-046.
 4. **Library.** Already built: library import, stat block and HP per disc, portraits (D-028, D-036). Still to build:
    - Map intake: corner snapping, PDF page import (pdf.js), library maps ready to place, map library tidy-up (D-036).
    - Book search: one search over creatures, spells and items.
