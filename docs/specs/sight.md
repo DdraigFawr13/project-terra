@@ -107,6 +107,11 @@ From Morgan's answers in the two rounds:
 - **Darkvision and carried light are per character on the Party sheet** (round 1). A light lights its area for the whole party (review). On one projector the union of each token's own range already shows that area, so no shared-light model is needed.
 - **Live sight while dragging is kept only if it fits the speed budget on the laptop.** Morgan's note: "only if we can find a more efficient way".
 
+**Build decisions** (S1, 2026-11-01, Morgan in chat):
+
+- `blockersFor(annotation, doors)` returns only walls, pillars and closed doors; `blockIndex` adds the map-edge box from the bounds. S2's "no walls" test reads `blockersFor` as empty.
+- Until S2 adds `afterCommand`, `npm run bench:sight` times a stand-in re-look: the index, `sightFrom` per token, a `dimSeen` and one reveal per token through `apply`, and `playerViewOf`.
+
 ## Alternatives rejected
 
 - **Look from here on a tap:** Morgan's own test is sight that follows the tokens, and a tap per look fails it whenever the party moves often.
