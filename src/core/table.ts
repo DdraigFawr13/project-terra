@@ -45,7 +45,7 @@ import {
   type CreatureType,
 } from "./fight.ts";
 import { isDoorKey, parseDoors, setDoor } from "./doors.ts";
-import { addFog, fogCheck, MAX_FOG_OPS, parseFog, parseFogOp, type FogBase, type FogOp } from "./fog.ts";
+import { addFog, fogAt, fogCheck, MAX_FOG_OPS, parseFog, parseFogOp, type FogBase, type FogOp } from "./fog.ts";
 import { mapToTable, placedExtent, type Bounds } from "./map.ts";
 import type { Point } from "./homography.ts";
 
@@ -498,24 +498,43 @@ export function tokenView(state: TableState, map: PlacedMap, t: PcToken): Player
   };
 }
 
+/**
+ * Whether the party can see a disc (D-047 item 3): always with Sight Off; otherwise only while the centre of a square it
+ * covers is seen. Explored and unexplored fog both hide it. A disc of one square or less has its own centre; an n × n
+ * disc has n² square centres around its own.
+ */
+export function discSeen(map: PlacedMap, disc: Pick<Disc, "x" | "y" | "size">, sight: Sight): boolean {
+  if (sight === "off") return true;
+  const n = Math.round(disc.size);
+  if (n <= 1) return fogAt(map.fog, disc) === "seen";
+  const off = (n - 1) / 2;
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++) if (fogAt(map.fog, { x: disc.x + i - off, y: disc.y + j - off }) === "seen") return true;
+  return false;
+}
+
+/** The Sight setting of the scene on the table (`onTable` gives that scene under a scene curtain). */
+export const sightOf = (state: TableState): Sight => state.scenes.find((s) => s.id === state.scene)?.sight ?? "off";
+
 /** The player view for the surface the table window is on now. */
 export function playerViewOf(state: TableState, surfaceKey: string): PlayerView {
   const shown = curtainScene(state);
   if (shown) return playerViewOf(shown, surfaceKey);
   const m = state.map;
+  const sight = sightOf(state);
+  // Discs the players may see: On table, not down and, with Sight on, seen (D-047). Only these reach the turn strip.
+  const visible = (m?.discs ?? []).filter((d) => d.shown && conditionOf(d, m!.groups) !== "down" && discSeen(m!, d, sight));
   return {
     view: viewOf(state),
     calibration: state.calibrations[surfaceKey] ?? null,
     map: m && { id: m.id, bounds: m.bounds, x: m.x, y: m.y, turns: m.turns, fog: m.fog },
-    discs: (m?.discs ?? [])
-      .filter((d) => d.shown && conditionOf(d, m!.groups) !== "down")
-      .map((d) => {
-        const look = tokenLook(d, m!.groups);
-        const turn = !!state.fight?.round && state.fight.current === d.colour;
-        return { colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size, ...look, mini: d.mini, turn };
-      }),
+    discs: visible.map((d) => {
+      const look = tokenLook(d, m!.groups);
+      const turn = !!state.fight?.round && state.fight.current === d.colour;
+      return { colour: d.colour, letter: d.letter, ...mapToTable(m!, d), size: d.size, ...look, mini: d.mini, turn };
+    }),
     tokens: (m?.tokens ?? []).flatMap((t) => tokenView(state, m!, t) ?? []),
-    strip: stripOf(state.fight, m?.discs ?? [], m?.groups ?? {}, state.party),
+    strip: stripOf(state.fight, visible, m?.groups ?? {}, state.party),
     flipLetters: state.flipLetters,
     grid: state.testGrid,
     brightness: state.brightness / 100,

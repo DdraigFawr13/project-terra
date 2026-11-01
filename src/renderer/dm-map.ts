@@ -19,9 +19,11 @@ import {
 import { MAX_FOG_POINTS, type FogMode, type FogOp, type FogShape } from "../core/fog.ts";
 import { fillTable, mapToTable, parseMarking, placedExtent, planRectify, rectify, tableToMap, type Bounds } from "../core/map.ts";
 import {
+  discSeen,
   MAX_LINE_POINTS,
   parseFeetPerSquare,
   sceneTitle,
+  sightOf,
   tokenView,
   type Command,
   type Ink,
@@ -155,6 +157,8 @@ const GRAB_PX = 22;
 const MIN_DISC_PX = 18;
 
 /** HP ring colours by condition: green, amber at Bloodied, red at Near death (D-028, D-036). */
+/** The slash over a disc the players can't see (D-047): Ember's warning colour, as the map is black in every look (D-033). */
+const HIDDEN_SLASH = "#f0a27c";
 const HP_RING: Record<Condition, string> = { fine: "#3fa34d", bloodied: "#e0a100", nearDeath: "#d64035", down: "#d64035" };
 
 /** How a map's square size reads after its name: 5 ft is the usual, so only 10 ft is named (D-036). */
@@ -255,7 +259,7 @@ export function initMaps(
     render();
   });
   /** Whether the scene on the table has Sight on (D-047): its doors are drawn and tappable even with Walls hidden. */
-  const sightOn = () => !!state && state.scenes.find((sc) => sc.id === state!.scene)?.sight !== "off";
+  const sightOn = () => !!state && sightOf(state) !== "off";
   function wallsFor(id: string): Annotation | null {
     if (shownWalls?.id === id) return shownWalls.walls;
     if (loadingWalls !== id) {
@@ -826,6 +830,7 @@ export function initMaps(
     // The laser as it is drawn; on the table each piece fades by itself (D-046).
     if (pressing?.trail) drawLaser(ctx, canvasLine(pressing.trail.map((t) => tableToMap(map, t))), Math.max(s, 20), 1);
     const picked = selection.get();
+    const sight = state ? sightOf(state) : "off";
     for (const d of map.discs) {
       const moving = discDrag && discKey(discDrag) === discKey(d);
       const lifted = discDrag?.group && discDrag.colour === d.colour;
@@ -838,6 +843,14 @@ export function initMaps(
           : d;
       // As the players see it: a revealed group's symbol or portrait, the letter on a tab when a mini stands on it (D-036).
       const { c, w } = draw({ ...d, ...tokenLook(d, map.groups) }, shownAt, down ? 0.3 : d.shown ? 1 : 0.45);
+      // On table but not seen with Sight on (D-047): a slash in the warning colour, so the DM knows the players can't see it.
+      if (d.shown && !discSeen(map, d, sight)) {
+        ctx.strokeStyle = HIDDEN_SLASH;
+        ctx.lineWidth = Math.max(2, w * 0.08);
+        ctx.beginPath();
+        (ctx.moveTo(c.x - w * 0.35, c.y + w * 0.35), ctx.lineTo(c.x + w * 0.35, c.y - w * 0.35));
+        ctx.stroke();
+      }
       const full = down ? null : hpFraction(d, map.groups);
       if (full !== null) hpRing(ctx, c, w, full, conditionOf(d, map.groups));
       if (down) {

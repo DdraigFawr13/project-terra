@@ -43,7 +43,23 @@ for (const [n, at] of points.entries()) {
   state = apply(state, { type: "token", id: `pc-${n + 1}`, at });
 }
 
+// Eight enemy discs On table (Sight S3): six Medium, a Large and a Huge, so `playerViewOf` checks 19 square centres.
+for (const [n, d] of [
+  [1, { x: 5.5, y: 5.5 }],
+  [1, { x: 12.5, y: 3.5 }],
+  [1, { x: 18.5, y: 9.5 }],
+  [1, { x: 25.5, y: 14.5 }],
+  [1, { x: 33.5, y: 6.5 }],
+  [1, { x: 37.5, y: 18.5 }],
+  [2, { x: 16, y: 18 }],
+  [3, { x: 29.5, y: 10.5 }],
+]) {
+  state = apply(state, { type: "placeDisc", colour: "red", ...d, size: n });
+}
+state = apply(state, { type: "showDiscs", colour: "red", letter: null, on: true });
+
 let k = 0;
+const viewMs = [];
 /** One token move with its re-look, as main runs it: `apply`, `afterCommand` (index, dimSeen, 4 outlines through `addFog`), `playerViewOf`. */
 function look(s) {
   // Each token in turn steps a square and back, so every look has a token move to follow.
@@ -52,7 +68,9 @@ function look(s) {
   const c = { type: "token", id: `pc-${n + 1}`, at: { x: at.x + (Math.floor(k / points.length) % 2), y: at.y } };
   k++;
   const next = afterCommand(s, apply(s, c), c, annotation);
+  const t0 = performance.now();
   playerViewOf(next, "window");
+  viewMs.push(performance.now() - t0);
   return next;
 }
 
@@ -109,10 +127,13 @@ for (let r = 0; r < 5; r++) {
   checks.push(cms);
   lands.push(time(() => apply(list, { type: "packFog", scene: list.scene, count: COMPACT_AT, check, base }))[0]);
 }
-console.log(`Dense test map: ${blockersFor(annotation, {}).length} blocking pieces, 4 tokens, ${runs} runs (Node ${process.version}).`);
+console.log(
+  `Dense test map: ${blockersFor(annotation, {}).length} blocking pieces, 4 tokens, 8 discs, ${runs} runs (Node ${process.version}).`,
+);
 console.log(`Index:              ${stats(indexMs)}`);
 console.log(`sightFrom per token: ${stats(outlineMs)}; points ${pointsPer.join(", ")}`);
 console.log(`Whole look:         ${stats(wholeMs)} (token move: apply, afterCommand, playerViewOf; no packing)`);
+console.log(`playerViewOf:       ${stats(viewMs.slice(-runs))} (part of the whole look; 8 discs, ${state.map.discs.length} placed)`);
 console.log(`Packs landed between looks: ${packs} (untimed; the worker's job)`);
 console.log(`Worker bake of ${COMPACT_AT} ops: ${stats(bakes)}`);
 console.log(

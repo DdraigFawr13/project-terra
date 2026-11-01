@@ -802,6 +802,37 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.keyboard.press("Control+z");
     await until(dm, async (key) => (await window.terra.getState()).map.doors[key] === false, doorKey);
     await fogBecomes(["seen", "unexplored"], near, far);
+    // Hidden enemy (Sight S3, D-047 item 3): a disc On table in the unseen room, in a fight, is in neither the table's
+    // discs nor its turn strip (D-002). Opening the door shows both; closing it leaves the room explored, and both go.
+    await dm.evaluate(async (at) => {
+      await window.terra.apply({ type: "placeDisc", colour: "red", ...at, size: 1 });
+      await window.terra.apply({ type: "showDiscs", colour: "red", letter: "A", on: true });
+      await window.terra.apply({ type: "startFight" });
+      await window.terra.apply({ type: "initiative", who: "red", init: 12 });
+    }, far);
+    const enemyOnTable = async () => {
+      const v = await table.evaluate(() => window.terra.getView());
+      const chip = v.strip?.chips.some((c) => c.kind === "enemy" && c.colour === "red" && c.letter === "A") ?? false;
+      return { strip: !!v.strip, disc: v.discs.some((d) => d.colour === "red" && d.letter === "A"), chip };
+    };
+    /** Polls the table's view until the enemy's disc and chip are as wanted. */
+    const enemyBecomes = async (want) => {
+      const end = Date.now() + 10_000;
+      while (JSON.stringify(await enemyOnTable()) !== JSON.stringify(want)) {
+        if (Date.now() > end) assert.deepEqual(await enemyOnTable(), want);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    };
+    await enemyBecomes({ strip: true, disc: false, chip: false });
+    // By command: the disc stands half an inch from the door, where a tap picks the disc (the tap is tested above).
+    const door = (open) => dm.evaluate((c) => window.terra.apply(c), { type: "door", key: doorKey, open });
+    await door(true);
+    await fogBecomes(["seen", "seen"], near, far);
+    await enemyBecomes({ strip: true, disc: true, chip: true });
+    await door(false);
+    await fogBecomes(["seen", "explored"], near, far);
+    await enemyBecomes({ strip: true, disc: false, chip: false });
+    await dm.evaluate(() => window.terra.apply({ type: "endFight" }));
     assert.match(await dm.evaluate(() => window.terra.problemReport()), /\nSlowest sight update: \d+\.\d ms\n/);
     // A long fog list packs into one base in the background worker (D-047 item 8), and nothing is reported.
     await dm.evaluate(async () => {
