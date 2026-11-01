@@ -120,7 +120,14 @@ export type Character = {
   mini: boolean;
   /** Shown on their token as icons (D-045). */
   conditions: PcCondition[];
+  /** Darkvision in feet, a multiple of 5 from 0 to 300; limits sight on a dark scene (D-047). DM-only. */
+  darkvision: number;
+  /** The light they carry; lights their sight on a dark scene (D-047). DM-only. */
+  light: Light;
 };
+/** Carried lights (D-047): the Party sheet's choices. Their radii are in `src/core/sight.ts`. */
+export const LIGHTS = ["none", "torch", "lantern"] as const;
+export type Light = (typeof LIGHTS)[number];
 export type CharacterFields = Omit<Character, "id">;
 
 /** The 15 conditions of the SRD 5.2 rules, as a player character can have them. */
@@ -277,6 +284,11 @@ export function parseCharacterFields(raw: unknown): CharacterFields | null {
   if (typeof farSide !== "boolean" || typeof mini !== "boolean") return null;
   if (!Array.isArray(conditions) || !conditions.every((v) => PC_CONDITIONS.includes(v)) || new Set(conditions).size !== conditions.length)
     return null;
+  // Cards saved before Sight S4 have no darkvision or light. Darkvision rounds to the nearest 5 ft within 0–300.
+  const dv = raw.darkvision === undefined ? 0 : raw.darkvision;
+  const light = LIGHTS.find((l) => l === (raw.light === undefined ? "none" : raw.light));
+  if (typeof dv !== "number" || !Number.isFinite(dv) || !light) return null;
+  const darkvision = Math.min(300, Math.max(0, Math.round(dv / 5) * 5)) + 0;
   return {
     name,
     ac,
@@ -293,6 +305,8 @@ export function parseCharacterFields(raw: unknown): CharacterFields | null {
     farSide,
     mini,
     conditions,
+    darkvision,
+    light,
   };
 }
 

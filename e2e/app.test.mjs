@@ -965,8 +965,19 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await dm.fill('[data-key="pc-ac"]', "16");
     await dm.fill('[data-key="pc-hpMax"]', "24");
     await dm.fill('[data-key="pc-passive"]', "13");
+    // Darkvision and carried light, for dark scenes (Sight S4).
+    await dm.fill('[data-key="pc-darkvision"]', "60");
+    await dm.selectOption('[data-key="pc-light"]', "torch");
     await dm.press('[data-key="pc-passive"]', "Enter");
     await party.locator(".tabs [role=tab]").waitFor();
+    assert.deepEqual(
+      await dm.evaluate(async () => {
+        const p = (await window.terra.getState()).party[0];
+        return [p.darkvision, p.light];
+      }),
+      [60, "torch"],
+    );
+    assert.equal(await party.locator(".stat", { hasText: "Light" }).locator("b").textContent(), "Torch");
     const pad = async (win, keys, act) => {
       for (const k of keys) await win.locator(`.k.digit[aria-label='${k}']`).click();
       await win.locator(`.k.${act}`).click();

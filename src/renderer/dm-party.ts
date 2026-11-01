@@ -3,12 +3,14 @@
 import {
   conditionFromHp,
   initialsOf,
+  LIGHTS,
   MAX_PARTY,
   parseCharacterFields,
   PC_CONDITIONS,
   type Character,
   type CharacterFields,
   type Condition,
+  type Light,
 } from "../core/fight.ts";
 import type { Command, TableState } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
@@ -17,9 +19,19 @@ import { cropView } from "./dm-token-crop.ts";
 import { sheetWin } from "./panel.ts";
 import { numpad } from "./numpad.ts";
 
-const KEYS = ["name", "ac", "hpMax", "speed", "passive", "insight", "investigation", "spellDc", "notes"] as const;
-type Draft = Record<(typeof KEYS)[number], string>;
+const KEYS = ["name", "ac", "hpMax", "speed", "darkvision", "passive", "insight", "investigation", "spellDc", "notes"] as const;
+type Draft = Record<(typeof KEYS)[number], string> & { light: Light };
+/** The Light choice's words (D-047). */
+const LIGHT_WORD: Record<Light, string> = { none: "No light", torch: "Torch", lantern: "Hooded lantern" };
 const WORD: Record<Condition, string> = { fine: "Fine", bloodied: "Bloodied", nearDeath: "Near death", down: "Down" };
+
+/** The light a character carries: lights their sight on a dark scene (D-047). */
+function lightField(value: Light, onChange: (v: Light) => void): HTMLLabelElement {
+  const select = el("select", { "data-key": "pc-light" }, ...LIGHTS.map((l) => el("option", { value: l }, LIGHT_WORD[l])));
+  select.value = value;
+  select.addEventListener("change", () => onChange(select.value as Light));
+  return el("label", {}, "Light", select);
+}
 
 export function initParty(terra: DmApi, placeToken: (id: string) => void, placeRow: () => void): { show: () => void } {
   let state: TableState | null = null;
@@ -53,6 +65,8 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void, placeR
     ac: c?.ac.toString() ?? "",
     hpMax: c?.hpMax.toString() ?? "",
     speed: c?.speed.toString() ?? "30",
+    darkvision: c?.darkvision.toString() ?? "0",
+    light: c?.light ?? "none",
     passive: c?.passive.toString() ?? "",
     insight: c?.insight?.toString() ?? "",
     investigation: c?.investigation?.toString() ?? "",
@@ -64,7 +78,7 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void, placeR
     const d = editing!.draft;
     const status = el("p", { class: "hint", role: "status" });
     const save = () => {
-      const n = (k: keyof Draft) => (d[k].trim() === "" ? null : (wholeOrNull(d[k]) ?? NaN));
+      const n = (k: (typeof KEYS)[number]) => (d[k].trim() === "" ? null : (wholeOrNull(d[k]) ?? NaN));
       const hpMax = n("hpMax");
       // The same checks the main process makes, so a slip is explained instead of the card silently not saving.
       const fields: CharacterFields | null = parseCharacterFields({
@@ -75,6 +89,9 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void, placeR
         hp: old ? Math.min(old.hp, hpMax ?? 0) : hpMax,
         tempHp: old?.tempHp ?? 0,
         speed: n("speed"),
+        // A blank darkvision box saves 0.
+        darkvision: n("darkvision") ?? 0,
+        light: d.light,
         passive: n("passive"),
         insight: n("insight"),
         investigation: n("investigation"),
@@ -87,7 +104,7 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void, placeR
       });
       if (!fields) {
         status.textContent =
-          "Check the boxes: a name, AC 0–40, HP max 1–999, speed, and Perception 0–40. Insight, Investigation and save DC can stay empty.";
+          "Check the boxes: a name, AC 0–40, HP max 1–999, speed, and Perception 0–40. Darkvision, Insight, Investigation and save DC can stay empty.";
         return;
       }
       if (old) run({ type: "updateCharacter", character: { id: old.id, ...fields } });
@@ -95,7 +112,7 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void, placeR
       editing = null;
       render();
     };
-    const f = (label: string, k: keyof Draft, attrs: Record<string, string>) =>
+    const f = (label: string, k: (typeof KEYS)[number], attrs: Record<string, string>) =>
       field(label, d[k], { ...attrs, "data-key": `pc-${k}` }, (v) => (d[k] = v));
     const form = el(
       "form",
@@ -104,6 +121,8 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void, placeR
       f("AC", "ac", { ...(NUMBER as Record<string, string>), max: "40" }),
       f("HP max", "hpMax", { ...(NUMBER as Record<string, string>), min: "1", max: "999" }),
       f("Speed (ft)", "speed", { ...(NUMBER as Record<string, string>), max: "999" }),
+      f("Darkvision (ft)", "darkvision", { ...(NUMBER as Record<string, string>), max: "300", step: "5" }),
+      lightField(d.light, (v) => (d.light = v)),
       f("Passive Perception", "passive", { ...(NUMBER as Record<string, string>), max: "40" }),
       f("Passive Insight", "insight", { ...(NUMBER as Record<string, string>), max: "40" }),
       f("Passive Investigation", "investigation", { ...(NUMBER as Record<string, string>), max: "40" }),
@@ -314,6 +333,8 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void, placeR
           stat("HP", `${pc.hp} / ${pc.hpMax}`),
           stat("Temp", String(pc.tempHp)),
           stat("Speed", `${pc.speed} ft`),
+          stat("Darkvision", pc.darkvision ? `${pc.darkvision} ft` : "—"),
+          stat("Light", pc.light === "none" ? "—" : LIGHT_WORD[pc.light]),
           stat("Perception", String(pc.passive)),
           stat("Insight", opt(pc.insight)),
           stat("Investig.", opt(pc.investigation)),
