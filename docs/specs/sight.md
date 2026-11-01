@@ -204,16 +204,31 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
   Otherwise it returns `relook(next, index)`.
 - **`relook(state, index)`:**
   - Adds a `dimSeen` op through `addFog`.
-  - Then, for each seeing token, adds one `outline` reveal op through `addFog` (so the list bakes at 500 ops). A seeing token has its centre inside the map's bounds, isn't blocked by the condition list above, and on a dark scene has a range above 0.
-  - The range is `max(darkvision ft, light bright+dim ft) / feetPerSquare` inches on a dark scene, and none on a lit scene.
-  - Empty outlines are skipped.
-  - When no token sees, only the `dimSeen` is added: the party has moved on.
-- **Main** (`src/main/main.ts`), in `state:apply`:
-  - Computes `next = afterCommand(state, apply(state, command), command, annotation)`.
-  - A re-look is part of its command's undo step when that command is undoable: token moves, Place party and doors (`UNDOABLE`, `src/core/table.ts`). Re-looks after other changes (the Sight setting, HP, conditions) aren't undoable: "it's really just movement that needs to have an undo" (Morgan, approval page).
-  - `state:undo` restores a snapshot and runs no re-look.
-  - Main caches each library map's annotation by id, loaded with `loadAnnotation`; `library:saveWalls` (`main.ts:482`) deletes that id.
-  - Main times each `afterCommand` call that re-looks with `performance.now()`.
+  - Then, for each seeing token, adds one `outline` reveal op through `addFog` (packing happens in the background; see **Fog packing** (Morgan, 2026-11-01: "pack in the background"). S1's bench measured a 334–516 ms stall when `addFog` baked 500 ops inside a command. With a re-look on every move, that would hit about every 100 moves.
+- **Core** (`src/core/fog.ts`):
+  - `addFog` no longer bakes at `COMPACT_AT` (500). It appends, and bakes in place only when the list reaches `BAKE_NOW_AT = 1900`, as a fallback, so a save never passes `MAX_FOG_OPS` (2,000).
+  - Update the comments at `fog.ts:49` and `:112`. Rewrite the existing test at `fog.test.ts:51-56` so that it bakes at `BAKE_NOW_AT` instead of `COMPACT_AT`.
+  - New pure `fogCheck(ops: readonly FogOp[]): string`: a 32-bit FNV-1a hash of `JSON.stringify(ops)`, as 8 lowercase hex digits.
+- **Command** `{ type: "packFog"; scene: string; count: number; check: string; base: FogBase }`, not in `UNDOABLE`.
+  - **`parseCommand` rejects** any of these:
+    - a `scene` that isn't a string of 1–80 characters
+    - a `count` that isn't an integer from 1 to `MAX_FOG_OPS`
+    - a `check` that doesn't match `^[0-9a-f]{8}$`
+    - a `base` that `parseFogOp` doesn't read as `kind: "base"`
+  - **The reducer applies it only when** all of these hold:
+    - `scene` is the current scene
+    - `state.map` exists and has at least `count` ops
+    - `fogCheck(map.fog.slice(0, count)) === check`
+    - the base's bounds equal `state.map.bounds`
+
+    It then replaces those `count` ops with `base`. Otherwise it returns the state unchanged, for example when the ops changed meanwhile after an undo or Reveal all.
+- **Main:**
+  - `src/main/fog-pack.ts` exports `startPacking(onBase, onProblem)`. It owns one `worker_threads` Worker, loaded from `path.join(__dirname, "fog-pack-worker.cjs")`. The worker is built from `src/main/fog-pack-worker.ts`, added to the Node `entryPoints` in `scripts/build.mjs`; it lands in `dist/` beside `main.cjs`. The worker only calls core `bake(ops, bounds)` and posts the result back.
+  - **When packs start:** main calls `maybePack(state)` at the end of `commit()` (`main.ts:364`), so packs also start after undo and restore. If the current map's fog has at least `COMPACT_AT` ops and no pack is running, it posts `{ ops: fog.slice(0, n), bounds }`, where `n` is the list's length, and remembers the scene, `n` and `fogCheck` of those ops.
+  - **When a base comes back:** `onBase` builds the `packFog` command and runs `const next = apply(state, cmd); if (next !== state) commit(next);`. That's the same path `state:apply` takes after parsing, minus the undo step. It saves and reaches both windows.
+  - **Errors and stalls:** a worker `error`, an `exit` without a result, or no result within 10 s calls `onProblem` with a short text. Main passes `logProblem` (`main.ts:91`), so it appears in the Problem report. The worker is then terminated and recreated, and the next commit may start a fresh pack. The 1,900-op fallback still holds.
+  - **Sight Off:** behaviour is unchanged, except that the stall moves off the main thread.
+- **Bench:** `scripts/sight-bench.mjs` times the whole look without any packing in the timed path, since packing runs in the worker. It reports the time of one `bake` of 500 ops separately, as the worker's cost.
 - **Problem report:** `ReportInfo.slowestRelookMs: number | null` (this run only, not saved). It prints `Slowest sight update: 4.2 ms` with one decimal, or `Slowest sight update: none yet`.
 
 **Hidden enemies**
@@ -270,13 +285,18 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
   - `no seeing token only dims`.
   - `a darkvision edit re-looks on a dark scene`.
   - `outlines read back through parseFogOp unchanged`.
-  - `1,000 re-looks keep the fog list under MAX_FOG_OPS and the save round-trips`.
+  - `1,000 re-looks keep the fog list under MAX_FOG_OPS and the save round-trips` (with no packs landing, so the 1,900 fallback is exercised).
+  - In `src/core/fog.test.ts`: `addFog appends past 500 and bakes at 1,900`, `fogCheck gives the same value for equal lists and differs when one op's kind, mode or a point changes`.
+  - In `src/core/table.test.ts`: `packFog replaces the first count ops with the base, and fogAt gives the same level at every cell centre inside the bounds`, `packFog is ignored after the ops changed, on another scene, past the list, or with other bounds`.
 
   Plus e2e `sight follows a token`, and the Problem report line `Slowest sight update`.
 - **Files:**
   - `src/core/sight.ts`, `sight.test.ts`.
   - `src/core/table.ts`: `Scene.sight`, `sceneSight`, `curtainScene`.
-  - `src/main/main.ts`: `afterCommand`, the undo step, the annotation and index cache, timing.
+  - `src/main/main.ts`: `afterCommand`, the undo step, the annotation and index cache, timing, starting packs.
+  - `src/core/fog.ts`: `addFog` fallback, `fogCheck`; `src/core/table.ts`: `packFog`.
+  - `src/main/fog-pack.ts`, `src/main/fog-pack-worker.ts`, `scripts/build.mjs` (worker entry).
+  - `scripts/sight-bench.mjs`: reports the slowest whole look with packing off the main thread.
   - `src/core/saves.ts`: `ReportInfo`.
   - `src/renderer/dm-scenes.ts`: the menu item and the form.
   - `src/renderer/dm-map.ts`: `doorsOnly`.
