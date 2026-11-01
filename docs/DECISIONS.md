@@ -431,4 +431,5 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   5. Darkvision and carried light per character limit sight on dark scenes.
   6. Only movement needs undo: a re-look shares its command's undo step when that command is undoable.
   7. Live sight while dragging is built only if the laptop's slowest sight update is under 8 ms with four tokens.
+  8. Fog packs in a background worker, not inside a command (Morgan, 2026-11-01, after S1's bench measured a 334–516 ms stall every ~100 moves); `addFog` bakes in place only at 1,900 ops as a fallback.
 - **Why:** Morgan's own words asked for sight "dynamic with where the player tokens are", which a tap per look can't give. A grid-indexed wall check measured 3.0 ms instead of 82.9 ms on a 1,974-piece map (cloud, not the laptop), which makes re-looking on every move affordable. Three fresh-context checks of the spec found the original design ran sight where the walls aren't loaded, leaked hidden enemies through the turn strip, revealed everything on maps without walls, could overflow the fog list in a save, and read the wrong scene under a curtain; all were fixed before approval.
