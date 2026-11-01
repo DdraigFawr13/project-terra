@@ -36,6 +36,7 @@ import { blockIndex } from "../core/wallcheck.ts";
 import type { Annotation } from "../core/annotation.ts";
 import type { Doors } from "../core/doors.ts";
 import type { Bounds } from "../core/map.ts";
+import type { Point } from "../core/homography.ts";
 
 /** Going back to an earlier save keeps the rig as it is now: the screens, the calibration and the curtain (D-037). */
 function keepOnRestore(s: TableState): Partial<TableState> {
@@ -523,14 +524,21 @@ if (!app.requestSingleInstanceLock()) {
     // Live sight while a token is dragged (Sight S5, D-047): the dragged token's outline goes to the table as it
     // moves, drawn uncovered there. Nothing is stored; the drop runs the normal re-look. The curtain hides it, as it
     // hides pings. A null id ends the drag, and a null outline clears the table's.
+    let liveShown = false;
+    const sendLive = (points: Point[] | null): void => {
+      // A clear is sent only over an outline, so a token that sees nothing doesn't redraw the table every square.
+      if (points || liveShown) send(playerWindow, "table:sight-live", points);
+      liveShown = !!points;
+    };
     ipcMain.handle("sight:drag", (_e, id: unknown, x: unknown, y: unknown) => {
-      if (id === null) return send(playerWindow, "table:sight-live", null);
+      if (id === null) return sendLive(null);
       const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 500;
       if (typeof id !== "string" || id.length > 80 || !ok(x) || !ok(y)) return;
-      // With Sight Off nothing is read from disk, as for a re-look (D-047 item 1).
-      if (!state.map || sightOf(state) === "off" || viewOf(state) !== "map") return;
-      const points = liveSight(state, wallsOf(state.map.id), id, { x: x + 0, y: y + 0 }, indexFor);
-      send(playerWindow, "table:sight-live", points);
+      // Under the curtain nothing is sent; the table clears its own outline there, as it ends pings.
+      if (viewOf(state) !== "map") return;
+      // With Sight Off nothing is read from disk, as for a re-look (D-047 item 1); an outline still up is cleared.
+      if (!state.map || sightOf(state) === "off") return sendLive(null);
+      sendLive(liveSight(state, wallsOf(state.map.id), id, { x: x + 0, y: y + 0 }, indexFor));
     });
     ipcMain.handle("library:list", () => listMaps(app.getPath("userData")));
     ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown, feet: unknown, walls: unknown) =>
