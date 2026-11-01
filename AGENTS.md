@@ -4,7 +4,7 @@ Project Terra is a projected tabletop battle map for Morgan's in-person D&D 5e (
 
 Shared rules come from AI-Master-Instructions and load through CLAUDE.md (`.claude/master/RULES.md`). This file holds only what is specific to this project. Keep it under 80 lines.
 
-Sessions on this project may not have the AI-Master-Instructions repo. Everything needed is in this repo: the synced rules, agents, skills and hook, plus a project-owned copy of the `planning-interview` skill (D-019). `node .claude/master/sync.mjs --check` works offline; a full sync needs the master and isn't needed for normal work.
+Sessions on this project may not have the AI-Master-Instructions repo. Everything needed is in this repo: the synced rules, agents, skills (including `planning-interview` and `write-spec`) and hook (D-019). `node .claude/master/sync.mjs --check` works offline; a full sync needs the master and isn't needed for normal work.
 
 ## Read first
 
@@ -48,4 +48,4 @@ Sessions on this project may not have the AI-Master-Instructions repo. Everythin
 
 Master rules this project deliberately changes. Each line names the rule id and the reason; the same entry is in `.ai-master.json` "overrides".
 
-- None.
+- **WEB-06** (first-load JavaScript budget): Terra is an Electron app that loads its pages from the laptop's disk, not over a network, so a gzipped first-load budget measures nothing that players or Morgan wait on; start-up speed is checked on the laptop at the rehearsal instead (VER-06).

@@ -1,6 +1,11 @@
 {
-  "version": "v0.3.0",
+  "version": "v0.6.0",
   "layers": ["core", "stacks/node-web", "project-types/game"],
   "exclude": [],
-  "overrides": []
+  "overrides": [
+    {
+      "id": "WEB-06",
+      "reason": "Terra is an Electron app that loads its pages from the laptop's disk, not over a network, so a gzipped first-load budget measures nothing that players or Morgan wait on; start-up speed is checked on the laptop at the rehearsal instead (VER-06)."
+    }
+  ]
 }

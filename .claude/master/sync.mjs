@@ -33,7 +33,7 @@ export class SyncError extends Error {}
 
 // ---------- rules ----------
 
-/** Parse one rule file into { title, rules: [{ id, text, neverOverride, why, source }] }. */
+/** Parse one rule file into { title, rules: [{ id, text, neverOverride, superseded, why, source }] }. */
 export function parseRules(text, file = 'rules') {
   const lines = text.split('\n');
   const title = (lines.find((l) => l.startsWith('# ')) ?? '').slice(2).trim();
@@ -47,6 +47,7 @@ export function parseRules(text, file = 'rules') {
       id: m[1],
       text: m[2],
       neverOverride: m[2].trim().endsWith('(never override)'),
+      superseded: m[2].startsWith('SUPERSEDED'),
       why: why?.[1] ?? null,
       source: why?.[2] ?? null,
     });
@@ -68,7 +69,7 @@ export function loadRules(sourceDir, layers) {
   return files;
 }
 
-/** Render RULES.md: headings demoted, why/source comments stripped, overridden rules replaced by a pointer. */
+/** Render RULES.md: headings demoted, why/source comments and superseded rules stripped, overridden rules replaced by a pointer. */
 export function renderRules(ruleFiles, { version, overrides = [] }) {
   const overridden = new Set(overrides.map((o) => o.id));
   const out = [
@@ -78,7 +79,7 @@ export function renderRules(ruleFiles, { version, overrides = [] }) {
   ];
   for (const file of ruleFiles) {
     out.push('', `## ${file.title}`, '');
-    for (const rule of file.rules) {
+    for (const rule of file.rules.filter((r) => !r.superseded)) {
       out.push(
         overridden.has(rule.id)
           ? `- **${rule.id}** Overridden by this project: see AGENTS.md "Overrides".`

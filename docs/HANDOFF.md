@@ -1,6 +1,6 @@
 # Handoff
 
-Updated: 2026-10-31. A fresh session must be able to continue from this file alone. Keep it to 60 lines; finished entries move to [archive/handoff-2026-10.md](archive/handoff-2026-10.md).
+Updated: 2026-11-01. A fresh session must be able to continue from this file alone. Keep it to 60 lines; finished entries move to [archive/handoff-2026-10.md](archive/handoff-2026-10.md).
 
 ## Phase
 
@@ -50,6 +50,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Everything before the rehearsal 
 - Layout (D-038): [audit](https://claude.ai/artifact/R1TJm1AfCyvqSuktZjiSyD), [round 1](https://claude.ai/artifact/BLvKT9sMLPEecrEdGC5dKX), [review and final](https://claude.ai/artifact/GwwNfsNY3ssddwUbF5tr98); walkthroughs [7h](https://claude.ai/artifact/HCcL6eoXmhosQL5A2t11jb), [7i](https://claude.ai/artifact/CchqNxcz6BnFCVMR5YQHoD), [7j](https://claude.ai/artifact/Uo1wgbKJo7vunUAN9UKWhz)
 - Map annotation (D-044): [round 1](https://claude.ai/artifact/J5kSTU4AS96zwhwsbcudg7), [review](https://claude.ai/artifact/6hkYeaHBJGvFxnrwyQvoTH); walkthroughs [2A](https://claude.ai/artifact/TU2tssgbPPxX2b1wWV2iw4), [2B](https://claude.ai/artifact/X81467bZw6GvVZASdDAwJ1), [2C](https://claude.ai/artifact/LRwk3KouSwJgHT1Z3HQVBL), [2D](https://claude.ai/artifact/GfJhC7fU8n1hbDdVLY4LB4)
 - UI design: [round 1](https://claude.ai/artifact/CXKec4y4K2JBqv6gAC8eyx), [round 2](https://claude.ai/artifact/8dnwH7FRSRMLrYBkuHCtW2), [final](https://claude.ai/artifact/VUP3qZFNYp2gZTPbXch4Re)
+- Sight (first `write-spec` trial; answers become `docs/specs/sight.md`): [round 1](https://claude.ai/artifact/LqReE9S5xvJ8YyGR5biVQw)
 - Similar apps: [research](https://claude.ai/artifact/EMsAgY1w1Ls7oyMGWDs6Ma), [Wants review](https://claude.ai/artifact/P9egMjv9LBUoNJEPdEWBRq); walkthrough [7n](https://claude.ai/artifact/5HEw43sGzb9wD9EqQutMMG), [7o](https://claude.ai/artifact/3QxHHycZtP7LD6gMQVFqpx), [8b](https://claude.ai/artifact/AbXWHvY9C1t7XMwpV2hJYY)
 
 ## Decisions since the last plan update
