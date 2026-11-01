@@ -10,11 +10,15 @@ import {
   MAX_TITLE,
   type Command,
   type Scene,
+  type Sight,
   type TableState,
 } from "../core/table.ts";
 import type { DmApi } from "../main/dm-preload.ts";
 import { button, el } from "./dom.ts";
 import { popover } from "./popover.ts";
+
+/** A scene's Sight in a word, for its menu (D-047). */
+const SIGHT_WORD: Record<Sight, string> = { off: "Off", on: "On", dark: "Dark" };
 
 export function initScenes(
   terra: DmApi,
@@ -85,6 +89,7 @@ export function initScenes(
         button("Move up", { disabled: first }, pick({ type: "moveScene", id: scene.id, by: -1 }), "up"),
         button("Move down", { disabled: last }, pick({ type: "moveScene", id: scene.id, by: 1 }), "down"),
         button(`Curtain: ${curtainWord(scene)}…`, {}, () => curtainForm(scene, from), "curtain"),
+        button(`Sight: ${SIGHT_WORD[scene.sight]}…`, {}, () => sightForm(scene, from), "reveal"),
         button(
           "Mark ready",
           { title: "Keep a copy of this scene as it is now, to reset to later" },
@@ -103,6 +108,32 @@ export function initScenes(
         ),
       ),
     ]);
+  }
+
+  /**
+   * A scene's Sight (D-047): Off, On, or On and dark, the current one pressed. A map with no traced walls says that
+   * Sight won't change its fog, once its walls file has been read.
+   */
+  function sightForm(scene: Scene, from: HTMLElement): void {
+    const choice = (sight: Sight, label: string) =>
+      button(label, { "aria-pressed": String(scene.sight === sight), class: "scene-choice" }, () => {
+        run({ type: "sceneSight", id: scene.id, sight });
+        pop.close();
+      });
+    const body = el(
+      "div",
+      { class: "pop-body scene-pick" },
+      choice("off", "Off: fog changes only when you paint it."),
+      choice("on", "On: the table shows what the tokens can see."),
+      choice("dark", "On, dark: as On, limited by darkvision and light."),
+    );
+    const pop = popover(at(from), [el("header", { class: "pop-head" }, el("b", {}, "Sight")), body]);
+    const map = state && sceneContent(state, scene).map;
+    if (!map) return;
+    void terra.loadWalls(map.id).then((a) => {
+      const blocks = a.walls.length || a.pillars.length || a.openings.some((o) => o.kind === "door" || o.kind === "secret");
+      if (!blocks) body.append(el("p", { class: "hint" }, "This map has no traced walls, so Sight won't change the fog here."));
+    });
   }
 
   /** A scene's curtain in a word or two, for its menu. */

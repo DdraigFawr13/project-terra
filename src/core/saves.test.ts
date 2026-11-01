@@ -49,7 +49,10 @@ test("a save is described by its map, discs, round and party", () => {
   assert.equal(describeSave(placed, null), "a map, 1 disc, round 3, 1 character");
   const scenes = {
     ...placed,
-    scenes: [...placed.scenes, { id: "scene-2", name: "", removed: false, parked: null, curtain: { kind: "black" as const }, ready: null }],
+    scenes: [
+      ...placed.scenes,
+      { id: "scene-2", name: "", removed: false, parked: null, curtain: { kind: "black" as const }, ready: null, sight: "off" as const },
+    ],
   };
   assert.equal(describeSave(scenes, null), "a map, 1 disc, round 3, 1 character, 2 scenes");
 });
@@ -70,6 +73,7 @@ test("the problem report lists screens, the table's surface, saves, notices and 
     calibrated: ["display:2"],
     saveBytes: 39000,
     earlier: 2,
+    slowestRelookMs: 4.17,
     notices: [],
     log: ["2026-10-29T19:40:00.000Z table crashed (oom); reloading."],
   });
@@ -77,6 +81,7 @@ test("the problem report lists screens, the table's surface, saves, notices and 
   assert.match(text, /- 1 "Built-in" 1280 × 720 at 150%, built-in, main display\n- 2 "EPSON" 1920 × 1080 at 100%\n/);
   assert.match(text, /Table uses display:2, fullscreen; calibrated for display:2/);
   assert.match(text, /Save: 39000 bytes; 2 earlier saves/);
+  assert.match(text, /\nSlowest sight update: 4\.2 ms\n/);
   assert.match(text, /Notices:\n- none/);
   assert.match(text, /Recent problems:\n- 2026-10-29T19:40:00.000Z table crashed/);
 });

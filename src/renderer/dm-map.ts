@@ -254,6 +254,8 @@ export function initMaps(
     if (id && shownWalls?.id === id) shownWalls = null;
     render();
   });
+  /** Whether the scene on the table has Sight on (D-047): its doors are drawn and tappable even with Walls hidden. */
+  const sightOn = () => !!state && state.scenes.find((sc) => sc.id === state!.scene)?.sight !== "off";
   function wallsFor(id: string): Annotation | null {
     if (shownWalls?.id === id) return shownWalls.walls;
     if (loadingWalls !== id) {
@@ -742,7 +744,8 @@ export function initMaps(
     if (img.complete && img.naturalWidth) fog.draw(ctx, img, map.bounds, map.fog, "dm");
     // Loaded whether or not they show: a tap in a room uses them (D-044).
     const traced = wallsFor(map.id);
-    if (traced && showWalls) drawWalls(ctx, traced, s, true, null, map.doors);
+    // With Sight on and Walls hidden, the doors still show, so they can be tapped (D-047).
+    if (traced && (showWalls || sightOn())) drawWalls(ctx, traced, s, true, null, map.doors, !showWalls);
     const ghost = stroke && strokeOp(stroke);
     if (ghost) {
       ctx.fillStyle = ctx.strokeStyle = GHOST[ghost.mode];
@@ -1388,7 +1391,7 @@ export function initMaps(
     render();
   }
   /**
-   * A Select tap that started a map drag or pan, on a door or secret door that is drawn (Walls shown), opens or closes it
+   * A Select tap that started a map drag or pan, on a door or secret door that is drawn (Walls shown, or Sight on), opens or closes it
    * for this scene (D-047). True when it did. With no walls file loaded yet there is nothing to hit.
    */
   function tapDoor(e: PointerEvent, keep: boolean): boolean {
@@ -1397,7 +1400,7 @@ export function initMaps(
     doorPress = null;
     const map = state?.map;
     const p = canvasPoint(e);
-    if (!keep || !map || !showWalls || Math.hypot(p.x - press.from.x, p.y - press.from.y) > SLIP_PX) return false;
+    if (!keep || !map || !(showWalls || sightOn()) || Math.hypot(p.x - press.from.x, p.y - press.from.y) > SLIP_PX) return false;
     const traced = wallsFor(map.id);
     const door = traced && doorAt(traced, press.at, DOOR_HIT_IN);
     if (!door) return false;

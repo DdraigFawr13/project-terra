@@ -41,13 +41,18 @@ export type FogShape = Extract<FogOp, { mode: FogMode }>;
 export type FogLevel = "unexplored" | "explored" | "seen";
 
 /** Limits for untrusted data. A long stroke is split into several ops by the DM window. */
-const MAX_FOG_OPS = 2000;
+export const MAX_FOG_OPS = 2000;
 export const MAX_FOG_POINTS = 1000;
 const REACH_IN = 500;
 const MIN_R = 0.25;
 const MAX_R = 10;
-/** A list this long is baked into a base before the next op (D-029). Replaying 500 ops takes about a tenth of a second. */
+/**
+ * A list this long is packed into a base in the background (D-029, D-047 item 8): main's worker bakes it and a `packFog`
+ * command swaps it in. Replaying 500 ops takes about a tenth of a second.
+ */
 export const COMPACT_AT = 500;
+/** Only if no pack has landed by this length does `addFog` bake in place, so a save never passes MAX_FOG_OPS. */
+export const BAKE_NOW_AT = 1900;
 /** Cells per inch in a base: the renderer's own mask resolution, so baking doesn't change what the table shows. */
 const BASE_PPI = 24;
 const MAX_BASE_SIDE = 4096;
@@ -108,12 +113,27 @@ export function fogAt(fog: readonly FogOp[], p: Point): FogLevel {
 }
 
 /**
- * Add an op. Reveal all and cover all make every earlier op irrelevant, so they start the list afresh. A list of
- * COMPACT_AT ops is baked into one base first, over the map's `bounds` (D-029), so fog never stops taking strokes.
+ * Add an op. Reveal all and cover all make every earlier op irrelevant, so they start the list afresh. Long lists are
+ * packed in the background (`packFog`, D-047 item 8); only a list of BAKE_NOW_AT ops is baked into one base here first,
+ * over the map's `bounds` (D-029), as a fallback, so fog never stops taking strokes and a save stays readable.
  */
 export function addFog(fog: readonly FogOp[], op: FogOp, bounds: Bounds): FogOp[] {
   if (op.kind === "revealAll" || op.kind === "coverAll") return [op];
-  return fog.length >= COMPACT_AT ? [bake(fog, bounds), op] : [...fog, op];
+  return fog.length >= BAKE_NOW_AT ? [bake(fog, bounds), op] : [...fog, op];
+}
+
+/**
+ * A short check of a fog list: a 32-bit FNV-1a hash of its JSON, as 8 lowercase hex digits. A background pack names the
+ * ops it baked by their count and this check, so it lands only on the same ops (D-047 item 8).
+ */
+export function fogCheck(ops: readonly FogOp[]): string {
+  const text = JSON.stringify(ops);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
 }
 
 // ---- Bases: fog baked into cells (D-029) ----
