@@ -907,9 +907,9 @@ test("packFog is ignored after the ops changed, on another scene, past the list,
     s,
   );
   assert.equal(apply(away, pack), away);
-  // Past the end of the list.
+  // Past the end of the list: the check matches the 20 ops there, so only the length guard refuses it.
   const short = withFog(fogList(20));
-  const long = parseCommand({ ...packOf(s, 30), count: 30 })!;
+  const long = parseCommand({ ...packOf(short, 20), count: 30 })!;
   assert.equal(apply(short, long), short);
   // Bounds that differ from the map's.
   const moved = parseCommand({ ...packOf(s, 30), base: bake(s.map!.fog.slice(0, 30), { ...s.map!.bounds, width: 31 }) })!;

@@ -130,10 +130,13 @@ export function initScenes(
     const pop = popover(at(from), [el("header", { class: "pop-head" }, el("b", {}, "Sight")), body]);
     const map = state && sceneContent(state, scene).map;
     if (!map) return;
-    void terra.loadWalls(map.id).then((a) => {
-      const blocks = a.walls.length || a.pillars.length || a.openings.some((o) => o.kind === "door" || o.kind === "secret");
-      if (!blocks) body.append(el("p", { class: "hint" }, "This map has no traced walls, so Sight won't change the fog here."));
-    });
+    void terra.loadWalls(map.id).then(
+      (a) => {
+        const blocks = a.walls.length || a.pillars.length || a.openings.some((o) => o.kind === "door" || o.kind === "secret");
+        if (!blocks) body.append(el("p", { class: "hint" }, "This map has no traced walls, so Sight won't change the fog here."));
+      },
+      () => {},
+    );
   }
 
   /** A scene's curtain in a word or two, for its menu. */

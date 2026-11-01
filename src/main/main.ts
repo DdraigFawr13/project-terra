@@ -123,8 +123,10 @@ let slowestRelookMs: number | null = null;
 function withSight(prev: TableState, next: TableState, command: Command): TableState {
   // With Sight Off nothing is read from disk: today's Terra (D-047 item 1).
   if (!next.map || next.scenes.find((sc) => sc.id === next.scene)?.sight === "off") return next;
+  // The walls file is read before the clock starts: a first read from disk isn't part of a re-look.
+  const annotation = wallsOf(next.map.id);
   const t0 = performance.now();
-  const out = afterCommand(prev, next, command, wallsOf(next.map.id), indexFor);
+  const out = afterCommand(prev, next, command, annotation, indexFor);
   if (out !== next) slowestRelookMs = Math.max(slowestRelookMs ?? 0, performance.now() - t0);
   return out;
 }

@@ -5,7 +5,7 @@ import { fogAt, MAX_FOG_OPS, parseFogOp, type FogOp } from "./fog.ts";
 import { afterCommand, relook, sightKey } from "./sight.ts";
 import { denseRooms } from "./sight-fixtures.ts";
 import { apply, defaultState, parseCommand, parseSave, serialize, type Command, type PlacedMap, type TableState } from "./table.ts";
-import { blockIndex } from "./wallcheck.ts";
+import { blockersFor, blockIndex } from "./wallcheck.ts";
 
 /**
  * Rooms A (x 0–10) and B (x 10–20), 10 inches high, joined by a closed door from (10, 4) to (10, 6). The map edge
@@ -123,6 +123,8 @@ test("nothing on a map without walls", () => {
   // Rooms and areas alone block nothing.
   const roomsOnly = { ...emptyAnnotation(), rooms: [{ outline: [A, B, { x: 3, y: 9 }], name: "1", material: null }] };
   assert.equal(afterCommand(s, next, c, roomsOnly), next);
+  // The S1 build decision's reading: none of these has a blocking piece.
+  for (const a of [emptyAnnotation(), roomsOnly]) assert.deepEqual(blockersFor(a, {}), []);
 });
 
 test("nothing after switchScene or resetScene", () => {
