@@ -27,7 +27,7 @@ const outline: FogOp = {
   ],
 };
 
-test("reveal makes an area seen; hide and 'party moves on' leave it explored; cover all makes it black", () => {
+test("reveal makes an area seen; hide and 'party moves on' leave it explored; cover and cover all make it black", () => {
   let fog = [room, brush, outline].reduce<FogOp[]>(add, []);
   assert.equal(fogAt([], { x: 1, y: 1 }), "unexplored");
   assert.equal(fogAt(fog, { x: 1, y: 1 }), "seen");
@@ -43,6 +43,16 @@ test("reveal makes an area seen; hide and 'party moves on' leave it explored; co
   fog = add(fog, { kind: "dimSeen" });
   assert.equal(fogAt(fog, { x: 3, y: 1 }), "explored");
   assert.equal(fogAt(fog, { x: 30, y: 30 }), "unexplored");
+  // Cover (D-048) turns both seen and explored back to black, and a later reveal still works there.
+  const covered = add(add(fog, { kind: "box", mode: "reveal", x: 2, y: 0, width: 1, height: 1 }), {
+    kind: "brush",
+    mode: "cover",
+    r: 0.5,
+    points: [{ x: 1, y: 1 }],
+  });
+  assert.equal(fogAt(covered, { x: 1, y: 1 }), "unexplored");
+  assert.equal(fogAt(covered, { x: 2.5, y: 0.5 }), "seen", "outside the cover");
+  assert.equal(fogAt(add(covered, room), { x: 1, y: 1 }), "seen");
 
   // Reveal all and cover all make earlier ops irrelevant, so the list starts afresh.
   assert.deepEqual(add(fog, { kind: "revealAll" }), [{ kind: "revealAll" }]);
@@ -53,7 +63,7 @@ test("baked fog reads the same as the ops it came from, at every cell, and saves
   const bounds = { x: -1, y: -1, width: 4, height: 3 };
   const coord = fc.integer({ min: -150, max: 350 }).map((n) => n / 100);
   const point = fc.record({ x: coord, y: coord });
-  const mode = fc.constantFrom("reveal" as const, "hide" as const);
+  const mode = fc.constantFrom("reveal" as const, "hide" as const, "cover" as const);
   const op: fc.Arbitrary<FogOp> = fc.oneof(
     fc.record({
       kind: fc.constant("brush" as const),

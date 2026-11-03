@@ -449,6 +449,20 @@ test("lasting drawings (D-035): kept in map inches, only the players' lines reac
     [2],
   );
   assert.deepEqual(run([{ type: "clearDrawings" }], s).map!.drawings, []);
+  // The Eraser (D-048): one swipe takes lines and pins together; ids already gone are skipped.
+  const pinned = run([{ type: "placePin", x: 2, y: 2, table: true }], s);
+  const erased = run([{ type: "erase", drawings: [2, 7], pins: [1] }], pinned);
+  assert.deepEqual(
+    erased.map!.drawings.map((d) => d.id),
+    [1],
+  );
+  assert.deepEqual(erased.map!.pins, []);
+  assert.ok(UNDOABLE.has("erase"));
+  assert.equal(run([{ type: "erase", drawings: [9], pins: [] }], s), s, "nothing it names is there");
+  assert.equal(parseCommand({ type: "erase", drawings: [], pins: [] }), null);
+  assert.equal(parseCommand({ type: "erase", drawings: [0], pins: [] }), null);
+  assert.equal(parseCommand({ type: "erase", drawings: Array(MAX_DRAWINGS + 1).fill(1), pins: [] }), null);
+  assert.deepEqual(parseCommand({ type: "erase", drawings: [1], pins: [3] }), { type: "erase", drawings: [1], pins: [3] });
   // Bad lines are refused: one point, too many points, a disc colour as ink.
   assert.equal(parseCommand({ type: "draw", ink: "white", table: true, points: [line[0]] }), null);
   assert.equal(parseCommand({ type: "draw", ink: "white", table: true, points: Array(MAX_LINE_POINTS + 1).fill(line[0]) }), null);

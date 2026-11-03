@@ -1,6 +1,6 @@
 # Handoff
 
-Updated: 2026-11-01. A fresh session must be able to continue from this file alone. Keep it to 60 lines; finished entries move to [archive/handoff-2026-10.md](archive/handoff-2026-10.md).
+Updated: 2026-11-02. A fresh session must be able to continue from this file alone. Keep it to 60 lines; finished entries move to [archive/handoff-2026-10.md](archive/handoff-2026-10.md).
 
 ## Phase
 
@@ -8,8 +8,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Everything before the rehearsal 
 
 ## Just done (earlier: [November](archive/handoff-2026-11.md), [October](archive/handoff-2026-10.md))
 
-- 2026-11-01 Sight S4 dark scenes (D-047, [spec](specs/sight.md)), branch `claude/sight-s4`, [walkthrough](https://claude.ai/artifact/Hng1JXDVr3j8h8VSkE7hFE) sent to Morgan, approved by Morgan 2026-11-01, PR opened to merge when green (D-018). `Character.darkvision` (ft, 0–300, nearest 5) and `light` (none / torch / hooded lantern) in `fight.ts`, defaults for old saves; Party sheet fields after Speed; `sight.ts` ranges: on a dark scene each token sees the farther of darkvision and its light (torch 40 ft, hooded lantern 60 ft, checked in the official SRD 5.2.1 PDF), divided by feet per square; `sightKey` holds each seeing token's range. 0 build questions. Checks: `npm run check` 122/122, e2e 5/5. Bench (cloud) whole look median 12.2 ms lit, 12.6 ms dark (`npm run bench:sight -- 200 dark`). Fresh review: 0 high, 1 medium, 3 low; fixed the medium (D-002 test now carries the fields) and 1 low (blinded token's range out of `sightKey`); 2 low needed no change. Unit suite 1.9 s.
-- 2026-11-01 Sight S3 hidden enemies (D-047), merged as [PR #50](https://github.com/DdraigFawr13/project-terra/pull/50) (squash 9930a4a); [walkthrough](https://claude.ai/artifact/6NoZ1VWyzKMrjyLAK8q8mA): `discSeen` and `sightOf`; `playerViewOf` keeps a disc only while a covered square centre is seen, strip included; the DM map slashes discs On table but unseen. 0 build questions; review 0 high, 0 medium, 4 low, 2 fixed.
+- 2026-11-02 Cover brush and Eraser (D-048, [form](https://claude.ai/artifact/CaAPVSmbo2BAcGCuvss9rJ)), branch `cover-eraser`, built on this PC, not yet a PR (summary to Morgan first, D-018). Fog `mode: "cover"` (back to black) in `fog.ts`, `fog-draw.ts` and baking; Cover tool (C) after Dim. The `erase` command takes lines and pins in one undo step; Eraser tool (E) after Draw. Tools stand two to a row under 760 px tall, since 8 in a column hid Undo at 1280 × 680 (it overflowed 45 px on main already). Checks on Windows: `npm run check` 122/122, e2e 5/5; screenshots at 1280 × 680 looked at.
 
 ## Next
 
@@ -55,6 +54,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Everything before the rehearsal 
 
 ## Decisions since the last plan update
 
+- 2026-11-02 D-048 Cover brush (back to black) and Eraser (lines and pins, one undo per swipe); changes D-025 item 3.
 - 2026-11-01 D-047 Sight: follows tokens, per-scene setting Off by default, built before session 1 behind rehearsal fixes.
 - 2026-10-31 D-046 streamlining rule; the Wants placed as steps 7n, 7o and 8b and in later phases. D-044 item 6 changed: the room grow is even past secret doors.
 - 2026-10-30 D-045 player character tokens, per character, dragged by the DM; changes D-027 item 1.

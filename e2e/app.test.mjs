@@ -478,6 +478,24 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await pen("mouseReleased", 20);
     await until(table, async () => (await window.terra.getView()).map?.fog[0]?.kind === "brush");
     await dm.keyboard.press("Control+z");
+    // Cover (D-048): C picks it, and a box painted over uncovered fog turns it black again on the table.
+    await dm.evaluate(() => window.terra.apply({ type: "fog", op: { kind: "revealAll" } }));
+    await dm.evaluate(() => document.activeElement.blur());
+    await dm.keyboard.press("c");
+    assert.equal(await dm.getAttribute("button[data-tool='cover']", "aria-pressed"), "true");
+    await dm.click("button[data-draw='box']");
+    await dm.mouse.move(box.x + box.width / 2 - 30, box.y + box.height / 2 - 30);
+    await dm.mouse.down();
+    await dm.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2 + 30, { steps: 3 });
+    await dm.mouse.up();
+    await until(table, async () => (await window.terra.getView()).map?.fog[1]?.mode === "cover");
+    const covered = (await table.evaluate(() => window.terra.getView())).map.fog;
+    const { x: cx, y: cy, width: cw, height: ch } = covered[1];
+    assert.equal(fogAt(covered, { x: cx + cw / 2, y: cy + ch / 2 }), "unexplored");
+    await dm.keyboard.press("Control+z");
+    await dm.keyboard.press("Control+z");
+    await until(dm, async () => (await window.terra.getState()).map.fog.length === 0);
+    await dm.click("button[data-draw='brush']");
     // Uncover all takes a hold while the players can see the map (D-046): a tap only says so.
     await dm.click(".side-tabs button[data-tab='explore']");
     await dm.click("#fogRevealAll");
@@ -1162,6 +1180,33 @@ test("a fight: party and monster windows, discs placed with the pen, HP by numbe
     await until(table, async () => (await window.terra.getView()).drawings.length === 1);
     await dm.mouse.click(spot.x + 60, spot.y + 20);
     await until(table, async () => (await window.terra.getView()).drawings.length === 0);
+    // Eraser (D-048): one swipe over a line and a pin takes both off the table, and one Ctrl+Z brings both back.
+    await stroke();
+    await dm.keyboard.press("p");
+    await dm.mouse.move(spot.x, spot.y);
+    await dm.mouse.down();
+    await until(dm, async () => (await window.terra.getState()).map.pins.length === 1);
+    await dm.mouse.up();
+    await until(
+      table,
+      async () => (await window.terra.getView()).drawings.length === 1 && (await window.terra.getView()).pins.length === 1,
+    );
+    const swipe = async () => {
+      await dm.keyboard.press("e");
+      await dm.mouse.move(spot.x - 10, spot.y);
+      await dm.mouse.down();
+      await dm.mouse.move(spot.x + 120, spot.y + 40, { steps: 10 });
+      await dm.mouse.up();
+      await until(table, async () => (await window.terra.getView()).drawings.length + (await window.terra.getView()).pins.length === 0);
+    };
+    await swipe();
+    await dm.keyboard.press("Control+z");
+    await until(
+      table,
+      async () => (await window.terra.getView()).drawings.length === 1 && (await window.terra.getView()).pins.length === 1,
+    );
+    await swipe();
+    await dm.keyboard.press("d");
     await dm.click("button[data-ink-fade=true]");
     const sketched = table.evaluate(() => new Promise((resolve) => window.terra.onSketch(resolve)));
     await stroke();
