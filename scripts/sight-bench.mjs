@@ -7,7 +7,7 @@
 import { performance } from "node:perf_hooks";
 import { denseRooms } from "../src/core/sight-fixtures.ts";
 import { bake, COMPACT_AT, fogCheck } from "../src/core/fog.ts";
-import { afterCommand } from "../src/core/sight.ts";
+import { afterCommand, liveSight } from "../src/core/sight.ts";
 import { apply, defaultState, playerViewOf } from "../src/core/table.ts";
 import { blockIndex, blockersFor, sightFrom } from "../src/core/wallcheck.ts";
 
@@ -139,6 +139,20 @@ for (let r = 0; r < 5; r++) {
   checks.push(cms);
   lands.push(time(() => apply(list, { type: "packFog", scene: list.scene, count: COMPACT_AT, check, base }))[0]);
 }
+// Live sight while dragging (S5): main runs one `liveSight` each time the dragged token enters a new square, with the
+// wall index it keeps. Each run drags every token 10 squares to the right and times each square and the whole drag.
+const cached = blockIndex(annotation, state.map.doors, state.map.bounds);
+const [squareMs, dragMs] = [[], []];
+for (let r = 0; r < runs; r++) {
+  const n = r % points.length;
+  const from = points[n];
+  const t0 = performance.now();
+  for (let step = 1; step <= 10; step++) {
+    const at = { x: Math.min(from.x + step, bounds.width - 0.5), y: from.y };
+    squareMs.push(time(() => liveSight(state, annotation, `pc-${n + 1}`, at, () => cached))[0]);
+  }
+  dragMs.push(performance.now() - t0);
+}
 console.log(
   `Dense test map: ${blockersFor(annotation, {}).length} blocking pieces, 4 tokens, 8 discs, ${runs} runs, ${dark ? "dark, darkvision 60 ft" : "lit"} (Node ${process.version}).`,
 );
@@ -146,6 +160,8 @@ console.log(`Index:              ${stats(indexMs)}`);
 console.log(`sightFrom per token: ${stats(outlineMs)}; points ${pointsPer.join(", ")}`);
 console.log(`Whole look:         ${stats(wholeMs)} (token move: apply, afterCommand, playerViewOf; no packing)`);
 console.log(`playerViewOf:       ${stats(viewMs.slice(-runs))} (part of the whole look; 8 discs, ${state.map.discs.length} placed)`);
+console.log(`Drag, per square:   ${stats(squareMs)} (liveSight for the dragged token, cached index; S5)`);
+console.log(`Drag of 10 squares: ${stats(dragMs)} (sum of the 10 updates)`);
 console.log(`Packs landed between looks: ${packs} (untimed; the worker's job)`);
 console.log(`Worker bake of ${COMPACT_AT} ops: ${stats(bakes)}`);
 console.log(

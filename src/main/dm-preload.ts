@@ -34,6 +34,11 @@ const api = {
   sketch: (ink: Ink, points: Point[]): Promise<void> => ipcRenderer.invoke("table:sketch", ink, points),
   /** A piece of the laser trail, in table inches (D-046): it fades on the table, nothing saved. */
   laser: (points: Point[]): Promise<void> => ipcRenderer.invoke("table:laser", points),
+  /**
+   * Live sight (Sight S5, D-047): the dragged token now stands at (x, y) in map inches; the table draws what it would
+   * see, and nothing is saved. `null` ends the drag.
+   */
+  sightDrag: (id: string | null, x?: number, y?: number): Promise<void> => ipcRenderer.invoke("sight:drag", id, x, y),
   canUndo: (): Promise<boolean> => ipcRenderer.invoke("history:get"),
   /** Earlier saves, newest first, with a few words on each (D-037). */
   listSaves: (): Promise<EarlierSave[]> => ipcRenderer.invoke("saves:list"),

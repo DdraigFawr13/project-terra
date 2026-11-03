@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { emptyAnnotation, type Annotation } from "./annotation.ts";
 import { fogAt, MAX_FOG_OPS, parseFogOp, type FogOp } from "./fog.ts";
-import { afterCommand, relook, sightKey } from "./sight.ts";
+import { afterCommand, liveSight, relook, sightKey } from "./sight.ts";
 import { denseRooms } from "./sight-fixtures.ts";
 import { apply, defaultState, parseCommand, parseSave, serialize, type Command, type PlacedMap, type TableState } from "./table.ts";
 import { blockersFor, blockIndex } from "./wallcheck.ts";
@@ -324,4 +324,31 @@ test("a darkvision edit re-looks on a dark scene", () => {
   const on = step(ready("on"), { type: "token", id: "pc-1", at: { x: 4.5, y: 5.5 } });
   const edited = step(on, { type: "updateCharacter", character: { ...on.party[0]!, darkvision: 60, light: "lantern" } });
   assert.equal(ops(edited), ops(on));
+});
+
+test("liveSight: the dragged token's outline as a re-look draws it, or null where a re-look adds none", () => {
+  const s = run([{ type: "token", id: "pc-1", at: { x: 4.5, y: 5.5 } }], ready());
+  const looked = relook(s, blockIndex(rooms, s.map!.doors, s.map!.bounds));
+  assert.deepEqual(liveSight(s, rooms, "pc-1", { x: 4.5, y: 5.5 }), (ops(looked)[1] as { points: unknown }).points);
+  // Dragged elsewhere in room A: that point's view, still not past the closed door. Nothing is stored (S5).
+  const live = liveSight(s, rooms, "pc-1", { x: 7.5, y: 2.5 })!;
+  const drawn: FogOp[] = [{ kind: "outline", mode: "reveal", points: live }];
+  assert.equal(fogAt(drawn, A), "seen");
+  assert.equal(fogAt(drawn, B), "unexplored");
+  assert.deepEqual(ops(s), []);
+  // None with Sight off, without walls, for a token that isn't on the map, off the map, or that can't see.
+  assert.equal(liveSight(run([{ type: "token", id: "pc-1", at: A }], ready("off")), rooms, "pc-1", A), null);
+  assert.equal(liveSight(s, emptyAnnotation(), "pc-1", A), null);
+  assert.equal(liveSight(s, null, "pc-1", A), null);
+  assert.equal(liveSight(s, rooms, "pc-9", A), null);
+  assert.equal(liveSight(s, rooms, "pc-1", { x: 30.5, y: 5.5 }), null);
+  const blind = run([{ type: "updateCharacter", character: { ...s.party[0]!, conditions: ["blinded"] } }], s);
+  assert.equal(liveSight(blind, rooms, "pc-1", A), null);
+  // On a dark scene, its own range: none without darkvision or light, 4 inches with darkvision 20 ft.
+  const dark = run([{ type: "sceneSight", id: "scene-1", sight: "dark" }], s);
+  assert.equal(liveSight(dark, rooms, "pc-1", A), null);
+  const seeing = run([{ type: "updateCharacter", character: { ...s.party[0]!, darkvision: 20 } }], dark);
+  const near: FogOp[] = [{ kind: "outline", mode: "reveal", points: liveSight(seeing, rooms, "pc-1", { x: 4.5, y: 5.5 })! }];
+  assert.equal(fogAt(near, { x: 4.5, y: 2 }), "seen", "3.5 inches up");
+  assert.equal(fogAt(near, { x: 4.5, y: 1 }), "unexplored", "4.5 inches up");
 });

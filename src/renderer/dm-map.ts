@@ -224,6 +224,9 @@ export function initMaps(
   /** Select dragging a character's token: where it started and where it would land, in map inches. */
   let tokenDrag: { pointer: number; pen: boolean; id: string; from: Point; at: Point } | null = null;
   let onTokenTap: (id: string, at: Point) => void = () => undefined;
+  /** Live sight (Sight S5, D-047): the dragged token's point last sent to main, and the frame booked to send the next. */
+  let liveSent: Point | null = null;
+  let liveFrame = 0;
   /** Whether a new pin is one the players see. */
   let pinTable = true;
   let line: Line | null = null;
@@ -287,6 +290,24 @@ export function initMaps(
   });
   $<HTMLButtonElement>("patchMap").addEventListener("click", () => state?.map && patch.open(state.map));
   const run = (c: Command) => terra.apply(c);
+  /** While a token is dragged with Sight on, tell main where it is, at most once a frame and only when it moved a square. */
+  function liveSoon(): void {
+    if (liveFrame || !sightOn()) return;
+    liveFrame = requestAnimationFrame(() => {
+      liveFrame = 0;
+      const t = tokenDrag;
+      if (!t || (liveSent && liveSent.x === t.at.x && liveSent.y === t.at.y)) return;
+      liveSent = t.at;
+      void terra.sightDrag(t.id, t.at.x, t.at.y);
+    });
+  }
+  /** The drag is over: the table clears its live outline (after the drop's own command, so it never flashes dark). */
+  function liveEnd(): void {
+    cancelAnimationFrame(liveFrame);
+    liveFrame = 0;
+    if (liveSent) void terra.sightDrag(null);
+    liveSent = null;
+  }
   const undo = () => terra.undo();
 
   async function refreshLibrary(): Promise<void> {
@@ -1111,6 +1132,7 @@ export function initMaps(
     tokenNext = null;
     rowNext = false;
     tokenDrag = null;
+    liveEnd();
     if (pressing) clearTimeout(pressing.timer);
     pressing = null;
     stroke = null;
@@ -1344,6 +1366,7 @@ export function initMaps(
     if (e.pointerType !== "touch") hover = at;
     if (tokenDrag?.pointer === e.pointerId) {
       tokenDrag.at = snapDisc(at, 1);
+      liveSoon();
       render();
       return;
     }
@@ -1483,7 +1506,9 @@ export function initMaps(
       tokenDrag = null;
       const moved = t.at.x !== t.from.x || t.at.y !== t.from.y;
       if (keep && moved) void run({ type: "token", id: t.id, at: t.at });
-      else if (keep && state?.map) {
+      // After the drop's command, so the table's live outline clears onto the re-look (Sight S5).
+      liveEnd();
+      if (keep && !moved && state?.map) {
         // A tap opens their HP pad beside the token, as a tap on a disc does.
         const r = mapCanvas.getBoundingClientRect();
         const { s, ox, oy } = viewport(state.map, r.width, r.height);

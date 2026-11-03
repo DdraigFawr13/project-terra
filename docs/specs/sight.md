@@ -121,6 +121,11 @@ From Morgan's answers in the two rounds:
 - Radii from the official SRD 5.2.1 PDF (media.dndbeyond.com, Adventuring Gear, PDF pages 98 and 100): Torch "casting Bright Light in a 20-foot radius and Dim Light for an additional 20 feet"; Lantern, Hooded "Bright Light in a 30-foot radius and Dim Light for an additional 30 feet" (hood up; a lowered hood is not a choice). So a torch sees 40 ft and a hooded lantern 60 ft; a character with both darkvision and a light sees the farther of the two.
 - `sightKey` holds each seeing token's range on a dark scene (from darkvision, light and `feetPerSquare`) instead of the raw fields, so a darkvision or light edit on a lit scene, or for a token that can't see, doesn't re-look and dim what the DM uncovered by hand.
 
+**Build decisions** (S5, 2026-11-01, Morgan):
+
+- Build S5 now, but merge it only once the laptop's Problem report shows "Slowest sight update" under 8 ms with four tokens (Morgan, in the build brief). Cloud numbers (12.2–12.6 ms) can't pass this gate. At 8 ms or more, S5 isn't merged and Morgan decides.
+- Hidden enemies appear on the drop, not during the drag (Morgan, build session question "Appear on drop"): only the dragged token's outline crosses to the table while dragging; discs and strip chips still follow the stored fog, so a room can open up empty for a moment before its enemies show at the drop.
+
 ## Alternatives rejected
 
 - **Look from here on a tap:** Morgan's own test is sight that follows the tokens, and a tap per look fails it whenever the party moves often.
@@ -256,7 +261,7 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
 - While a token is dragged with Sight on, the DM window asks main once per animation frame.
 - Main runs `sightFrom` for the dragged token. Only when `viewOf(state) === "map"`, like pings (`main.ts:456`), it sends the outline on `table:sight-live`. The table draws it as uncovered.
 - Nothing is stored; the drop runs the normal re-look.
-- Built only if the Problem report's slowest sight update on the laptop is under 8 ms with four tokens.
+- Merged only if the Problem report's slowest sight update on the laptop is under 8 ms with four tokens (built before that, Morgan 2026-11-01).
 
 **Saves:** save version 18 (`src/core/table.ts:51`, and the version list at `:1155`) reads versions 1–17 with the defaults above.
 
@@ -332,7 +337,7 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
   - e2e `live sight` sees outlines on `table:sight-live` during a drag and none while the curtain is down.
   - No new fog op is added until the drop.
 - **Files:** `src/main/main.ts`, both preload bridges, `src/renderer/dm-map.ts`, `src/renderer/player.ts`.
-- **Waits on:** S2, and the laptop's slowest sight update under 8 ms with four tokens (rehearsal).
+- **Waits on:** S2. Its merge waits on the laptop's slowest sight update under 8 ms with four tokens (build decision).
 
 ## Verification
 
