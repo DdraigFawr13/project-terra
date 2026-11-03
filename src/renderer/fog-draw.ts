@@ -261,8 +261,11 @@ function paint(op: FogOp, seen: Ctx, explored: Ctx, b: Bounds): void {
     fillFog(seen, op);
     fillFog(explored, op);
   } else {
-    seen.globalCompositeOperation = "destination-out";
-    fillFog(seen, op);
-    seen.globalCompositeOperation = "source-over";
+    // Dim takes the area out of seen; Cover (D-048) out of explored too, so it is black again.
+    for (const ctx of op.mode === "cover" ? [seen, explored] : [seen]) {
+      ctx.globalCompositeOperation = "destination-out";
+      fillFog(ctx, op);
+      ctx.globalCompositeOperation = "source-over";
+    }
   }
 }

@@ -1,8 +1,8 @@
 // DM window, maps (step 4, D-024): import a picture, mark a rectangle of known size, straighten it into 1-inch
 // squares, and place, move and turn it on the table. Straightening runs here, in the DM window; the main process only
-// stores the result in the personal library (D-010). Fog (step 5, D-025) is painted here with Uncover and Dim (the tools `reveal` and `hide`, D-038), and
+// stores the result in the personal library (D-010). Fog (step 5, D-025) is painted here with Uncover, Dim and Cover (the tools `reveal`, `hide` and `cover`, D-038, D-048), and
 // enemy discs (step 6, D-027) are placed with Marker and dragged with Select. Ping (step 7, D-034) pings the table with
-// a tap and leaves a pin with a long press. Draw (D-035) draws freehand lines, lasting or fading.
+// a tap and leaves a pin with a long press. Draw (D-035) draws freehand lines, lasting or fading. Eraser (D-048) rubs out lines and pins.
 import { defaultCalibration, screenOutline, visibleRect } from "../core/calibration.ts";
 import { isConvex, type Point, type Quad } from "../core/homography.ts";
 import {
@@ -99,11 +99,14 @@ type Importing = { bitmap: ImageBitmap; corners: Quad; selected: number; busy: b
 type VttImport = { vtt: VttMap; bitmap: ImageBitmap | null; busy: boolean };
 /** VTT files are JSON with the picture inside as base64, so a big map is a big file. */
 const MAX_VTT_BYTES = 200 * 1024 * 1024;
-type Tool = "select" | FogMode | "marker" | "ping" | "draw";
+type Tool = "select" | FogMode | "marker" | "ping" | "draw" | "erase";
 type DrawWith = "brush" | "outline" | "box";
 const DRAW_ORDER: DrawWith[] = ["brush", "outline", "box"];
-/** Ghost colours while painting: warm light to reveal, copper to hide. */
-const GHOST = { reveal: "rgba(240, 211, 168, 0.5)", hide: "rgba(200, 98, 63, 0.55)" };
+const isFog = (t: Tool): t is FogMode => t === "reveal" || t === "hide" || t === "cover";
+/** Ghost colours while painting: warm light to reveal, copper to hide, night blue to cover. */
+const GHOST = { reveal: "rgba(240, 211, 168, 0.5)", hide: "rgba(200, 98, 63, 0.55)", cover: "rgba(12, 16, 32, 0.7)" };
+/** The brush ring where the pen hovers, in each fog tool's colour. Cover's is moonlight, so it shows on dark fog. */
+const RING: Record<FogMode, string | null> = { reveal: "#f0d3a8", hide: null, cover: "#b9c6dc" };
 /** The table's edge on the DM map: pale, so it doesn't read as copper selection or a warning. */
 const TABLE_EDGE = "#e8dcc8";
 
@@ -147,6 +150,8 @@ const LONG_PRESS_MS = 500;
 const SLIP_PX = 14;
 /** A line being drawn, in map inches; or, with the pen's eraser, rubbing lines out (D-035). */
 type Line = { pointer: number; pen: boolean; from: Point; points: Point[]; eraser: boolean };
+/** A swipe with the Eraser (D-048): the lines and pins it has gone over, gone from the DM map at once, from the table on lift. */
+type Rub = { pointer: number; pen: boolean; drawings: Set<number>; pins: Set<number> };
 /** A line within this many canvas pixels of a tap or the eraser is hit. */
 const LINE_HIT_PX = 12;
 /** A Select tap this close to a drawn door or secret door, in map inches, opens or closes it (D-047). */
@@ -225,6 +230,7 @@ export function initMaps(
   /** Whether a new pin is one the players see. */
   let pinTable = true;
   let line: Line | null = null;
+  let rub: Rub | null = null;
   let ink: Ink = "white";
   let inkTable = true;
   let inkFade = false;
@@ -776,8 +782,8 @@ export function initMaps(
       ctx.fillStyle = ctx.strokeStyle = GHOST[ghost.mode];
       fillFog(ctx, ghost);
     }
-    if (hover && !stroke && (tool === "reveal" || tool === "hide") && drawWith === "brush") {
-      ctx.strokeStyle = tool === "reveal" ? "#f0d3a8" : accent;
+    if (hover && !stroke && isFog(tool) && drawWith === "brush") {
+      ctx.strokeStyle = RING[tool] ?? accent;
       ctx.lineWidth = 2 / s;
       ctx.beginPath();
       ctx.arc(hover.x, hover.y, brushIn / 2, 0, Math.PI * 2);
@@ -844,7 +850,7 @@ export function initMaps(
     };
     // Lines under the discs (D-006, D-035): the DM's own dashed, fading ones as the table shows them now.
     const canvasLine = (pts: Point[]) => pts.map(px);
-    for (const l of map.drawings) drawLine(ctx, canvasLine(l.points), l.ink, Math.max(s, 20), 1, !l.table);
+    for (const l of map.drawings) if (!rub?.drawings.has(l.id)) drawLine(ctx, canvasLine(l.points), l.ink, Math.max(s, 20), 1, !l.table);
     const now = performance.now();
     for (const l of fading) drawLine(ctx, canvasLine(l.points), l.ink, Math.max(s, 20), sketchAlpha(now - l.start), !l.table);
     if (line && !line.eraser) drawLine(ctx, canvasLine(line.points), ink, Math.max(s, 20), 1, !inkTable);
@@ -917,6 +923,7 @@ export function initMaps(
     }
     // Pins over the discs, as on the table (D-006): the DM's own are hollow copper. Never smaller than a fingertip.
     for (const p of map.pins) {
+      if (rub?.pins.has(p.id)) continue;
       const c = px(p);
       drawPin(ctx, c.x, c.y, Math.max(s, 26), !p.table, accent);
       // A link pin names its scene beside it, on the DM's map only (D-039).
@@ -1114,10 +1121,12 @@ export function initMaps(
       !partyNext &&
       !tokenNext &&
       !rowNext &&
-      !tokenDrag
+      !tokenDrag &&
+      !rub
     )
       return false;
     line = null;
+    rub = null;
     grabbed = null;
     partyNext = false;
     tokenNext = null;
@@ -1137,9 +1146,19 @@ export function initMaps(
     return true;
   }
   /** Whether a gesture is under way, and whether the pen is making it (then touches are a resting palm). */
-  const busy = () => !!(stroke || drag || discDrag || placing || pan || pressing || line || grabbed || tokenDrag);
+  const busy = () => !!(stroke || drag || discDrag || placing || pan || pressing || line || grabbed || tokenDrag || rub);
   const penBusy = () =>
-    !!(stroke?.pen || drag?.pen || discDrag?.pen || placing?.pen || pressing?.pen || line?.pen || grabbed?.pen || tokenDrag?.pen);
+    !!(
+      stroke?.pen ||
+      drag?.pen ||
+      discDrag?.pen ||
+      placing?.pen ||
+      pressing?.pen ||
+      line?.pen ||
+      grabbed?.pen ||
+      tokenDrag?.pen ||
+      rub?.pen
+    );
 
   mapCanvas.addEventListener("pointerdown", (e) => {
     if (!state?.map) return;
@@ -1248,6 +1267,11 @@ export function initMaps(
       render();
       return;
     }
+    if (tool === "erase") {
+      rub = { pointer: e.pointerId, pen, drawings: new Set(), pins: new Set() };
+      rubAt(e);
+      return;
+    }
     if (tool === "ping") {
       const from = canvasPoint(e);
       const pin = pinAt(e);
@@ -1264,7 +1288,7 @@ export function initMaps(
       return;
     }
     const at = mapInchesAt(e)!;
-    // A pen's eraser end (or eraser button) hides, whichever of Uncover or Dim is picked.
+    // A pen's eraser end (or eraser button) dims, whichever of Uncover, Dim or Cover is picked (D-048 keeps it dimming).
     const eraser = e.pointerType === "pen" && (e.button === 5 || (e.buttons & 32) !== 0);
     stroke = { pointer: e.pointerId, pen: e.pointerType === "pen", mode: eraser ? "hide" : tool, points: [at] };
     hover = e.pointerType === "touch" ? null : at;
@@ -1289,6 +1313,7 @@ export function initMaps(
       pan.last = p;
       return;
     }
+    if (rub?.pointer === e.pointerId) return rubAt(e);
     if (line?.pointer === e.pointerId) {
       if (line.eraser) return eraseAt(e);
       const at = mapInchesAt(e)!;
@@ -1398,6 +1423,21 @@ export function initMaps(
     const id = lineAt(e);
     if (id !== null) void run({ type: "removeDrawing", id });
   }
+  /** The Eraser over a line or a pin adds it to the swipe; it disappears from the DM map at once. */
+  function rubAt(e: PointerEvent): void {
+    const id = lineAt(e);
+    const pin = pinAt(e);
+    if (id !== null) rub!.drawings.add(id);
+    if (pin !== null) rub!.pins.add(pin);
+    render();
+  }
+  /** Lifting the Eraser sends the whole swipe as one command, so one Undo brings it all back (D-048). */
+  function endRub(keep: boolean): void {
+    const r = rub!;
+    rub = null;
+    if (keep && (r.drawings.size || r.pins.size)) void run({ type: "erase", drawings: [...r.drawings], pins: [...r.pins] });
+    else render();
+  }
   /** Lifting the pen: a tap on a line rubs it out; a line is kept, or sent to fade (D-035). */
   function endLine(e: PointerEvent, keep: boolean): void {
     const l = line!;
@@ -1491,6 +1531,7 @@ export function initMaps(
     }
     if (placing?.pointer === e.pointerId) return endPlacing(keep);
     if (line?.pointer === e.pointerId) return endLine(e, keep);
+    if (rub?.pointer === e.pointerId) return endRub(keep);
     if (pressing?.pointer === e.pointerId) {
       const p = pressing;
       clearTimeout(p.timer);
@@ -1542,7 +1583,7 @@ export function initMaps(
     press(sizeBtns, (b) => Number(b.dataset.size) === brushIn);
     brushSizes.hidden = brushHead.hidden = drawWith !== "brush";
     // Only the options for the tool picked show under the main tools.
-    fogOpts.hidden = !on || (tool !== "reveal" && tool !== "hide");
+    fogOpts.hidden = !on || !isFog(tool);
     markerOpts.hidden = !on || tool !== "marker";
     pingOpts.hidden = !on || tool !== "ping";
     drawOpts.hidden = !on || tool !== "draw";
@@ -1612,13 +1653,15 @@ export function initMaps(
     () => void run({ type: "fog", op: { kind: "revealAll" } }),
   );
 
-  /** V, U (Uncover), G (Dim), M, P and D pick the tool; S steps through brush, outline and box (D-038). Returns whether the key was used. */
+  /** V, U (Uncover), G (Dim), C (Cover), M, P, D and E (Eraser) pick the tool; S steps through brush, outline and box (D-038). Returns whether the key was used. */
   function shortcut(key: string): boolean {
     if (!state?.map || importing || vttImport) return false;
     const k = key.toLowerCase();
     if (k === "v") setTool("select");
     else if (k === "u") setTool("reveal");
     else if (k === "g") setTool("hide");
+    else if (k === "c") setTool("cover");
+    else if (k === "e") setTool("erase");
     else if (k === "m") setTool("marker");
     else if (k === "p") setTool("ping");
     else if (k === "d") setTool("draw");

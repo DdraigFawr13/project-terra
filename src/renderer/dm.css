@@ -852,6 +852,8 @@ input[type="number"] {
 }
 #mapCanvas[data-tool="reveal"],
 #mapCanvas[data-tool="hide"],
+#mapCanvas[data-tool="cover"],
+#mapCanvas[data-tool="erase"],
 #mapCanvas[data-tool="marker"],
 #mapCanvas[data-tool="ping"],
 #mapCanvas[data-tool="draw"] {
@@ -1627,6 +1629,17 @@ button.pop-close {
   .tool-group,
   .tool-sub {
     gap: 3px;
+  }
+  /* Eight tools (D-048) stand two to a row here, so a fog tool's options and Undo still fit without scrolling. */
+  .map-body > .tools {
+    width: 116px;
+  }
+  #toolsPanel {
+    width: 104px;
+  }
+  .tool-main,
+  .tool-group {
+    grid-template-columns: 1fr 1fr;
   }
 }
 /* A panel that scrolls shows its scrollbar, so content cut at its foot reads as more below, not as overlap. */

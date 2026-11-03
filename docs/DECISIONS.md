@@ -162,7 +162,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-025 Fog
 
-- **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults. Item 5's op limit changed by D-029: long fog lists are baked, never refused. Item 8 changed by D-037: rooms come from map annotation, not only the generator; built by D-044. Tool names and keys changed by D-038 (Uncover U, Dim G).
+- **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults. Item 5's op limit changed by D-029: long fog lists are baked, never refused. Item 8 changed by D-037: rooms come from map annotation, not only the generator; built by D-044. Tool names and keys changed by D-038 (Uncover U, Dim G). Item 3 changed by D-048: Cover paints back to black.
 - **Decision:**
   1. Three states on the table: never seen is black; seen before is the map in grey, darkened, with a line every half inch; in view now is the map itself (D-023). The DM sees the whole map, tinted where players can't see now and darker where they've never been.
   2. Touch first. The bottom tools are 56 px buttons: Select (V), Reveal (R), Hide (H); draw with Brush (1, 2 or 4 inches), Outline (a freehand loop that fills) or Box (snaps to whole squares), with S stepping through them; Undo. Under the preview: "Party moves on" (in view becomes seen before), Reveal all and Cover all. One finger, the pen or the mouse paints; a second finger or Esc cancels the stroke. Morgan uses a stylus: touches are ignored while the pen draws (a resting palm), a hovering pen shows the brush ring, and the pen's eraser hides.
@@ -433,3 +433,13 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   7. Live sight while dragging is merged only if the laptop's slowest sight update is under 8 ms with four tokens (built before that number, Morgan 2026-11-01).
   8. Fog packs in a background worker, not inside a command (Morgan, 2026-11-01, after S1's bench measured a 334–516 ms stall every ~100 moves); `addFog` bakes in place only at 1,900 ops as a fallback.
 - **Why:** Morgan's own words asked for sight "dynamic with where the player tokens are", which a tap per look can't give. A grid-indexed wall check measured 3.0 ms instead of 82.9 ms on a 1,974-piece map (cloud, not the laptop), which makes re-looking on every move affordable. Three fresh-context checks of the spec found the original design ran sight where the walls aren't loaded, leaked hidden enemies through the turn strip, revealed everything on maps without walls, could overflow the fog list in a save, and read the wrong scene under a curtain; all were fixed before approval.
+
+## D-048 Cover brush and Eraser
+
+- **Status:** Accepted (2026-11-02), Morgan's answers on the [Cover Brush and Eraser form](https://claude.ai/artifact/CaAPVSmbo2BAcGCuvss9rJ), every recommended option. Changes D-025 item 3 (painting can now go back to black) and adds a way to rub out D-035's lines and D-034's pins.
+- **Decision:**
+  1. A Cover tool (C), a moon, after Dim: it paints back to black, as if the players never saw the area. It uses Brush, Outline and Box and the brush sizes, like Uncover and Dim, and a tap in a traced room covers the room. Fog ops carry `mode: "cover"`; old saves read unchanged.
+  2. The pen's eraser end still dims on every fog tool.
+  3. An Eraser tool (E) after Draw. A swipe takes away every lasting line and pin it touches, the DM's own included; each line goes whole. They leave the DM map at once and the table on lift, as one `erase` command, so one Undo brings back the whole swipe. Enemy discs and the party marker are not erased.
+  4. On a short window (under 760 px tall, the laptop at 150%) the tools stand two to a row, so a fog tool's options and Undo fit without scrolling; the strip is 52 px wider there.
+- **Why:** Morgan asked for a cover brush and an eraser for drawn items. Black could only come back with Cover all or Undo, and lines and pins each came off a different way. Discs stay out because a hurried swipe could take an enemy and its HP off mid-fight. Eight tools in one column at 680 px pushed Undo out of sight with a fog tool picked (it already overflowed by up to 45 px on main), so the column became two.

@@ -5,7 +5,8 @@
 import type { Point } from "./homography.ts";
 import type { Bounds } from "./map.ts";
 
-export type FogMode = "reveal" | "hide";
+/** Reveal makes an area seen; hide (Dim) turns seen into explored; cover (D-048) makes it never seen again. */
+export type FogMode = "reveal" | "hide" | "cover";
 
 /**
  * Earlier fog baked into square cells over the map (D-029). Like Cover all followed by the cells: it replaces every op
@@ -23,7 +24,7 @@ export type FogBase = {
   explored: number[];
 };
 
-/** One fog change. Reveal makes an area seen (and so explored); hide turns seen back into explored. */
+/** One fog change. Reveal makes an area seen (and so explored); hide turns seen back into explored; cover makes it black. */
 export type FogOp =
   | { kind: "brush"; mode: FogMode; r: number; points: Point[] }
   | { kind: "outline"; mode: FogMode; points: Point[] }
@@ -106,6 +107,7 @@ export function fogAt(fog: readonly FogOp[], p: Point): FogLevel {
       explored = k !== null && cells.explored[k] === 1;
     } else if (covers(op, p)) {
       if (op.mode === "reveal") seen = explored = true;
+      else if (op.mode === "cover") seen = explored = false;
       else seen = false;
     }
   }
@@ -255,8 +257,10 @@ export function bake(fog: readonly FogOp[], bounds: Bounds): FogBase {
         }
     } else {
       const reveal = op.mode === "reveal";
+      const cover = op.mode === "cover";
       const mark = (k: number) => {
         if (reveal) seen[k] = explored[k] = 1;
+        else if (cover) seen[k] = explored[k] = 0;
         else seen[k] = 0;
       };
       // Visit only the cells near the op, checked with the same rule as `fogAt`.
@@ -282,9 +286,9 @@ export function bake(fog: readonly FogOp[], bounds: Bounds): FogBase {
             };
             // Cells first+1 to last-1 sit a whole cell inside the span, far beyond any rounding.
             if (last - first > 2) {
-              if (reveal) {
-                seen.fill(1, row + first + 1, row + last);
-                explored.fill(1, row + first + 1, row + last);
+              if (reveal || cover) {
+                seen.fill(reveal ? 1 : 0, row + first + 1, row + last);
+                explored.fill(reveal ? 1 : 0, row + first + 1, row + last);
               } else seen.fill(0, row + first + 1, row + last);
               [first - 1, first, last, last + 1].forEach(edge);
             } else for (let i = first - 1; i <= last + 1; i++) edge(i);
@@ -365,7 +369,7 @@ export function parseFogOp(raw: unknown): FogOp | null {
   if (!isObject(raw)) return null;
   if (raw.kind === "revealAll" || raw.kind === "dimSeen" || raw.kind === "coverAll") return { kind: raw.kind };
   if (raw.kind === "base") return parseBase(raw);
-  const mode = raw.mode === "reveal" || raw.mode === "hide" ? raw.mode : null;
+  const mode = raw.mode === "reveal" || raw.mode === "hide" || raw.mode === "cover" ? raw.mode : null;
   if (!mode) return null;
   switch (raw.kind) {
     case "brush": {

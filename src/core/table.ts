@@ -249,6 +249,8 @@ export type Command =
   | { type: "draw"; ink: Ink; table: boolean; points: Point[] }
   | { type: "removeDrawing"; id: number }
   | { type: "clearDrawings" }
+  /** What one swipe of the Eraser went over (D-048): lasting lines and pins, taken away in one undo step. */
+  | { type: "erase"; drawings: number[]; pins: number[] }
   /** A new, empty scene after the current one, switched to with the curtain down (D-039). */
   | { type: "addScene"; name: string }
   /** Put another scene on the table. The curtain drops in the same step, so the table never shows a frame of it early. */
@@ -318,6 +320,7 @@ export const UNDOABLE: ReadonlySet<Command["type"]> = new Set([
   "draw",
   "removeDrawing",
   "clearDrawings",
+  "erase",
   "resetScene",
   "saveSpot",
   "goToSpot",
@@ -830,6 +833,16 @@ export function parseCommand(raw: unknown): Command | null {
       const id = inches(raw.id, 1, 99_999);
       return id === null ? null : { type: "removeDrawing", id };
     }
+    case "erase": {
+      const ids = (v: unknown, max: number): number[] | null => {
+        if (!Array.isArray(v) || v.length > max) return null;
+        const out = v.map((id) => inches(id, 1, 99_999));
+        return out.every((id) => id !== null) ? (out as number[]) : null;
+      };
+      const drawings = ids(raw.drawings, MAX_DRAWINGS);
+      const pins = ids(raw.pins, MAX_PINS);
+      return drawings && pins && drawings.length + pins.length > 0 ? { type: "erase", drawings, pins } : null;
+    }
     case "clearDrawings":
     case "emptyRemoved":
       return { type: raw.type };
@@ -1103,6 +1116,14 @@ export function apply(state: TableState, c: Command): TableState {
         : state;
     case "clearDrawings":
       return state.map?.drawings.length ? { ...state, map: { ...state.map, drawings: [] } } : state;
+    case "erase": {
+      const m = state.map;
+      const drawings = m?.drawings.filter((d) => !c.drawings.includes(d.id));
+      const pins = m?.pins.filter((p) => !c.pins.includes(p.id));
+      return m && drawings && pins && (drawings.length < m.drawings.length || pins.length < m.pins.length)
+        ? { ...state, map: { ...m, drawings, pins } }
+        : state;
+    }
     case "addScene": {
       const made = newScene(state);
       if (!made) return state;
