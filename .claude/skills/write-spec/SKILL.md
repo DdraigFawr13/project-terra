@@ -55,7 +55,7 @@ Each brief follows DEL-04: results inline, under 600 words, no edits, no commits
 
 1. **Paraphrase.** "Write, in your own words, what this spec proposes and how the existing system works according to it (2–5 sentences each). Then list each term or step you could not follow, with the section." Compare the paraphrase with the intent. A wrong paraphrase is a finding.
 2. **Critic.** "List the 10 most important problems: risks, missed edge cases, a simpler design that meets the goals, conflicts with `docs/DECISIONS.md`, and missing alternatives. Give severity (high, medium, low) and the section for each."
-3. **Zero decisions.** "For each slice, list every choice a builder would still have to make (a name, schema, library, path or edge-case behaviour). Also list every check that would already pass at the starting commit or can't be observed."
+3. **Zero decisions.** "For each slice, list every choice a builder would still have to make (a name, schema, library, path or edge-case behaviour). Also list every check that would already pass at the starting commit or can't be observed. Then compare the slices with each other: list anything a slice needs that only a later slice adds."
 
 ## 6. Sort the findings
 
@@ -67,6 +67,8 @@ Check each finding against the files before acting on it (DEL-05, VER-05). Give 
 - **Decline:** it's a low-value nit. Record it and move on.
 
 Never contest a paraphrase gap; it means the spec is missing context. After fixes, re-run only the checks that found high-severity problems, once.
+
+After your last fix pass, run the zero-decision check once more on the sections that pass changed, before step 7 (VER-08). In the first trial, both questions the build session had to ask came from a final fix pass no check had read.
 
 ## 7. Approval
 
@@ -87,6 +89,7 @@ After approval:
 ## 8. Build, slice by slice
 
 - **Fresh session per slice.** Build each slice in a fresh session, or give it to the `implementer` agent with a DEL-04 brief made from the slice: goal, files, checks, commands. Never build it in the session that wrote the spec.
+- **Re-check before each slice.** If the spec or the merged code changed since the last check, run the zero-decision check (with its cross-slice part) on the sections the slice touches, against what earlier slices actually merged. Ask Morgan any gap before building.
 - **Checks fail first.** Before writing code, run the slice's checks and confirm they fail.
 - **Done with evidence.** Done means the checks pass, with evidence: the command and its output, or a screenshot (VER-06, VER-07). "Tests pass" on its own is not evidence.
 - **Review against the spec.** After each slice, a fresh `reviewer` compares the diff with the spec and reports correctness gaps only, not style.
@@ -98,7 +101,7 @@ Set **Status: Shipped <date>**. The spec is now a snapshot: don't keep it in syn
 
 ## 10. Measure
 
-This skill is on trial until enough specs have been measured. For each spec, add one LESSONS line in the project:
+For each spec, add one LESSONS line in the project:
 
 - what each check caught
 - how many findings were fixed, contested and escalated
