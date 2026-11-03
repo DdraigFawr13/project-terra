@@ -18,7 +18,7 @@
     "format:check": "prettier --check .",
     "test": "node --test \"src/**/*.test.ts\"",
     "test:e2e": "npm run build && node --test \"e2e/*.test.mjs\"",
-    "check": "npm run format:check && npm run typecheck && npm run knip && npm test",
+    "check": "node .claude/skills/test-design/scripts/test-traps.mjs && npm run format:check && npm run typecheck && npm run knip && npm test",
     "dist:win": "npm run build && electron-builder --win zip --x64 --publish never",
     "knip": "knip",
     "bench:sight": "node scripts/sight-bench.mjs"

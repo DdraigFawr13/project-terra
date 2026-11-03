@@ -22,14 +22,15 @@ Sessions on this project may not have the AI-Master-Instructions repo. Everythin
 
 ## Local checks (run before pushing)
 
-- Every push: `npm run check` (format, typecheck, unused-code check with knip, unit tests).
+- Every push: `npm run check` (test-traps warnings, format, typecheck, unused-code check with knip, unit tests).
+- Test time budgets (D-020): unit suite under 2 s, e2e suite under 60 s locally. Over budget: use the `test-design` skill.
 - App changes: `xvfb-run -a npm run test:e2e` (builds, then drives both windows).
 - UI changes: look at a screenshot of both windows before calling it done (VER-06).
 
 ## What CI runs
 
 - **CI** (`ci.yml`): `npm run check`, the sync drift check and the end-to-end tests on every PR update and main push. Markdown-only changes skip it.
-- **Build Windows app** (`build-windows.yml`): manual only. Produces the zip Morgan tests on the laptop. Run it when a step is ready for Morgan to try, not on every change (CI-04).
+- **Build Windows app** (`build-windows.yml`): manual only. Produces the zip Morgan tests on the laptop. Run it when a step is ready for Morgan to try, not on every change (CI-02).
 
 ## Project rules
 
