@@ -6,7 +6,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-001 A Windows desktop app built with Electron and TypeScript
 
-- **Status:** Accepted (2026-10-28)
+- **Status:** Accepted (2026-10-28). The laptop's system changed by D-049: Linux, not Windows.
 - **Decision:** Project Terra is an Electron app written in TypeScript. Morgan starts it by double-clicking a program on a Windows laptop. It works offline and uses no paid services. Step 1 drew with Canvas 2D; maps and fog are Canvas 2D too; the step 5 speed measurement kept Canvas 2D, without PixiJS (D-024, D-025).
 - **Why:** Morgan wanted a program to double-click, offline, with a budget under 50 one-off. Electron handles two screens and offline use well, and agents build with it reliably.
 
@@ -443,3 +443,12 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   3. An Eraser tool (E) after Draw. A swipe takes away every lasting line and pin it touches, the DM's own included; each line goes whole. They leave the DM map at once and the table on lift, as one `erase` command, so one Undo brings back the whole swipe. Enemy discs and the party marker are not erased.
   4. On a short window (under 760 px tall, the laptop at 150%) the tools stand two to a row, so a fog tool's options and Undo fit without scrolling; the strip is 52 px wider there.
 - **Why:** Morgan asked for a cover brush and an eraser for drawn items. Black could only come back with Cover all or Undo, and lines and pins each came off a different way. Discs stay out because a hurried swipe could take an enemy and its HP off mid-fight. Eight tools in one column at 680 px pushed Undo out of sight with a fog tool picked (it already overflowed by up to 45 px on main), so the column became two.
+
+## D-049 The DM laptop runs Linux
+
+- **Status:** Accepted (2026-11-05), Morgan in chat: "this will be the laptop and it will be linux". Changes D-001's Windows laptop.
+- **Decision:**
+  1. The DM laptop, the HP Pavilion x360 14", runs Ubuntu 26.04 with GNOME on Wayland. The app is built on the laptop from the repo with `npm run install:linux` (an unpacked Electron build in `release/linux-unpacked`, a launcher in `~/.local/bin` and an app-grid entry), and rebuilt the same way after each update.
+  2. The launcher starts the app through XWayland (`--ozone-platform=x11`).
+  3. The Windows zip workflow stays for Morgan's Windows PC; nothing in the app is Windows-only.
+- **Why:** Morgan set the laptop up with Linux. Native Wayland ignores where an app places a window, so `setBounds` couldn't put the table window fullscreen on the projector; under XWayland it can. Building on the laptop needs no CI artifact download and keeps the private library's data on the laptop (D-010).

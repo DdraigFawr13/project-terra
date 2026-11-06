@@ -4,7 +4,7 @@ Approved by Morgan on 2026-10-28 after three planning rounds, a review and a fin
 
 ## Goal for session 1
 
-Run the Thundertree fight from Phandelver and Below: The Shattered Obelisk on Morgan's table. There is no fixed date: session 1 happens when steps 4–8 are done (D-003). Hardware (Windows laptop, projector) is expected the week of 2026-11-02. The map comes from Morgan's own copy of the book.
+Run the Thundertree fight from Phandelver and Below: The Shattered Obelisk on Morgan's table. There is no fixed date: session 1 happens when steps 4–8 are done (D-003). Hardware (laptop, now on Linux by D-049; projector) is expected the week of 2026-11-02. The map comes from Morgan's own copy of the book.
 
 ## Build steps to session 1
 

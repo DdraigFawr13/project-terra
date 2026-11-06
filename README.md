@@ -1,12 +1,25 @@
 # Project Terra
 
-A projected tabletop battle map for in-person D&D. The DM runs it from a Windows laptop; a projector shows the player view on the table, where players move physical minis.
+A projected tabletop battle map for in-person D&D. The DM runs it from a Linux laptop (Ubuntu, D-049); a projector shows the player view on the table, where players move physical minis.
 
 - Plan: [docs/PLAN.md](docs/PLAN.md)
 - Current state: [docs/HANDOFF.md](docs/HANDOFF.md)
 - Decisions: [docs/DECISIONS.md](docs/DECISIONS.md)
 
-## Try it on Windows
+## Run it on the Linux laptop
+
+The DM laptop runs Ubuntu with GNOME (D-049). Set up once, from a clone in `~/code/project-terra`, with Node 22.22.0 on the PATH (see Develop):
+
+```bash
+npm ci
+npm run install:linux           # builds release/linux-unpacked and adds Project Terra to the app grid
+```
+
+Then open **Project Terra** from the app grid. Run `npm run install:linux` again after pulling changes: the app grid opens the built copy, not the source.
+
+With a projector or TV plugged in, set the displays to **Join Displays** (Settings → Displays), not Mirror; in Mirror mode the app sees only one screen. The launcher starts the app through XWayland (`--ozone-platform=x11`), because native Wayland ignores where an app places a window and the table window couldn't go fullscreen on the projector.
+
+## Try it on Windows (older builds)
 
 1. On GitHub, open **Actions → Build Windows app → Run workflow**.
 2. When it finishes (a few minutes), open the run and download the zip under **Artifacts**.
@@ -51,12 +64,15 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 
 ## Develop
 
-Node 22.22.0 and npm 10.9.4. On Windows, a version manager such as [fnm](https://github.com/Schniz/fnm) picks up `.nvmrc`; newer Node works but warns.
+Node 22.22.0 and npm 10.9.4. Ubuntu's own `nodejs` package can't run the unit tests (it is built without TypeScript type stripping: `ERR_UNKNOWN_FILE_EXTENSION`), so use the official build from nodejs.org or a version manager such as [fnm](https://github.com/Schniz/fnm), which picks up `.nvmrc`. Electron downloads its binary on first use.
 
 ```bash
 npm ci
 npm start                       # build and run
 npm run check                   # format, typecheck, unit tests
 xvfb-run -a npm run test:e2e    # end-to-end tests (Linux needs xvfb-run)
+npm run dist:linux              # Linux build in release/linux-unpacked
 npm run dist:win                # Windows zip in release/
 ```
+
+In a Wayland desktop session, run the end-to-end tests as `env -u WAYLAND_DISPLAY xvfb-run -a npm run test:e2e`: otherwise Electron opens on the real desktop instead of the virtual screen, and the map test fails.
