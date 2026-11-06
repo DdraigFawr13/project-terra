@@ -1,6 +1,6 @@
 # Agent instructions
 
-Project Terra is a projected tabletop battle map for Morgan's in-person D&D 5e (2024) games. A Windows laptop runs it: Morgan controls it from the laptop screen, and a projector shows the player view on the table, where players move physical minis.
+Project Terra is a projected tabletop battle map for Morgan's in-person D&D 5e (2024) games. A Linux laptop (Ubuntu 26.04, GNOME on Wayland) runs it (D-049): Morgan controls it from the laptop screen, and a projector shows the player view on the table, where players move physical minis.
 
 Shared rules come from AI-Master-Instructions and load through CLAUDE.md (`.claude/master/RULES.md`). This file holds only what is specific to this project. Keep it under 80 lines.
 
@@ -24,13 +24,13 @@ Sessions on this project may not have the AI-Master-Instructions repo. Everythin
 
 - Every push: `npm run check` (test-traps warnings, format, typecheck, unused-code check with knip, unit tests).
 - Test time budgets (D-020): unit suite under 2 s, e2e suite under 60 s locally. Over budget: use the `test-design` skill.
-- App changes: `xvfb-run -a npm run test:e2e` (builds, then drives both windows).
+- App changes: `xvfb-run -a npm run test:e2e` (builds, then drives both windows). On the laptop's Wayland desktop, prefix `env -u WAYLAND_DISPLAY`, or Electron skips the virtual screen.
 - UI changes: look at a screenshot of both windows before calling it done (VER-06).
 
 ## What CI runs
 
 - **CI** (`ci.yml`): `npm run check`, the sync drift check and the end-to-end tests on every PR update and main push. Markdown-only changes skip it.
-- **Build Windows app** (`build-windows.yml`): manual only. Produces the zip Morgan tests on the laptop. Run it when a step is ready for Morgan to try, not on every change (CI-02).
+- **Build Windows app** (`build-windows.yml`): manual only. Produces a Windows zip, now only for Morgan's Windows PC; the laptop builds its own copy with `npm run install:linux` (D-049). Run it when a step is ready for Morgan to try, not on every change (CI-02).
 
 ## Project rules
 

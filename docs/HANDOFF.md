@@ -1,28 +1,27 @@
 # Handoff
 
-Updated: 2026-11-02. A fresh session must be able to continue from this file alone. Keep it to 60 lines; finished entries move to [archive/handoff-2026-10.md](archive/handoff-2026-10.md).
+Updated: 2026-11-05. A fresh session must be able to continue from this file alone. Keep it to 60 lines; finished entries move to [archive/handoff-2026-10.md](archive/handoff-2026-10.md).
 
 ## Phase
 
-Building toward session 1 ([PLAN.md](PLAN.md)). Everything before the rehearsal is built and merged: steps 1–7m, map annotation 2A–2D (D-044, #36, #37, #40, #41), character tokens (#38) and the Wants batches (D-046): 7n fewer taps (#39), 7o table looks (#42), and 8b fewer drags (#43), the post-rehearsal batch built early at Morgan's request. Left before session 1: step 8, the rehearsal, which needs the laptop and projector (an HP Pavilion x360 14", 1920 × 1080 touch, expected the week of 2026-11-02). Tested in the cloud only, plus one old install test on Morgan's Windows PC, so every step since #38 is "built, awaiting Morgan's check" (VER-07).
+Building toward session 1 ([PLAN.md](PLAN.md)). Everything before the rehearsal is built and merged: steps 1–7m, map annotation 2A–2D (D-044, #36, #37, #40, #41), character tokens (#38) and the Wants batches (D-046): 7n fewer taps (#39), 7o table looks (#42), and 8b fewer drags (#43), the post-rehearsal batch built early at Morgan's request. Left before session 1: step 8, the rehearsal, which needs the laptop and projector (an HP Pavilion x360 14", 1920 × 1080 touch; arrived, runs Ubuntu 26.04 with GNOME on Wayland, D-049). Tested in the cloud only, plus one old install test on Morgan's Windows PC, so every step since #38 is "built, awaiting Morgan's check" (VER-07).
 
 ## Just done (earlier: [November](archive/handoff-2026-11.md), [October](archive/handoff-2026-10.md))
 
-- 2026-11-02 Cover brush and Eraser (D-048, [form](https://claude.ai/artifact/CaAPVSmbo2BAcGCuvss9rJ)), branch `cover-eraser`, built on this PC, not yet a PR (summary to Morgan first, D-018). Fog `mode: "cover"` (back to black) in `fog.ts`, `fog-draw.ts` and baking; Cover tool (C) after Dim. The `erase` command takes lines and pins in one undo step; Eraser tool (E) after Draw. Tools stand two to a row under 760 px tall, since 8 in a column hid Undo at 1280 × 680 (it overflowed 45 px on main already). Checks on Windows: `npm run check` 122/122, e2e 5/5; screenshots at 1280 × 680 looked at.
+- 2026-11-05 Linux laptop (D-049), branch `linux-laptop`, not yet a PR (summary to Morgan first, D-018). Main (c7cea2f) installed on the laptop: pinned Node 22.22.0 in `~/.local/opt` (Ubuntu's Node has no TypeScript stripping), `npm run check` 122/122, e2e 5/5 with `env -u WAYLAND_DISPLAY xvfb-run -a` (on the real Wayland desktop the map test fails). New `npm run dist:linux` and `install:linux` (`scripts/install-linux.mjs`: launcher with `--ozone-platform=x11`, app-grid entry). Both windows open at 200% scale, DM window 1280 × 763. Private library cloned to `~/code/project-terra-library`.
 
 ## Next
 
-0. **Build Windows app** (manual, CI-02) when Morgan is back at the PC: the installed app is from #38 and has none of 2B–8b. Then Morgan's checks, each from its walkthrough: 7n mock round (if the sheet on turn gets in the way, take it out, D-046 item 2); 8b on the laptop with the pen; 2B import Sleeping Giant and Thundertree; 2D tag a building as wood and find a gap with the wall check.
+0. The laptop has main from c7cea2f (everything through #54); after merging this branch, rerun `npm run install:linux` there. Then Morgan's checks, each from its walkthrough: 7n mock round (if the sheet on turn gets in the way, take it out, D-046 item 2); 8b on the laptop with the pen; 2B import Sleeping Giant and Thundertree; 2D tag a building as wood and find a gap with the wall check.
 0a. On hold until Morgan says go: monster portraits for Shattered Obelisk chapters 1–4 ([token choices](https://claude.ai/artifact/XmWb3JnJY8eECwx12SkgmF)). Art order: book art, freely licensed art, a look-alike stand-in, then OpenArt with a price first. The adventure's image files aren't in the library, and art of unclear rights isn't copied from the web. Re-read the book as the library README says; the creature list has to be rebuilt.
 0b. Book maps still untraced (trace each before it is played, with the private library's `tools/trace/`): Cragmaw Hideout, Wave Echo Cave, Cragmaw Castle and Redbrand Hideout (keyed handouts only). Secret door marks on a map are patched out of the table copy (D-044 item 6).
-1. Step 8, rehearsal, when the laptop and projector arrive: follow [REHEARSAL.md](REHEARSAL.md). Confirm the built-in screen shows as "This laptop, in a window" and the display scale (14" 1080p usually defaults to 150%, a DM window of about 1280 × 680). Re-import `data/monsters/mm2024.json` from the private library on the laptop. Set the map brightness. Uncover Thundertree room by room (2C).
+1. Step 8, rehearsal, when the laptop and projector arrive: follow [REHEARSAL.md](REHEARSAL.md). Confirm the built-in screen shows as "This laptop, in a window", that the table window goes fullscreen on the projector under XWayland, and the pen and touch (untested on Linux). The display runs at 200%, not the expected 150%. Re-import `data/monsters/mm2024.json` from the private library on the laptop. Set the map brightness. Uncover Thundertree room by room (2C).
 2. Morgan's photos decide (VER-07): letters, symbols and portraits readable from the players' seats; 7o's turn ring, light under minis, grid and see-through big discs; the 8b laser; HP ring, patched Thundertree, ping, pins and lines; close the app mid-fight and reopen it; Sight S1–S4 on the projected table: **deferred by Morgan** (2026-11-01), not a blocker for merging. Dark is settled: "Keep Dark as built"; from S4 it limits sight by darkvision and light.
-3. Still open: calibration keyed to the Windows display id; unplugging the projector drops the table window over the DM window; no Windows CI run of the app (REHEARSAL.md part 4). Retyping the current turn higher still lets Next turn repeat those it jumped (left as is, D-046 covers lower only). The e2e group move uses a 700 ms hold; watch for flakes.
+3. Still open: calibration keyed to the display id (X11 output ids under XWayland); unplugging the projector drops the table window over the DM window; no Windows CI run of the app (REHEARSAL.md part 4). Retyping the current turn higher still lets Next turn repeat those it jumped (left as is, D-046 covers lower only). The e2e group move uses a 700 ms hold; watch for flakes.
 4. After session 1 (PLAN.md): the scenes leftovers, then Sight (doors opening and closing, kept per scene; Look from here; line of sight; more wall kinds), then the library.
 - **Book library** (private repo `project-terra-library`; attach with add_repo; D-010, D-026): 503 MM creatures (6 page-checked, 4 with portraits), 35 Phandelver creatures, 391 PHB spells, 39 DMG treasure tables, 17 magic items, MM habitat lists, Lost Mine maps. How to re-read the book PDFs (Drive files, PDF page = book page + 3 for the MM) is in that repo's README, never here: this repo is public. Never use 5e.tools; book content never goes in this repo, its CI or PR text.
 
 ## Open questions
-
 
 - Button size: Morgan thinks buttons could be a little smaller (2026-10-28), but wants to decide after trying the laptop. Keep D-023's 40 px / 56 px until then.
 - Windows SmartScreen warns on the unsigned app ("More info" → "Run anyway"). Recommended: accept for now; code signing costs money.
@@ -54,6 +53,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Everything before the rehearsal 
 
 ## Decisions since the last plan update
 
+- 2026-11-05 D-049 the DM laptop runs Linux: built there with `npm run install:linux`, started through XWayland; changes D-001.
 - 2026-11-02 D-048 Cover brush (back to black) and Eraser (lines and pins, one undo per swipe); changes D-025 item 3.
 - 2026-11-01 D-047 Sight: follows tokens, per-scene setting Off by default, built before session 1 behind rehearsal fixes.
 - 2026-10-31 D-046 streamlining rule; the Wants placed as steps 7n, 7o and 8b and in later phases. D-044 item 6 changed: the room grow is even past secret doors.

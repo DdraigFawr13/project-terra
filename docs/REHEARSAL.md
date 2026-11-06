@@ -6,8 +6,8 @@ Setup steps are in [README.md](../README.md).
 
 ## 1. Cold start
 
-- Run **Build Windows app**, unzip on the laptop, double-click.
-- Pass: the DM window opens on the laptop screen, the table window fullscreen on the projector; Table setup's screen picker names the built-in screen "This laptop, in a window". Note the Windows display scale.
+- On the laptop, pull main and run `npm run install:linux`, then open **Project Terra** from the app grid. Displays set to **Join Displays**.
+- Pass: the DM window opens on the laptop screen, the table window fullscreen on the projector; Table setup's screen picker names the built-in screen "This laptop, in a window". Note the display scale (GNOME Settings → Displays).
 - Evidence: a phone photo of both screens.
 
 ## 2. Prep from nothing
@@ -33,7 +33,7 @@ Setup steps are in [README.md](../README.md).
 - Close the app mid-round and reopen it. Then roll back to an older save (step 7g).
 - Unplug the projector, then plug it back in.
 - Copy a problem report (Table → Problem report).
-- Pass: the app reopens on the same round, map and fog; the rollback works; with the projector unplugged the DM window stays usable, and after plugging back in the table returns to the projector with the same calibration (it is keyed to the Windows display id).
+- Pass: the app reopens on the same round, map and fog; the rollback works; with the projector unplugged the DM window stays usable, and after plugging back in the table returns to the projector with the same calibration (it is keyed to the display id, which under XWayland comes from the X11 output).
 - Evidence: the problem report text, and a note of what happened at each unplug.
 
 ## 5. After
