@@ -570,12 +570,11 @@ export function initMaps(
         needsPicture: true,
       };
     const n = countOf(vtt.walls);
-    const open = vtt.walls.openings.filter((o) => o.open).length;
     const plural = (k: number, one: string) => `${k} ${one}${k === 1 ? "" : "s"}`;
-    const doors = `${plural(n.openings, "door")}${open ? ` (${open} open)` : ""}`;
+    const doors = plural(n.openings, "door");
     const lights = vtt.lights ? ` ${plural(vtt.lights, "light")} left out until light sources.` : "";
     return {
-      text: `${size} from the file · ${plural(n.walls, "wall piece")}, ${doors}. Windows come in as doors: change them in Walls.${lights}`,
+      text: `${size} from the file · ${plural(n.walls, "wall piece")}, ${doors}. Doors and windows come in closed: tap one to open it, or change windows in Walls.${lights}`,
       needsPicture: false,
     };
   }
