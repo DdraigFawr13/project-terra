@@ -975,6 +975,19 @@ test("a character's token (D-045): crop a picture, place it, drag it, and only i
     await party.locator('[data-key="pc-place"]').click();
     await until(dm, async () => (await window.terra.getState()).map.tokens.length === 0);
     assert.equal(await table.evaluate(load, `pc/${picture}`), 0);
+
+    // The party is right there in Setup: drag Ash from the roster onto the map and the token lands where it's let go.
+    await dm.click("[role='tab'][data-tab='setup']");
+    const row = dm.locator(".roster-row[data-pc]", { hasText: "Ash Vale" });
+    await row.scrollIntoViewIfNeeded();
+    const from = await row.boundingBox();
+    await dm.mouse.move(from.x + 20, from.y + from.height / 2);
+    await dm.mouse.down();
+    const drop = await dm.locator("#mapCanvas").boundingBox();
+    await dm.mouse.move(drop.x + drop.width / 2, drop.y + drop.height / 2, { steps: 8 });
+    await dm.mouse.up();
+    await until(dm, async () => (await window.terra.getState()).map.tokens.length === 1);
+    await row.getByText("On map").waitFor();
     assert.deepEqual(errors, []);
   } finally {
     await app.close();

@@ -196,6 +196,8 @@ export function initMaps(
   placeRow: () => void;
   /** The next tap on the map puts this character's token there (D-045). */
   placeToken: (id: string) => void;
+  /** A character dragged from the Setup roster, let go at a screen point; true if their token went on the map. */
+  dropToken: (id: string, clientX: number, clientY: number) => boolean;
   /** What a tap on a character's token does. */
   tokenTap: (fn: (id: string, at: Point) => void) => void;
   select: () => void;
@@ -506,15 +508,20 @@ export function initMaps(
   }
 
   /**
-   * Where a map goes so its middle is on the table's centre, in whole inches. A VTT map's extent starts at its corner,
-   * so placing it at (0, 0) put that corner at the centre and most of the map off to one side.
+   * Where a map goes so its middle is on the middle of what the projector reaches, in whole inches (as Fill the table
+   * places a picture, D-042). A VTT map's extent starts at its corner, so placing it at (0, 0) put it off to one side.
    */
   function centred(b: Bounds): { x: number; y: number } {
-    return { x: Math.round(-(b.x + b.width / 2)) + 0, y: Math.round(-(b.y + b.height / 2)) + 0 };
+    const area = status ? visibleRect(state?.calibrations[status.surfaceKey] ?? defaultCalibration(status.surface), status.surface) : null;
+    const [cx, cy] = area ? [area.x + area.width / 2, area.y + area.height / 2] : [0, 0];
+    return { x: Math.round(cx - (b.x + b.width / 2)) + 0, y: Math.round(cy - (b.y + b.height / 2)) + 0 };
   }
 
   /** Put a map just added to the library on the table, and list it. */
-  async function placeNew(entry: LibraryMap, at: { x: number; y: number; turns: 0 | 1 } = { ...centred(entry.bounds), turns: 0 }): Promise<void> {
+  async function placeNew(
+    entry: LibraryMap,
+    at: { x: number; y: number; turns: 0 | 1 } = { ...centred(entry.bounds), turns: 0 },
+  ): Promise<void> {
     const { x, y, turns } = at;
     await run({
       type: "placeMap",
@@ -1743,12 +1750,24 @@ export function initMaps(
   const placeToken = (id: string) => {
     tokenNext = id;
   };
+  /**
+   * A character dragged from the Setup roster and let go at a screen point: their token goes there if it's let go over
+   * the map view, as a tap after Place on map would put it. Says whether it went.
+   */
+  const dropToken = (id: string, clientX: number, clientY: number): boolean => {
+    const r = mapCanvas.getBoundingClientRect();
+    if (!state?.map || clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom) return false;
+    const at = mapInchesAt({ clientX, clientY } as PointerEvent);
+    if (!at) return false;
+    void run({ type: "token", id, at });
+    return true;
+  };
   const tokenTap = (fn: (id: string, at: Point) => void) => {
     onTokenTap = fn;
   };
   /** Back to Select, so a tap on a disc opens its HP pad (Start fight does this, D-046). */
   const select = () => setTool("select");
-  return { undo, render, cancel, shortcut, placeParty, placeToken, placeRow, tokenTap, select };
+  return { undo, render, cancel, shortcut, placeParty, placeToken, placeRow, dropToken, tokenTap, select };
 }
 
 /**
