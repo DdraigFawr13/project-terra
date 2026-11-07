@@ -302,8 +302,7 @@ export function initMaps(
             type: "placeMap",
             map: {
               ...m,
-              x: 0,
-              y: 0,
+              ...centred(m.bounds),
               turns: 0,
               fog: [],
               discs: [],
@@ -506,8 +505,16 @@ export function initMaps(
     }
   }
 
+  /**
+   * Where a map goes so its middle is on the table's centre, in whole inches. A VTT map's extent starts at its corner,
+   * so placing it at (0, 0) put that corner at the centre and most of the map off to one side.
+   */
+  function centred(b: Bounds): { x: number; y: number } {
+    return { x: Math.round(-(b.x + b.width / 2)) + 0, y: Math.round(-(b.y + b.height / 2)) + 0 };
+  }
+
   /** Put a map just added to the library on the table, and list it. */
-  async function placeNew(entry: LibraryMap, at: { x: number; y: number; turns: 0 | 1 } = { x: 0, y: 0, turns: 0 }): Promise<void> {
+  async function placeNew(entry: LibraryMap, at: { x: number; y: number; turns: 0 | 1 } = { ...centred(entry.bounds), turns: 0 }): Promise<void> {
     const { x, y, turns } = at;
     await run({
       type: "placeMap",
