@@ -16,8 +16,11 @@ const EDGE_IN = 1;
 const PILLAR_SIDES = 16;
 /** Rays pass this far (radians) either side of each corner, so light slips past it and reaches what lies behind. */
 const NUDGE = 1e-5;
-/** Sight stopped by a piece goes this far past it, so drawn walls show unbroken (a disc ½ inch past stays hidden). */
-const PAST_WALL_IN = 0.25;
+/**
+ * Sight stopped by a piece goes this far past it, so the near half of a drawn wall shows. It was a quarter inch, which
+ * let players peek behind a door's edge and along the inside of a wall when standing close (Morgan, 2026-11-07).
+ */
+const PAST_WALL_IN = 0.08;
 /** Between two rays stopped by the range, the edge follows the circle with a point at least every 10°. */
 const ARC_STEP = Math.PI / 18;
 /** A sight outline is stored as a fog op, which holds at most this many points (fog.ts). */
@@ -286,7 +289,7 @@ function simplifyClosed(ps: readonly Point[], tol: number): Point[] {
 
 /**
  * What can be seen from p (map inches), as an outline for a fog reveal op. `rangeIn` limits it (a dark scene), or null.
- * Rays stopped at a piece go a quarter inch past it; rays stopped at the range are joined by arcs; numbers are in
+ * Rays stopped at a piece go 0.08 inch past it; rays stopped at the range are joined by arcs; numbers are in
  * hundredths; at most 1,000 points; [] when fewer than 3 remain. A point on a wall line sees both sides of it.
  */
 export function sightFrom(index: BlockIndex, p: Point, rangeIn: number | null): Point[] {

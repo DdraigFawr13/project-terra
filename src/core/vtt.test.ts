@@ -96,10 +96,10 @@ test("a VTT file becomes walls and doors in the picture's inches, from its corne
       closed: true,
     },
   ]);
-  // Portals are doors, open or closed as in the file; a point off the picture is pulled onto its edge.
+  // Portals are doors, all closed whatever the file says; a point off the picture is pulled onto its edge.
   assert.deepEqual(v.walls.openings, [
     { kind: "door", a: { x: 2, y: 3 }, b: { x: 3, y: 3 }, open: false },
-    { kind: "door", a: { x: 4.5, y: 0 }, b: { x: 1, y: 1 }, open: true },
+    { kind: "door", a: { x: 4.5, y: 0 }, b: { x: 1, y: 1 }, open: false },
   ]);
   assert.deepEqual(parseAnnotation(annotationFile(v.walls), v.bounds), v.walls);
 });

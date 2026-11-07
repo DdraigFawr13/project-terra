@@ -37,8 +37,8 @@ function vec(raw: unknown): Point | null {
 
 /**
  * Read a VTT file's JSON. Walls and object outlines (`line_of_sight`, `objects_line_of_sight`) become walls, and every
- * portal a door, open or closed as the file has it: portals carry no door, window or secret type, so the DM changes
- * windows by hand. Points off the picture are pulled onto its edge. Returns a reason when the file can't be used.
+ * portal a closed door: portals carry no door, window or secret type, and packs mark windows as open portals, so the DM
+ * opens doors and changes windows by hand. Points off the picture are pulled onto its edge. Returns a reason when the file can't be used.
  */
 export function parseVtt(raw: unknown): VttMap | { error: string } {
   const res = isObject(raw) && isObject(raw.resolution) ? raw.resolution : null;
@@ -69,7 +69,9 @@ export function parseVtt(raw: unknown): VttMap | { error: string } {
   for (const portal of Array.isArray(raw.portals) ? raw.portals : []) {
     const ends = isObject(portal) && Array.isArray(portal.bounds) ? portal.bounds.map(vec) : [];
     if (ends.length !== 2 || !ends[0] || !ends[1]) return { error: "A door in the file is damaged." };
-    walls = addOpening(walls, "door", at(ends[0]), at(ends[1]), portal.closed === false);
+    // Every portal comes in closed (Morgan, 2026-11-07): map packs mark most windows as open portals, and open they let
+    // the party see straight into a building. The DM taps one to open it.
+    walls = addOpening(walls, "door", at(ends[0]), at(ends[1]), false);
   }
   if (walls.walls.length + walls.pillars.length + walls.openings.length > MAX_ITEMS)
     return { error: `The file has more than ${MAX_ITEMS} walls and doors.` };

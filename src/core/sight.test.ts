@@ -104,6 +104,16 @@ test("a second relook dims the first view", () => {
   );
 });
 
+test("Cover all with Sight on covers what was seen before and keeps what the party sees now", () => {
+  let s = step(ready(), { type: "token", id: "pc-1", at: { x: 4.5, y: 5.5 } });
+  s = step(s, { type: "door", key: "d:10.00,4.00,10.00,6.00", open: true });
+  s = step(s, { type: "token", id: "pc-1", at: { x: 16.5, y: 5.5 } });
+  assert.equal(fogAt(ops(s), { x: 3, y: 1 }), "explored");
+  s = step(s, { type: "fog", op: { kind: "coverAll" } });
+  assert.equal(fogAt(ops(s), { x: 3, y: 1 }), "unexplored", "room A's corner, seen before, is covered");
+  assert.equal(fogAt(ops(s), B), "seen", "room B, in view now, stays seen");
+});
+
 test("afterCommand: nothing with Sight off", () => {
   const s = ready("off");
   const c: Command = { type: "token", id: "pc-1", at: { x: 4.5, y: 5.5 } };
