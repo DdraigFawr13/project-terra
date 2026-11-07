@@ -189,7 +189,7 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
 **Sight setting**
 - **State:** `Scene.sight: "off" | "on" | "dark"`, default `"off"`, and in every `Scene` literal (`table.ts:311`, `:1029`, `:1139`). It isn't part of `SceneContent`, so Reset leaves it alone. `copyScene` copies it.
 - **Command** `{ type: "sceneSight"; id: string; sight }`. It isn't in `UNDOABLE`, because `scenes` survive undo (`main.ts:60`).
-- **Menu:** the scene's "⋯" menu (`src/renderer/dm-scenes.ts`) gets `Sight: Off…` (or `On…`, `Dark…`) with the existing eye icon, below `Curtain: …`. It opens a form titled "Sight" with three choices, the current one pressed:
+- **Button:** a `Sight: Off` (or `On`, `Dark`) button on the map bar beside Walls, pressed while Sight is on, for the scene on the table (`src/renderer/dm-scenes.ts` labels it and opens its form). Until 2026-11-06 it was an entry in the scene's "⋯" menu; Morgan couldn't find it there ("too buried"), so it moved. It opens a form titled "Sight" with three choices, the current one pressed:
   - "Off: fog changes only when you paint it."
   - "On: the table shows what the tokens can see."
   - "On, dark: as On, limited by darkvision and light."

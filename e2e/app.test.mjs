@@ -812,15 +812,17 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     };
     const near = { x: 1.5, y: 3 };
     const far = { x: 2.5, y: 0.5 };
-    await dm.click(".side-tabs button[data-tab='setup']");
-    await dm.click("#sceneList li.current button.icon");
-    await dm.click("button:has-text('Sight: Off…')");
+    // The Sight button sits on the map bar, not in the scene's menu (Morgan, 2026-11-06: the menu buried it).
+    assert.equal((await dm.textContent("#sightMap")).trim(), "Sight: Off");
+    await dm.click("#sightMap");
     assert.equal(await dm.getAttribute("button:has-text('Off: fog changes only')", "aria-pressed"), "true");
     await dm.click("button:has-text('On: the table shows what the tokens can see.')");
     await until(dm, async () => {
       const st = await window.terra.getState();
       return st.scenes.find((sc) => sc.id === st.scene).sight === "on";
     });
+    await dm.waitForFunction(() => document.getElementById("sightMap").textContent.trim() === "Sight: On");
+    assert.equal(await dm.getAttribute("#sightMap", "aria-pressed"), "true");
     await dm.mouse.click(doorTap.x, doorTap.y);
     await until(dm, async (key) => (await window.terra.getState()).map.doors[key] === false, doorKey);
     await dm.evaluate(async () => {
