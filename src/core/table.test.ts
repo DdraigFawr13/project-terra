@@ -17,6 +17,7 @@ import {
   partyToPlace,
   playerViewOf,
   discSeen,
+  newTable,
   sceneTitle,
   coverOf,
   dmStateOf,
@@ -80,6 +81,37 @@ test("curtain wins over calibration, then the map, then the test grid", () => {
   assert.equal(viewOf(run([...bare, { type: "testGrid", on: true }], s)), "testGrid");
   assert.equal(viewOf(defaultState()), "testGrid");
   assert.equal(viewOf(run([{ type: "testGrid", on: false }])), "idle");
+});
+
+test("a new table keeps the rig and the party and drops every scene (Table → New table…)", () => {
+  const s = run([
+    { type: "calibrations", value: { window: cal } },
+    { type: "brightness", value: 80 },
+    { type: "flipLetters", on: true },
+    { type: "curtain", on: true },
+    { type: "placeMap", map },
+    { type: "placeDisc", colour: "red", x: 1, y: 1, size: 1 },
+    { type: "addCharacter", character: { name: "Ash", ac: 15, hp: 20, hpMax: 20, passive: 12, speed: 30 } },
+    { type: "addScene", name: "Two" },
+  ]);
+  assert.equal(s.scenes.length, 2);
+  const fresh = newTable(s);
+  assert.deepEqual(
+    { ...fresh, party: undefined, lastCharacter: undefined },
+    {
+      ...defaultState(),
+      calibrations: { window: cal },
+      brightness: 80,
+      flipLetters: true,
+      curtain: true,
+      cover: true,
+      party: undefined,
+      lastCharacter: undefined,
+    },
+  );
+  assert.deepEqual(fresh.party, s.party);
+  assert.equal(fresh.lastCharacter, s.lastCharacter);
+  assert.equal(viewOf(fresh), "curtain");
 });
 
 test("the table window gets only the player view: no map name, the calibration for its own screen", () => {

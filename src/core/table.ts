@@ -358,6 +358,28 @@ export function defaultState(): TableState {
   };
 }
 
+/**
+ * Start a new table (Table → New table…): every scene goes, with its map, fog, discs, pins, drawings and fight, so the
+ * DM window is back at "Get the table ready". The rig stays as it is now (the screens, the calibration, the curtain,
+ * the brightness and Flip letters, as going back to an earlier save keeps it, D-037), and so does the party, typed in
+ * once and kept between sessions. The test grid is scene content, so it comes back on with the first scene.
+ * `lastCharacter` stays so a character id is never given out twice.
+ */
+export function newTable(s: TableState): TableState {
+  return {
+    ...defaultState(),
+    curtain: s.curtain,
+    cover: s.cover,
+    calibrating: s.calibrating,
+    brightness: s.brightness,
+    playerDisplayId: s.playerDisplayId,
+    calibrations: s.calibrations,
+    flipLetters: s.flipLetters,
+    party: s.party,
+    lastCharacter: s.lastCharacter,
+  };
+}
+
 /** A scene's content: the state's own for the current scene, else what is parked. */
 export function sceneContent(state: TableState, scene: Scene): SceneContent {
   return scene.parked ?? { map: state.map, fight: state.fight, mapLocked: state.mapLocked, testGrid: state.testGrid };

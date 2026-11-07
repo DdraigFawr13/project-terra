@@ -193,6 +193,23 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     await until(dm, async () => (await window.terra.getState()).party.length === 1);
     assert.ok(fs.readdirSync(path.join(userData, "earlier-saves")).length <= 3);
 
+    // Table → New table… goes back to "Get the table ready": the scenes go, the party and the rig stay, and the table it
+    // left is an earlier save.
+    await dm.evaluate(() => window.terra.apply({ type: "addScene", name: "Two" }));
+    await until(dm, async () => (await window.terra.getState()).scenes.length === 2);
+    await dm.click(".menu-btn[data-menu='table']");
+    await dm.click("#menu >> text=New table…");
+    await dm.click("#newTableOk");
+    await until(dm, async () => (await window.terra.getState()).scenes.length === 1);
+    assert.equal(await party(), 1);
+    assert.ok(await dm.locator("#emptyMap").isVisible());
+    assert.equal(await table.getAttribute("body", "data-calibrated"), "true");
+    assert.match(await dm.textContent("#calState"), /^Calibrated for/);
+    await dm.click(".menu-btn[data-menu='table']");
+    await dm.click("#menu >> text=Earlier saves…");
+    assert.ok(await dm.locator("#menu >> text=no map, 1 character").first().isVisible());
+    await dm.keyboard.press("Escape");
+
     // The problem report is copied for Morgan to paste to Claude, and shown.
     await dm.click(".menu-btn[data-menu='table']");
     await dm.click("#menu >> text=Problem report");

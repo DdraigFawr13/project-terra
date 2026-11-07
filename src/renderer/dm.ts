@@ -483,6 +483,7 @@ function menuItems(name: string): Item[] {
         },
       },
       "-",
+      { text: "New table…", act: confirmNewTable },
       { text: "Earlier saves…", act: () => void showEarlier() },
       { text: "Problem report", act: () => void showReport() },
     ];
@@ -557,6 +558,27 @@ function besideTableMenu(content: HTMLElement[]): void {
 }
 async function restore(name: string): Promise<void> {
   if (!(await terra.restoreSave(name))) besideTableMenu([el("p", { class: "hint" }, "That save couldn't be read.")]);
+}
+/** Table → New table…: back to "Get the table ready" after one confirm; the party and the rig stay (D-037). */
+function confirmNewTable(): void {
+  const r = tableMenuBtn().getBoundingClientRect();
+  const pop = popover({ x: r.left, y: r.bottom + 200 }, [
+    el("h3", { class: "pop-head" }, "New table"),
+    el(
+      "p",
+      { class: "hint" },
+      "Clears every scene with its map, fog, discs, pins, drawings and fight, and goes back to Get the table ready. The party, the map library, the screens and the calibration stay. The table as it is now is kept under Earlier saves.",
+    ),
+    el(
+      "div",
+      { class: "row" },
+      button("Keep", {}, () => pop.close()),
+      button("Start a new table", { id: "newTableOk", class: "danger" }, () => {
+        pop.close();
+        void terra.newTable();
+      }),
+    ),
+  ]);
 }
 async function showReport(): Promise<void> {
   const text = await terra.problemReport();
