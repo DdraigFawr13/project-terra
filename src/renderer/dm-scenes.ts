@@ -17,13 +17,14 @@ import type { DmApi } from "../main/dm-preload.ts";
 import { button, el } from "./dom.ts";
 import { popover } from "./popover.ts";
 
-/** A scene's Sight in a word, for its menu (D-047). */
+/** A scene's Sight in a word, for the map bar's Sight button (D-047). */
 const SIGHT_WORD: Record<Sight, string> = { off: "Off", on: "On", dark: "Dark" };
 
 export function initScenes(
   terra: DmApi,
   sceneBtn: HTMLButtonElement,
   spotsBtn: HTMLButtonElement,
+  sightBtn: HTMLButtonElement,
 ): { section: HTMLElement; pinMenu: (id: number, at: { x: number; y: number }) => void } {
   let state: TableState | null = null;
   const run = (c: Command) => void terra.apply(c);
@@ -89,7 +90,6 @@ export function initScenes(
         button("Move up", { disabled: first }, pick({ type: "moveScene", id: scene.id, by: -1 }), "up"),
         button("Move down", { disabled: last }, pick({ type: "moveScene", id: scene.id, by: 1 }), "down"),
         button(`Curtain: ${curtainWord(scene)}…`, {}, () => curtainForm(scene, from), "curtain"),
-        button(`Sight: ${SIGHT_WORD[scene.sight]}…`, {}, () => sightForm(scene, from), "reveal"),
         button(
           "Mark ready",
           { title: "Keep a copy of this scene as it is now, to reset to later" },
@@ -111,8 +111,9 @@ export function initScenes(
   }
 
   /**
-   * A scene's Sight (D-047): Off, On, or On and dark, the current one pressed. A map with no traced walls says that
-   * Sight won't change its fog, once its walls file has been read.
+   * The scene on the table's Sight (D-047): Off, On, or On and dark, the current one pressed, from the map bar's Sight
+   * button (it sat in the scene's ⋯ menu until 2026-11-06, where Morgan couldn't find it). A map with no traced walls
+   * says that Sight won't change its fog, once its walls file has been read.
    */
   function sightForm(scene: Scene, from: HTMLElement): void {
     const choice = (sight: Sight, label: string) =>
@@ -127,7 +128,8 @@ export function initScenes(
       choice("on", "On: the table shows what the tokens can see."),
       choice("dark", "On, dark: as On, limited by darkvision and light."),
     );
-    const pop = popover(at(from), [el("header", { class: "pop-head" }, el("b", {}, "Sight")), body]);
+    const r = from.getBoundingClientRect();
+    const pop = popover({ x: r.left, y: r.bottom + 8 }, [el("header", { class: "pop-head" }, el("b", {}, "Sight")), body]);
     const map = state && sceneContent(state, scene).map;
     if (!map) return;
     void terra.loadWalls(map.id).then(
@@ -286,6 +288,8 @@ export function initScenes(
     const listed = listedScenes(s);
     const here = s.scenes.find((sc) => sc.id === s.scene)!;
     sceneBtn.querySelector("span")!.textContent = sceneTitle(s, here);
+    sightBtn.textContent = `Sight: ${SIGHT_WORD[here.sight]}`;
+    sightBtn.setAttribute("aria-pressed", String(here.sight !== "off"));
     list.replaceChildren(
       ...listed.map((scene, i) => {
         const current = scene.id === s.scene;
@@ -323,6 +327,10 @@ export function initScenes(
   }
 
   // The scene name above the tabs: a tap lists the scenes to switch to, without leaving the tab in use.
+  sightBtn.addEventListener("click", () => {
+    const here = state?.scenes.find((sc) => sc.id === state!.scene);
+    if (here) sightForm(here, sightBtn);
+  });
   sceneBtn.addEventListener("click", () => {
     if (!state) return;
     const s = state;

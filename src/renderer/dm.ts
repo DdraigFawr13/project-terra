@@ -382,7 +382,7 @@ const partySec = section(
   el("p", { class: "hint" }, "Names, AC, HP and passives, typed in once and kept between sessions."),
   button("Party sheet", {}, () => party.show()),
 );
-const scenes = initScenes(terra, $<HTMLButtonElement>("sceneBtn"), $<HTMLButtonElement>("spotsMap"));
+const scenes = initScenes(terra, $<HTMLButtonElement>("sceneBtn"), $<HTMLButtonElement>("spotsMap"), $<HTMLButtonElement>("sightMap"));
 const panel = initPanel(
   {
     setup: [scenes.section, $("setupPanel"), partySec],
