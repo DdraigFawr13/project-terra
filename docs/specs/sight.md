@@ -146,6 +146,7 @@ All rules are pure functions in `src/core/`, unit tested (AGENTS.md, GAME-02).
 
 **Faster wall check** (`src/core/wallcheck.ts`)
 - **Index:** `blockIndex(annotation, doors, bounds)` puts the blocking pieces from `blockersFor(annotation, doors)` into a grid of 1-inch cells. One re-look builds it once and shares it across all tokens; main keeps it with the cached annotation until the door record or the walls file changes. Each ray walks only the cells it crosses (a DDA grid walk) and stops at its first hit.
+- **Looking out** (D-047 item 9, Morgan 2026-11-06): a point inside a pillar or a closed wall loop (a tree trunk, a bush, a boulder, a VTT loop that ends where it began) ignores that shape's pieces, so a token standing in a bush sees out of it. From outside, the shape still blocks. The index keeps each piece's shape and the shapes' outlines; one point-in-polygon test per shape per look.
 - **`lightFrom`** (the editor's wall check) keeps its rays and its result: an outline ordered by angle. It uses the index and drops a point only when it and both its neighbours hit the same wall piece, so the point lies mid-way along that piece.
 - **Prototype, measured in the cloud on generated maps:**
   - 1,974 pieces: 82.9 ms → 3.0 ms per outline, 6,366 → 101 points.
