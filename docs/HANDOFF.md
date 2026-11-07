@@ -1,6 +1,6 @@
 # Handoff
 
-Updated: 2026-11-05. A fresh session must be able to continue from this file alone. Keep it to 60 lines; finished entries move to [archive/handoff-2026-10.md](archive/handoff-2026-10.md).
+Updated: 2026-11-06. A fresh session must be able to continue from this file alone. Keep it to 60 lines; finished entries move to [archive/handoff-2026-10.md](archive/handoff-2026-10.md).
 
 ## Phase
 
@@ -8,7 +8,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Everything before the rehearsal 
 
 ## Just done (earlier: [November](archive/handoff-2026-11.md), [October](archive/handoff-2026-10.md))
 
-- 2026-11-05 Linux laptop (D-049), branch `linux-laptop`, not yet a PR (summary to Morgan first, D-018). Main (c7cea2f) installed on the laptop: pinned Node 22.22.0 in `~/.local/opt` (Ubuntu's Node has no TypeScript stripping), `npm run check` 122/122, e2e 5/5 with `env -u WAYLAND_DISPLAY xvfb-run -a` (on the real Wayland desktop the map test fails). New `npm run dist:linux` and `install:linux` (`scripts/install-linux.mjs`: launcher with `--ozone-platform=x11`, app-grid entry). Both windows open at 200% scale, DM window 1280 × 763. Private library cloned to `~/code/project-terra-library`.
+- 2026-11-06 Laptop app wouldn't open from the app grid: Electron aborted because `chrome-sandbox` wasn't root-owned setuid (Ubuntu restricts user namespaces). Fixed on the laptop by hand; branch `linux-sandbox-helper` makes `install:linux` do it with `sudo` and check it (D-049 item 2, LESSONS).
 
 ## Next
 

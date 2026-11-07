@@ -449,6 +449,6 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 - **Status:** Accepted (2026-11-05), Morgan in chat: "this will be the laptop and it will be linux". Changes D-001's Windows laptop.
 - **Decision:**
   1. The DM laptop, the HP Pavilion x360 14", runs Ubuntu 26.04 with GNOME on Wayland. The app is built on the laptop from the repo with `npm run install:linux` (an unpacked Electron build in `release/linux-unpacked`, a launcher in `~/.local/bin` and an app-grid entry), and rebuilt the same way after each update.
-  2. The launcher starts the app through XWayland (`--ozone-platform=x11`).
+  2. The launcher starts the app through XWayland (`--ozone-platform=x11`). The install makes `release/linux-unpacked/chrome-sandbox` root-owned with mode 4755 through `sudo` (added 2026-11-06): Ubuntu restricts unprivileged user namespaces, so Electron needs the setuid helper, and the app-grid launch aborted without it.
   3. The Windows zip workflow stays for Morgan's Windows PC; nothing in the app is Windows-only.
 - **Why:** Morgan set the laptop up with Linux. Native Wayland ignores where an app places a window, so `setBounds` couldn't put the table window fullscreen on the projector; under XWayland it can. Building on the laptop needs no CI artifact download and keeps the private library's data on the laptop (D-010).

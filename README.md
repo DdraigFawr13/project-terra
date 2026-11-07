@@ -15,7 +15,7 @@ npm ci
 npm run install:linux           # builds release/linux-unpacked and adds Project Terra to the app grid
 ```
 
-Then open **Project Terra** from the app grid. Run `npm run install:linux` again after pulling changes: the app grid opens the built copy, not the source.
+Then open **Project Terra** from the app grid. Run `npm run install:linux` again after pulling changes: the app grid opens the built copy, not the source. The install uses `sudo` once to make Electron's `chrome-sandbox` helper root-owned with mode 4755; without that, Ubuntu's app-grid launch aborts before any window opens.
 
 With a projector or TV plugged in, set the displays to **Join Displays** (Settings → Displays), not Mirror; in Mirror mode the app sees only one screen. The launcher starts the app through XWayland (`--ozone-platform=x11`), because native Wayland ignores where an app places a window and the table window couldn't go fullscreen on the projector.
 
