@@ -8,6 +8,8 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Everything before the rehearsal 
 
 ## Just done (earlier: [November](archive/handoff-2026-11.md), [October](archive/handoff-2026-10.md))
 
+- 2026-11-06 Table → New table… (Morgan's "start a new project" button): one confirm, then every scene goes and the DM window is back at Get the table ready; the rig and the party stay, the table left is an earlier save (`newTable` in `src/core/table.ts`, unit and e2e tested). Branch `claude/new-table`, awaiting Morgan's OK for the PR.
+- 2026-11-06 Laptop library: the 12 LMoP VTT maps with walls or doors (Phandalin's 10, Agatha's Lair, Thundertree at 10 ft) imported through the app with Playwright, renamed "Ch2 Phandalin: Sleeping Giant inn, day" style; Goblin Ambush has no walls, so Sight does nothing there. Sight checked on the Sleeping Giant copy: inside seen, outside unexplored, slowest re-look 2.2 ms under xvfb.
 - 2026-11-06 Native Wayland can't place the table window: in a headless GNOME Shell 50.1 with two virtual monitors (1920×1080 primary, 1280×800 second), Electron 44 under `--ozone-platform=wayland` went fullscreen on the primary every time, with `setBounds` + `setFullScreen`, with `x`/`y` + `fullscreen` in the constructor, and with `requestFullscreen({ screen })` (Window Management API). Rig: `dbus-run-session`, `gnome-shell --headless --wayland --no-x11 --wayland-display <name> --virtual-monitor 1920x1080 --virtual-monitor 1280x800`, then read `getScreenDetails().currentScreen` and `innerWidth` in the table window. Virtual monitors, not a real HDMI output.
 
 ## Next
@@ -30,7 +32,7 @@ Building toward session 1 ([PLAN.md](PLAN.md)). Everything before the rehearsal 
 
 ## How to work here
 
-- Read AGENTS.md, then this file, then the DECISIONS index and LESSONS. Local checks: `npm run check` and `xvfb-run -a npm run test:e2e`.
+- Read AGENTS.md, then this file, then the DECISIONS index and LESSONS. Local checks: `npm run check` and `xvfb-run -a npm run test:e2e`. On the laptop, Ubuntu's `nodejs` package can't load `.ts` files (built without amaro), so the tests need the pinned Node: `export PATH=$HOME/.local/share/node-v22.22.0/bin:$PATH` (the official 22.22.0 build, unpacked there 2026-11-06, checksum verified), and `env -u WAYLAND_DISPLAY xvfb-run -a` for the e2e suite. The unit suite took 2.1–2.3 s there with another Electron session running (budget 2 s, D-020).
 - PRs: summary to Morgan first; after approval, open the PR and squash-merge when green (D-018). After a merge, restart the working branch from main by merging main into it (force-push is blocked in cloud sessions).
 - Morgan reads on a phone: short messages, links and taps. Show UI work as screenshots; for design choices, use phone forms (`planning-interview` skill) or a short chat proposal with a recommendation.
 - Keep Terra streamlined (D-046): no new permanent panel row, no per-scene setting unless the default works untouched; every review, adversarial ones included, checks for added steps and friction. Prefer defaults and automatic behaviour over new buttons, settings or prompts.

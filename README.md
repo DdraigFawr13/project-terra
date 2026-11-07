@@ -47,6 +47,7 @@ Without a projector, the same works on the laptop: hold the ruler against the ta
 ### When something goes wrong (step 7g)
 
 - **Table → Earlier saves…** goes back to how the table was when the app last opened, or up to about 10 minutes ago (three are kept). The table as it is now is kept as an earlier save first, so going back can be taken back. Screens, calibration and the curtain stay as they are.
+- **Table → New table…** goes back to "Get the table ready": every scene goes, with its map, fog, discs, pins, drawings and fight. The party, the map library, the screens and the calibration stay, and the table as it was is kept as an earlier save.
 - **Table → Problem report** copies a short report (screens, saves, recent errors; nothing from the game). Paste it to Claude.
 
 ### The DM window
