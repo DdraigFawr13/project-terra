@@ -377,7 +377,10 @@ const selection = {
 let afterLayout = () => {};
 const section = (title: string, ...kids: HTMLElement[]) => el("section", { class: "side-sec" }, el("h3", {}, title), ...kids);
 const encounterSec = section("Encounter", $("encounterPanel"));
-const partySec = section("Party", el("div", { id: "partyRoster" }));
+// The roster's place in the Party section, held by reference: the section isn't in the page while another tab is
+// open, so looking it up by id at start-up found nothing and stopped the DM window's script.
+const rosterSlot = el("div");
+const partySec = section("Party", rosterSlot);
 const scenes = initScenes(terra, $<HTMLButtonElement>("sceneBtn"), $<HTMLButtonElement>("spotsMap"), $<HTMLButtonElement>("sightMap"));
 const panel = initPanel(
   {
@@ -446,7 +449,7 @@ const party = initParty(
   () => maps.placeRow(),
   (id, x, y) => maps.dropToken(id, x, y),
 );
-$("partyRoster").replaceWith(party.roster);
+rosterSlot.replaceWith(party.roster);
 maps.tokenTap((id, at) => quick.showCharacter(id, at));
 const flipBtn = $<HTMLButtonElement>("flipLetters");
 flipBtn.addEventListener("click", () => terra.apply({ type: "flipLetters", on: flipBtn.getAttribute("aria-pressed") !== "true" }));

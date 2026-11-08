@@ -681,6 +681,8 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     assert.equal(await loads(`terra-map://${id}/table?f`), false);
     await dm.evaluate(() => window.terra.apply({ type: "switchScene", id: "scene-1" }));
     await dm.evaluate(() => window.terra.apply({ type: "curtain", on: false }));
+    // Close on the Explore tab: the window reopens there, with Setup's sections out of the page.
+    await dm.click("[role='tab'][data-tab='explore']");
   } finally {
     await app.close();
   }
@@ -688,6 +690,10 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
   ({ app, dm, table } = await launch(userData));
   try {
     await table.waitForFunction(() => document.body.dataset.view === "map");
+    // Reopened on Explore, the DM window still sets up the Setup tab's party roster (it once stopped here).
+    assert.equal(await dm.getAttribute("[role='tab'][data-tab='explore']", "aria-selected"), "true");
+    await dm.click("[role='tab'][data-tab='setup']");
+    await dm.locator(".roster").waitFor();
     assert.equal((await table.evaluate(() => window.terra.getView())).map.id, id);
     assert.match(await dm.textContent("#mapTitle"), /board/);
     assert.deepEqual(
