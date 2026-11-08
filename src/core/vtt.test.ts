@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { annotationFile, parseAnnotation } from "./annotation.ts";
 import { parseVtt, planVttPicture, type VttMap } from "./vtt.ts";
+import { blockIndex, sightFrom } from "./wallcheck.ts";
+import { insidePolygon } from "./fog.ts";
 
 /** A made-up file in the Universal VTT shape: a room with a doorway, a pillar outline and two lights. */
 const file = (over: Record<string, unknown> = {}) => ({
@@ -86,7 +88,7 @@ test("a VTT file becomes walls and doors in the picture's inches, from its corne
       ],
       closed: false,
     },
-    // An object outline that ends where it starts is a loop.
+    // An object outline that ends where it starts is a loop, and natural: sight shows a little past it.
     {
       points: [
         { x: 1.5, y: 1.75 },
@@ -94,6 +96,7 @@ test("a VTT file becomes walls and doors in the picture's inches, from its corne
         { x: 2, y: 2.25 },
       ],
       closed: true,
+      natural: true,
     },
   ]);
   // Portals are doors, all closed whatever the file says; a point off the picture is pulled onto its edge.
@@ -102,6 +105,48 @@ test("a VTT file becomes walls and doors in the picture's inches, from its corne
     { kind: "door", a: { x: 4.5, y: 0 }, b: { x: 1, y: 1 }, open: false },
   ]);
   assert.deepEqual(parseAnnotation(annotationFile(v.walls), v.bounds), v.walls);
+});
+
+test("solid rock areas come from terra.solid; built walls stop sight tight, natural edges show a little past, rock shows nothing", () => {
+  // A 10 x 4 map: a built wall at x 3 and a natural edge at x 7 across it, and a block of solid rock at the right.
+  const raw = {
+    resolution: { map_origin: { x: 0, y: 0 }, map_size: { x: 10, y: 4 }, pixels_per_grid: 50 },
+    line_of_sight: [
+      [
+        { x: 3, y: 0 },
+        { x: 3, y: 4 },
+      ],
+    ],
+    objects_line_of_sight: [
+      [
+        { x: 7, y: 0 },
+        { x: 7, y: 4 },
+      ],
+    ],
+    portals: [],
+    terra: {
+      solid: [
+        [
+          { x: 7, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 4 },
+          { x: 7, y: 4 },
+        ],
+      ],
+    },
+  };
+  const v = read(raw);
+  assert.equal(v.walls.solids?.length, 1);
+  assert.deepEqual(parseAnnotation(annotationFile(v.walls), v.bounds), v.walls);
+  const ix = blockIndex(v.walls, {}, v.bounds);
+  // From x 5: past the natural edge at x 7 a strip of it shows (0.3 inch along the rays at its ends).
+  const mid = sightFrom(ix, { x: 5, y: 2 }, null);
+  assert.ok(insidePolygon({ x: 7.15, y: 2 }, mid) && !insidePolygon({ x: 7.4, y: 2 }, mid));
+  // From x 1: past the built wall at x 3 only a hair does (0.08 inch).
+  const left = sightFrom(ix, { x: 1, y: 2 }, null);
+  assert.ok(insidePolygon({ x: 3.03, y: 2 }, left) && !insidePolygon({ x: 3.1, y: 2 }, left));
+  // Inside the rock: nothing.
+  assert.deepEqual(sightFrom(ix, { x: 8.5, y: 2 }, null), []);
 });
 
 test("-0 in a file never reaches the walls", () => {

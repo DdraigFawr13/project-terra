@@ -86,6 +86,9 @@ const discSizeBtns = [...document.querySelectorAll<HTMLButtonElement>("button[da
 const fogBtns = ["fogDim", "fogRevealAll", "fogCoverAll"].map((id) => $<HTMLButtonElement>(id));
 const lockBtn = $<HTMLButtonElement>("lockMap");
 const wallsBtn = $<HTMLButtonElement>("wallsMap");
+const smoothBtn = $<HTMLButtonElement>("smoothMap");
+/** Where Smooth is remembered on this computer (Morgan, 2026-11-07: dragging jumped square to square). */
+const SMOOTH_KEY = "terra.smoothDrag";
 /** Buttons that change where the map is; a locked map keeps them off (D-029). */
 const [turnBtn, removeBtn] = [$<HTMLButtonElement>("turnMap"), $<HTMLButtonElement>("removeMap")];
 const placeBtns = [turnBtn, removeBtn];
@@ -112,7 +115,10 @@ const TABLE_EDGE = "#e8dcc8";
 
 /** One finger, pen or mouse painting fog, in map inches. Strokes reach the table only when lifted (D-025). */
 type Stroke = { pointer: number; pen: boolean; mode: FogMode; points: Point[] };
-/** A disc being dragged, or a tap with Marker about to place one; `at` is its snapped centre in map inches. */
+/**
+ * A disc being dragged, or a tap with Marker about to place one; `at` is its centre in map inches: under the pointer with
+ * Smooth on, else snapped. `grab`: the pointer's offset from the disc's centre when it was picked up.
+ */
 /**
  * `group`: held still for LONG_PRESS_MS, the disc lifted its whole colour, which moves with it (D-046). `start` is the
  * press in canvas pixels, to tell a hold from a drag; `timer` the hold's timeout.
@@ -124,6 +130,7 @@ type DiscDrag = {
   letter: string;
   from: Point;
   at: Point;
+  grab: Point;
   group: boolean;
   start: Point;
   timer: number;
@@ -226,7 +233,27 @@ export function initMaps(
   /** After Place party (D-046): the next tap puts the travelling characters down in a row. */
   let rowNext = false;
   /** Select dragging a character's token: where it started and where it would land, in map inches. */
-  let tokenDrag: { pointer: number; pen: boolean; id: string; from: Point; at: Point } | null = null;
+  let tokenDrag: { pointer: number; pen: boolean; id: string; from: Point; at: Point; grab: Point } | null = null;
+  /** Smooth (map bar): a dragged token or disc follows the pointer, and lands on the grid when let go. On unless turned off. */
+  let smooth = true;
+  try {
+    smooth = localStorage.getItem(SMOOTH_KEY) !== "off";
+  } catch {
+    // No storage: Smooth stays on.
+  }
+  smoothBtn.setAttribute("aria-pressed", String(smooth));
+  smoothBtn.addEventListener("click", () => {
+    smooth = !smooth;
+    smoothBtn.setAttribute("aria-pressed", String(smooth));
+    try {
+      localStorage.setItem(SMOOTH_KEY, smooth ? "on" : "off");
+    } catch {
+      // Kept for this run only.
+    }
+  });
+  /** Where a dragged piece of this size is shown: under the pointer (keeping where it was held) with Smooth, else snapped. */
+  const dragAt = (at: Point, grab: Point, size: number): Point =>
+    smooth ? { x: +(at.x - grab.x).toFixed(3), y: +(at.y - grab.y).toFixed(3) } : snapDisc({ x: at.x - grab.x, y: at.y - grab.y }, size);
   let onTokenTap: (id: string, at: Point) => void = () => undefined;
   /** Live sight (Sight S5, D-047): the dragged token's point last sent to main, and the frame booked to send the next. */
   let liveSent: Point | null = null;
@@ -294,7 +321,7 @@ export function initMaps(
   });
   $<HTMLButtonElement>("patchMap").addEventListener("click", () => state?.map && patch.open(state.map));
   const run = (c: Command) => terra.apply(c);
-  /** While a token is dragged with Sight on, tell main where it is, at most once a frame and only when it moved a square. */
+  /** While a token is dragged with Sight on, tell main where it is, at most once a frame and only when it moved. */
   function liveSoon(): void {
     if (liveFrame || !sightOn()) return;
     liveFrame = requestAnimationFrame(() => {
@@ -881,7 +908,10 @@ export function initMaps(
       const shownAt = moving
         ? discDrag!.at
         : lifted
-          ? snapDisc({ x: d.x + discDrag!.at.x - discDrag!.from.x, y: d.y + discDrag!.at.y - discDrag!.from.y }, d.size)
+          ? ((p: Point) => (smooth ? p : snapDisc(p, d.size)))({
+              x: d.x + discDrag!.at.x - discDrag!.from.x,
+              y: d.y + discDrag!.at.y - discDrag!.from.y,
+            })
           : d;
       // As the players see it: a revealed group's symbol or portrait, the letter on a tab when a mini stands on it (D-036).
       const { c, w } = draw({ ...d, ...tokenLook(d, map.groups) }, shownAt, down ? 0.3 : d.shown ? 1 : 0.45);
@@ -1224,7 +1254,8 @@ export function initMaps(
       const hit = tokenAt(e);
       if (hit) {
         const from = { x: hit.x, y: hit.y };
-        tokenDrag = { pointer: e.pointerId, pen, id: hit.id, from, at: from };
+        const p = mapInchesAt(e) ?? from;
+        tokenDrag = { pointer: e.pointerId, pen, id: hit.id, from, at: from, grab: { x: p.x - from.x, y: p.y - from.y } };
         render();
         return;
       }
@@ -1240,6 +1271,7 @@ export function initMaps(
           letter: hit.letter,
           from,
           at: from,
+          grab: ((p) => ({ x: p.x - from.x, y: p.y - from.y }))(mapInchesAt(e) ?? from),
           group: false,
           start: canvasPoint(e),
           timer: 0,
@@ -1380,7 +1412,7 @@ export function initMaps(
     if (!at) return;
     if (e.pointerType !== "touch") hover = at;
     if (tokenDrag?.pointer === e.pointerId) {
-      tokenDrag.at = snapDisc(at, 1);
+      tokenDrag.at = dragAt(at, tokenDrag.grab, 1);
       liveSoon();
       render();
       return;
@@ -1390,7 +1422,7 @@ export function initMaps(
       const p = canvasPoint(e);
       // Moving before the hold is up drags this disc alone.
       if (Math.hypot(p.x - discDrag.start.x, p.y - discDrag.start.y) > SLIP_PX) clearTimeout(discDrag.timer);
-      discDrag.at = snapDisc(at, disc?.size ?? 1);
+      discDrag.at = dragAt(at, discDrag.grab, disc?.size ?? 1);
       render();
       return;
     }
@@ -1416,6 +1448,9 @@ export function initMaps(
     const d = discDrag!;
     discDrag = null;
     clearTimeout(d.timer);
+    // Let go, it lands on the grid (with Smooth it was following the pointer); a wobble within its square is no move.
+    const size = state?.map?.discs.find((x) => discKey(x) === discKey(d))?.size ?? 1;
+    d.at = snapDisc(d.at, size);
     const moved = d.at.x !== d.from.x || d.at.y !== d.from.y;
     // A lifted colour drops together, in one undo step; held and let go in place, nothing changes.
     if (d.group) {
@@ -1527,6 +1562,7 @@ export function initMaps(
     if (tokenDrag?.pointer === e.pointerId) {
       const t = tokenDrag;
       tokenDrag = null;
+      t.at = snapDisc(t.at, 1);
       const moved = t.at.x !== t.from.x || t.at.y !== t.from.y;
       if (keep && moved) void run({ type: "token", id: t.id, at: t.at });
       // After the drop's command, so the table's live outline clears onto the re-look (Sight S5).

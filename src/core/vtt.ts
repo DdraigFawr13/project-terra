@@ -58,13 +58,27 @@ export function parseVtt(raw: unknown): VttMap | { error: string } {
   });
 
   let walls = emptyAnnotation();
-  const lines = [raw.line_of_sight, raw.objects_line_of_sight].flatMap((l) => (Array.isArray(l) ? l : []));
-  for (const line of lines) {
+  // Walls (line_of_sight) are built; object outlines (objects_line_of_sight: rock edges, trees, bushes) are natural.
+  const lines = [
+    ...(Array.isArray(raw.line_of_sight) ? raw.line_of_sight : []).map((l) => [l, false] as const),
+    ...(Array.isArray(raw.objects_line_of_sight) ? raw.objects_line_of_sight : []).map((l) => [l, true] as const),
+  ];
+  for (const [line, natural] of lines) {
     if (!Array.isArray(line)) return { error: "A wall in the file is damaged." };
     const ps = line.map(vec);
     if (!ps.every((p): p is Point => !!p)) return { error: "A wall in the file is damaged." };
     // A run longer than a saved wall may hold goes in as pieces that share their ends.
+    const before = walls.walls.length;
     for (let i = 0; i < ps.length - 1; i += MAX_POINTS - 1) walls = addWall(walls, ps.slice(i, i + MAX_POINTS).map(at));
+    if (natural) walls = { ...walls, walls: walls.walls.map((w, k) => (k >= before ? { ...w, natural: true } : w)) };
+  }
+  // Areas of solid rock: Project Terra's own key (terra.solid), which other apps ignore.
+  const terra = isObject(raw.terra) ? raw.terra : null;
+  for (const poly of terra && Array.isArray(terra.solid) ? terra.solid : []) {
+    const ps = Array.isArray(poly) ? poly.map(vec) : [];
+    if (ps.length < 3 || ps.length > MAX_POINTS || !ps.every((p): p is Point => !!p))
+      return { error: "A solid rock area in the file is damaged." };
+    walls = { ...walls, solids: [...(walls.solids ?? []), ps.map(at)] };
   }
   for (const portal of Array.isArray(raw.portals) ? raw.portals : []) {
     const ends = isObject(portal) && Array.isArray(portal.bounds) ? portal.bounds.map(vec) : [];
