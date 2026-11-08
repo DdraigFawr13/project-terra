@@ -1858,3 +1858,57 @@ button.who {
 .ready li.done .tick::after {
   content: "✓";
 }
+
+/* The party right in Setup: a row per character, tapped to open or dragged onto the map. */
+.roster {
+  display: grid;
+  gap: 6px;
+}
+.roster-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.roster-row:hover,
+.roster-row:focus-visible {
+  border-color: currentColor;
+}
+.roster-thumb {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border: 2px solid var(--line);
+}
+.roster-thumb.none {
+  display: grid;
+  place-items: center;
+  font: 700 0.95rem var(--body);
+}
+.roster-name {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.roster-name b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.roster-on {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+.roster-ghost {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  opacity: 0.85;
+}

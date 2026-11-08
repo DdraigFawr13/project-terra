@@ -377,11 +377,7 @@ const selection = {
 let afterLayout = () => {};
 const section = (title: string, ...kids: HTMLElement[]) => el("section", { class: "side-sec" }, el("h3", {}, title), ...kids);
 const encounterSec = section("Encounter", $("encounterPanel"));
-const partySec = section(
-  "Party",
-  el("p", { class: "hint" }, "Names, AC, HP and passives, typed in once and kept between sessions."),
-  button("Party sheet", {}, () => party.show()),
-);
+const partySec = section("Party", el("div", { id: "partyRoster" }));
 const scenes = initScenes(terra, $<HTMLButtonElement>("sceneBtn"), $<HTMLButtonElement>("spotsMap"), $<HTMLButtonElement>("sightMap"));
 const panel = initPanel(
   {
@@ -448,7 +444,9 @@ const party = initParty(
   terra,
   (id) => maps.placeToken(id),
   () => maps.placeRow(),
+  (id, x, y) => maps.dropToken(id, x, y),
 );
+$("partyRoster").replaceWith(party.roster);
 maps.tokenTap((id, at) => quick.showCharacter(id, at));
 const flipBtn = $<HTMLButtonElement>("flipLetters");
 flipBtn.addEventListener("click", () => terra.apply({ type: "flipLetters", on: flipBtn.getAttribute("aria-pressed") !== "true" }));

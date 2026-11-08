@@ -75,7 +75,7 @@ const blocksAnything = (a: Annotation | null): boolean =>
 /**
  * The state after `command` took `prev` to `next`, with Sight's re-look when one is due. `next` unchanged when the
  * scene's Sight is Off, after switchScene or resetScene (they bring a scene back as it was, D-039), when nothing Sight
- * depends on changed, or on a map with no traced walls. `indexFor` lets main reuse the wall index it keeps.
+ * depends on changed (Cover all always re-looks), or on a map with no traced walls. `indexFor` lets main reuse the wall index it keeps.
  */
 export function afterCommand(
   prev: TableState,
@@ -87,7 +87,10 @@ export function afterCommand(
   const m = next.map;
   if (!m || sightOf(next) === "off") return next;
   if (command.type === "switchScene" || command.type === "resetScene") return next;
-  if (sightKey(prev) === sightKey(next)) return next;
+  // Cover all with Sight on covers only what the party saw before: what they see now comes straight back, so the DM
+  // needn't switch Sight off and on again (Morgan, 2026-11-07).
+  const coverAll = command.type === "fog" && command.op.kind === "coverAll";
+  if (!coverAll && sightKey(prev) === sightKey(next)) return next;
   if (!annotation || !blocksAnything(annotation)) return next;
   return relook(next, indexFor(annotation, m.doors, m.bounds));
 }

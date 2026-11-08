@@ -152,7 +152,7 @@ test("a point inside a pillar or a closed loop looks out of it; from outside the
   assert.ok(!insidePolygon({ x: 7, y: 6.6 }, sightFrom(index, { x: 7, y: 9 }, null)));
 });
 
-test("sightFrom: walls extend by a quarter inch, a range clamps with arcs, rounded, and a centre on a wall sees both sides", () => {
+test("sightFrom: walls extend by 0.08 inch, a range clamps with arcs, rounded, and a centre on a wall sees both sides", () => {
   const bounds = { x: 0, y: 0, width: 10, height: 10 };
   const a = emptyAnnotation();
   a.walls.push({
@@ -164,8 +164,8 @@ test("sightFrom: walls extend by a quarter inch, a range clamps with arcs, round
   });
   const index = blockIndex(a, {}, bounds);
   const seen = sightFrom(index, { x: 3, y: 5 }, null);
-  // Rays stop a quarter inch past the wall, so the wall line is inside the outline, and a disc centre half an inch past it isn't.
-  assert.ok(insidePolygon({ x: 6.1, y: 5 }, seen) && !insidePolygon({ x: 6.5, y: 5 }, seen));
+  // Rays stop 0.08 inch past the wall, so the wall line is inside the outline, and a point a tenth of an inch past isn't.
+  assert.ok(insidePolygon({ x: 6.02, y: 5 }, seen) && !insidePolygon({ x: 6.1, y: 5 }, seen));
   const hundredths = (v: number) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-9 && !Object.is(v, -0);
   assert.ok(seen.every((q) => hundredths(q.x) && hundredths(q.y)));
   // With a 2-inch range nothing reaches the wall: a circle of arc points every 10 degrees or closer.

@@ -7,8 +7,6 @@ import type { Bounds } from "../core/map.ts";
 /** Mask pixels per inch. Soft edges a twentieth of an inch wide don't show on a projector. */
 const MASK_PPI = 24;
 const MAX_MASK_SIDE = 4096;
-/** Hatching on explored-but-not-seen areas (D-023): a line every half inch. */
-const HATCH_IN = 0.5;
 
 type Canvas = OffscreenCanvas;
 type Ctx = OffscreenCanvasRenderingContext2D;
@@ -152,15 +150,6 @@ export class FogPainter {
     ctx.globalCompositeOperation = "source-over";
   }
 
-  private hatch(ctx: Ctx, w: number, h: number, style: string): void {
-    const step = HATCH_IN * this.ppi;
-    ctx.strokeStyle = style;
-    ctx.lineWidth = Math.max(1, this.ppi / 12);
-    ctx.beginPath();
-    for (let d = -h; d < w; d += step) (ctx.moveTo(d, h), ctx.lineTo(d + h, 0));
-    ctx.stroke();
-  }
-
   /**
    * Draw the map image and its fog. `ctx` must already be set up in map inches (placed and turned), so the fog turns
    * with the map.
@@ -170,16 +159,16 @@ export class FogPainter {
     const { x, y, width, height } = bounds;
     ctx.drawImage(img, x, y, width, height);
     if (look === "table") {
-      // Explored but not seen now: the map in grey, darkened, with lines over it. Never explored: black.
+      // Explored but not seen now: the map in grey, a little darker, with no lines: with Sight every tree casts a
+      // shadow, and the old half-inch lines made the table look striped (Morgan, 2026-11-07). Never explored: black.
       const grey = this.layer("grey", (c, w, h) => {
         c.fillStyle = "#808080";
         c.fillRect(0, 0, w, h);
         this.cut(c, "exploredNotSeen");
       });
       const dim = this.layer("dim", (c, w, h) => {
-        c.fillStyle = "rgba(0, 0, 0, 0.55)";
+        c.fillStyle = "rgba(0, 0, 0, 0.3)";
         c.fillRect(0, 0, w, h);
-        this.hatch(c, w, h, "rgba(255, 255, 255, 0.28)");
         this.cut(c, "exploredNotSeen");
       });
       const black = this.layer("black", (c, w, h) => {
