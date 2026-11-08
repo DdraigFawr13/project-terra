@@ -7,6 +7,14 @@ import type { Bounds } from "../core/map.ts";
 /** Mask pixels per inch. Soft edges a twentieth of an inch wide don't show on a projector. */
 const MASK_PPI = 24;
 const MAX_MASK_SIDE = 4096;
+/** Seen before (Morgan's pick, 2026-11-07): a slate tint, darkened, with a faint dot every quarter inch. */
+const SEEN_BEFORE_TINT = "#7d93b8";
+const SEEN_BEFORE_DIM = 0.38;
+const DOT_IN = 0.25;
+const DOT_ALPHA = 0.22;
+/** The soft dark band just outside what the party sees now, so its edge stands out: width and darkness. */
+const EDGE_IN = 0.3;
+const EDGE_ALPHA = 0.5;
 
 type Canvas = OffscreenCanvas;
 type Ctx = OffscreenCanvasRenderingContext2D;
@@ -118,7 +126,7 @@ export class FogPainter {
   }
 
   /** A mask-sized layer: `build` paints it and cuts it by the masks. After a fog change only the changed patch is rebuilt. */
-  private layer(name: string, build: (ctx: Ctx, w: number, h: number) => void): Canvas {
+  private layer(name: string, build: (ctx: Ctx, w: number, h: number) => void, pad = 0): Canvas {
     let l = this.layers.get(name);
     if (!l) {
       l = { canvas: new OffscreenCanvas(this.seen!.width, this.seen!.height), dirty: null };
@@ -126,7 +134,11 @@ export class FogPainter {
       this.layers.set(name, l);
     } else if (l.dirty) {
       const ctx = l.canvas.getContext("2d")!;
-      const d = l.dirty;
+      // `pad`: a layer that blurs reaches past the changed patch by that many mask pixels.
+      const d0 = l.dirty;
+      const x0 = Math.max(0, d0.x - pad);
+      const y0 = Math.max(0, d0.y - pad);
+      const d = { x: x0, y: y0, w: Math.min(l.canvas.width, d0.x + d0.w + pad) - x0, h: Math.min(l.canvas.height, d0.y + d0.h + pad) - y0 };
       ctx.save();
       ctx.beginPath();
       ctx.rect(d.x, d.y, d.w, d.h);
@@ -159,18 +171,49 @@ export class FogPainter {
     const { x, y, width, height } = bounds;
     ctx.drawImage(img, x, y, width, height);
     if (look === "table") {
-      // Explored but not seen now: the map in grey, a little darker, with no lines: with Sight every tree casts a
-      // shadow, and the old half-inch lines made the table look striped (Morgan, 2026-11-07). Never explored: black.
+      // Explored but not seen now: the map in grey with a slate tint, darkened, a faint dot every quarter inch, and a
+      // soft dark band where sight ends (Morgan's pick of C with E and F, 2026-11-07; the half-inch lines striped the
+      // table once Sight gave every tree a shadow). Never explored: black.
       const grey = this.layer("grey", (c, w, h) => {
         c.fillStyle = "#808080";
         c.fillRect(0, 0, w, h);
         this.cut(c, "exploredNotSeen");
       });
-      const dim = this.layer("dim", (c, w, h) => {
-        c.fillStyle = "rgba(0, 0, 0, 0.3)";
+      const tint = this.layer("tint", (c, w, h) => {
+        c.fillStyle = SEEN_BEFORE_TINT;
         c.fillRect(0, 0, w, h);
         this.cut(c, "exploredNotSeen");
       });
+      const dim = this.layer("dim", (c, w, h) => {
+        c.fillStyle = `rgba(0, 0, 0, ${SEEN_BEFORE_DIM})`;
+        c.fillRect(0, 0, w, h);
+        // Dots on a diagonal grid, so rows don't read as lines.
+        const step = Math.max(2, Math.round(DOT_IN * this.ppi));
+        const r = Math.max(0.5, this.ppi / 30);
+        c.fillStyle = `rgba(255, 255, 255, ${DOT_ALPHA})`;
+        c.beginPath();
+        for (let j = 0, y = step / 2; y < h; j++, y += step)
+          for (let x = j % 2 ? step : step / 2; x < w; x += step * 2) (c.moveTo(x + r, y), c.arc(x, y, r, 0, Math.PI * 2));
+        c.fill();
+        this.cut(c, "exploredNotSeen");
+      });
+      const edgePx = Math.max(1, Math.round(EDGE_IN * this.ppi));
+      const edge = this.layer(
+        "edge",
+        (c, w, h) => {
+          c.save();
+          c.filter = `blur(${edgePx / 2}px)`;
+          c.globalAlpha = EDGE_ALPHA;
+          c.drawImage(this.seen!, 0, 0);
+          c.restore();
+          c.globalCompositeOperation = "source-in";
+          c.fillStyle = "#000";
+          c.fillRect(0, 0, w, h);
+          c.globalCompositeOperation = "source-over";
+          this.cut(c, "exploredNotSeen");
+        },
+        edgePx * 2,
+      );
       const black = this.layer("black", (c, w, h) => {
         c.fillStyle = "#000";
         c.fillRect(0, 0, w, h);
@@ -179,8 +222,11 @@ export class FogPainter {
       ctx.save();
       ctx.globalCompositeOperation = "saturation";
       ctx.drawImage(grey, x, y, width, height);
+      ctx.globalCompositeOperation = "multiply";
+      ctx.drawImage(tint, x, y, width, height);
       ctx.restore();
       ctx.drawImage(dim, x, y, width, height);
+      ctx.drawImage(edge, x, y, width, height);
       ctx.drawImage(black, x, y, width, height);
     } else {
       // The DM sees the whole map: a tint where players can't see now, darker where they've never been.
