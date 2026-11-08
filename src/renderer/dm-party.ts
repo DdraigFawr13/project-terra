@@ -33,7 +33,12 @@ function lightField(value: Light, onChange: (v: Light) => void): HTMLLabelElemen
   return el("label", {}, "Light", select);
 }
 
-export function initParty(terra: DmApi, placeToken: (id: string) => void, placeRow: () => void): { show: () => void } {
+export function initParty(
+  terra: DmApi,
+  placeToken: (id: string) => void,
+  placeRow: () => void,
+  dropToken: (id: string, clientX: number, clientY: number) => boolean,
+): { show: (id?: string) => void; roster: HTMLElement } {
   let state: TableState | null = null;
   let tab: string | null = null;
   /** The picture being cropped for a character's token (D-045). */
@@ -356,18 +361,92 @@ export function initParty(terra: DmApi, placeToken: (id: string) => void, placeR
     if (focused) win.body.querySelector<HTMLElement>(`[data-key="${focused}"]`)?.focus();
   }
 
+  /**
+   * The party right in Setup (Morgan, 2026-11-07: no Party sheet click to see them): a row per character. A tap opens
+   * their card; a drag onto the map puts their token where it's let go (D-045 item 2 still lets Place on map and a tap).
+   */
+  const roster = el("div", { class: "roster" });
+  const DRAG_PX = 6;
+  function rosterRow(pc: Character): HTMLElement {
+    const onMap = !!state?.map?.tokens.some((t) => t.id === pc.id);
+    const row = el(
+      "div",
+      {
+        class: "roster-row",
+        role: "button",
+        tabindex: "0",
+        "data-pc": pc.id,
+        title: state?.map ? "Tap to open; drag onto the map to place" : "Tap to open",
+      },
+      pc.picture
+        ? el("img", { class: "roster-thumb", src: `terra-portrait://pc/${pc.picture}`, alt: "", draggable: "false" })
+        : el("span", { class: "roster-thumb none", "aria-hidden": "true" }, initialsOf(pc.name)),
+      el("span", { class: "roster-name" }, el("b", {}, pc.name), el("small", {}, `AC ${pc.ac} · HP ${pc.hp} / ${pc.hpMax}`)),
+      ...(onMap ? [el("span", { class: "roster-on", title: "Their token is on this map" }, "On map")] : []),
+    );
+    let down: { id: number; x: number; y: number; ghost: HTMLElement | null } | null = null;
+    row.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      down = { id: e.pointerId, x: e.clientX, y: e.clientY, ghost: null };
+      row.setPointerCapture(e.pointerId);
+    });
+    row.addEventListener("pointermove", (e) => {
+      if (!down || down.id !== e.pointerId || !state?.map) return;
+      if (!down.ghost && Math.hypot(e.clientX - down.x, e.clientY - down.y) < DRAG_PX) return;
+      if (!down.ghost) {
+        const face = row.querySelector(".roster-thumb")!.cloneNode(true) as HTMLElement;
+        down.ghost = el("div", { class: "roster-ghost", "aria-hidden": "true" }, face);
+        document.body.append(down.ghost);
+      }
+      Object.assign(down.ghost.style, { left: `${e.clientX}px`, top: `${e.clientY}px` });
+    });
+    const end = (e: PointerEvent, cancelled: boolean) => {
+      if (!down || down.id !== e.pointerId) return;
+      const dragged = !!down.ghost;
+      down.ghost?.remove();
+      down = null;
+      if (cancelled) return;
+      if (dragged) dropToken(pc.id, e.clientX, e.clientY);
+      else open(pc.id);
+    };
+    row.addEventListener("pointerup", (e) => end(e, false));
+    row.addEventListener("pointercancel", (e) => end(e, true));
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") (e.preventDefault(), open(pc.id));
+    });
+    return row;
+  }
+  function renderRoster(): void {
+    const party = state?.party ?? [];
+    roster.replaceChildren(
+      ...(party.length
+        ? [
+            ...party.map(rosterRow),
+            el(
+              "p",
+              { class: "hint" },
+              state?.map ? "Drag someone onto the map to place their token." : "Place a map to put their tokens on it.",
+            ),
+          ]
+        : [el("p", { class: "hint" }, "No one yet. Add each character once; they're kept between sessions.")]),
+      button(party.length ? "Edit party…" : "Add a character…", {}, () => open()),
+    );
+  }
+  function open(id?: string): void {
+    if (id) tab = id;
+    win.open();
+    render();
+  }
+
   terra.onState((s) => {
     state = s;
     render();
+    renderRoster();
   });
   terra.getState().then((s) => {
     state = s;
     render();
+    renderRoster();
   });
-  return {
-    show: () => {
-      win.open();
-      render();
-    },
-  };
+  return { show: open, roster };
 }

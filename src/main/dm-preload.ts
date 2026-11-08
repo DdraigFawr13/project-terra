@@ -44,6 +44,8 @@ const api = {
   listSaves: (): Promise<EarlierSave[]> => ipcRenderer.invoke("saves:list"),
   /** Go back to an earlier save; the state now becomes an earlier save first. False if it couldn't be read. */
   restoreSave: (name: string): Promise<boolean> => ipcRenderer.invoke("saves:restore", name),
+  /** Start a new table: scenes, maps and fights go, the rig and the party stay; the table now becomes an earlier save. */
+  newTable: (): Promise<void> => ipcRenderer.invoke("saves:new"),
   /** Copy the problem report to the clipboard, and get its text to show (D-037). */
   problemReport: (): Promise<string> => ipcRenderer.invoke("report:copy"),
   onHistory: (fn: (canUndo: boolean) => void) => ipcRenderer.on("history:changed", (_e, can: boolean) => fn(can)),

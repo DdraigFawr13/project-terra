@@ -6,7 +6,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 ## D-001 A Windows desktop app built with Electron and TypeScript
 
-- **Status:** Accepted (2026-10-28)
+- **Status:** Accepted (2026-10-28). The laptop's system changed by D-049: Linux, not Windows.
 - **Decision:** Project Terra is an Electron app written in TypeScript. Morgan starts it by double-clicking a program on a Windows laptop. It works offline and uses no paid services. Step 1 drew with Canvas 2D; maps and fog are Canvas 2D too; the step 5 speed measurement kept Canvas 2D, without PixiJS (D-024, D-025).
 - **Why:** Morgan wanted a program to double-click, offline, with a budget under 50 one-off. Electron handles two screens and offline use well, and agents build with it reliably.
 
@@ -164,7 +164,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 - **Status:** Accepted (2026-10-28), Morgan approved the touch sketch ([fog controls](https://claude.ai/artifact/GKdfQJajEesUen1zUCnFhg)) in chat; the two open points took the recommended defaults. Item 5's op limit changed by D-029: long fog lists are baked, never refused. Item 8 changed by D-037: rooms come from map annotation, not only the generator; built by D-044. Tool names and keys changed by D-038 (Uncover U, Dim G). Item 3 changed by D-048: Cover paints back to black.
 - **Decision:**
-  1. Three states on the table: never seen is black; seen before is the map in grey, darkened, with a line every half inch; in view now is the map itself (D-023). The DM sees the whole map, tinted where players can't see now and darker where they've never been.
+  1. Three states on the table: never seen is black; seen before is the map in grey, a little darker (no lines since 2026-11-07: with Sight they striped the whole table); in view now is the map itself (D-023). The DM sees the whole map, tinted where players can't see now and darker where they've never been.
   2. Touch first. The bottom tools are 56 px buttons: Select (V), Reveal (R), Hide (H); draw with Brush (1, 2 or 4 inches), Outline (a freehand loop that fills) or Box (snaps to whole squares), with S stepping through them; Undo. Under the preview: "Party moves on" (in view becomes seen before), Reveal all and Cover all. One finger, the pen or the mouse paints; a second finger or Esc cancels the stroke. Morgan uses a stylus: touches are ignored while the pen draws (a resting palm), a hovering pen shows the brush ring, and the pen's eraser hides.
   3. Hide turns in view back into seen before, never black. Cover all and Undo cover the black case.
   4. A stroke reaches the table when the finger lifts, as one fog command that Undo takes back (D-024).
@@ -424,7 +424,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
 
 - **Status:** Accepted (2026-11-01). Morgan approved the spec on the [approval page](https://claude.ai/artifact/FUdEiS1qeb8WyNhaiJVYsi) ("Approved, start building") after [round 1](https://claude.ai/artifact/LqReE9S5xvJ8YyGR5biVQw) and the [review and round 2](https://claude.ai/artifact/TuP8RVmukWHzrtxsT8bVoJ). First use of the `write-spec` skill. Two build decisions in S1 and one in S2 (Morgan, 2026-11-01) are in the spec's Decisions section; S2's moves darkvision and light in `sightKey` to S4. Morgan later confirmed "Keep Dark as built" (relayed by the planning session, 2026-11-01): "On, dark" stays in the Sight form and sees as On until S4. S3 needed no build decision. S4 needed none either: the torch (40 ft) and hooded lantern (60 ft) radii come from the official SRD 5.2 PDF, recorded in the spec's Decisions. S5 (Morgan, 2026-11-01): built now, merged only once the laptop's Problem report shows "Slowest sight update" under 8 ms with four tokens (cloud numbers can't pass); one build question, answered "Appear on drop": hidden enemies show at the drop, not during a drag. Changes D-003 (Sight is built before session 1), D-040 items 1, 2, 3 and 4 (order; sight follows tokens instead of a tap; walls block light and sight only, no sound; enemies hide in dimmed fog too, by any covered square's centre) and D-043 item 2 (live line of sight is the token drag itself, gated on speed).
 - **Decision:** [docs/specs/sight.md](specs/sight.md) is the design. In short:
-  1. One Sight setting per scene, Off / On / On and dark, default Off; Off is today's Terra.
+  1. One Sight setting per scene, Off / On / On and dark, default Off; Off is today's Terra. Set with a `Sight: Off` button on the map bar beside Walls (2026-11-06; it started in the scene's ⋯ menu, where Morgan couldn't find it).
   2. With Sight on, every change to tokens, doors or who can see re-looks from every token's centre: a `dimSeen` and one reveal outline per seeing token, run by main because the walls live in the library. It doesn't run after switching scenes or Reset, or on a map with no traced walls.
   3. Enemy discs show to players (discs and turn-strip chips) only while the centre of a square they cover is seen.
   4. Doors and secret doors open and close per scene with a Select tap whenever doors are drawn.
@@ -432,6 +432,7 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   6. Only movement needs undo: a re-look shares its command's undo step when that command is undoable.
   7. Live sight while dragging is merged only if the laptop's slowest sight update is under 8 ms with four tokens (built before that number, Morgan 2026-11-01).
   8. Fog packs in a background worker, not inside a command (Morgan, 2026-11-01, after S1's bench measured a 334–516 ms stall every ~100 moves); `addFog` bakes in place only at 1,900 ops as a fallback.
+  9. A token standing inside a pillar or a closed wall loop (a tree trunk, a bush, a boulder) looks out of it: that shape's pieces are skipped for that token only, and from outside the shape still blocks (Morgan, 2026-11-06, with the walls pass: trees as trunk-sized pillars, shrubs and boulders as circles or short lines matching their footprint, cave and uneven walls as freehand runs).
 - **Why:** Morgan's own words asked for sight "dynamic with where the player tokens are", which a tap per look can't give. A grid-indexed wall check measured 3.0 ms instead of 82.9 ms on a 1,974-piece map (cloud, not the laptop), which makes re-looking on every move affordable. Three fresh-context checks of the spec found the original design ran sight where the walls aren't loaded, leaked hidden enemies through the turn strip, revealed everything on maps without walls, could overflow the fog list in a save, and read the wrong scene under a curtain; all were fixed before approval.
 
 ## D-048 Cover brush and Eraser
@@ -443,3 +444,12 @@ All entries up to D-017 were approved by Morgan in the planning forms on 2026-10
   3. An Eraser tool (E) after Draw. A swipe takes away every lasting line and pin it touches, the DM's own included; each line goes whole. They leave the DM map at once and the table on lift, as one `erase` command, so one Undo brings back the whole swipe. Enemy discs and the party marker are not erased.
   4. On a short window (under 760 px tall, the laptop at 150%) the tools stand two to a row, so a fog tool's options and Undo fit without scrolling; the strip is 52 px wider there.
 - **Why:** Morgan asked for a cover brush and an eraser for drawn items. Black could only come back with Cover all or Undo, and lines and pins each came off a different way. Discs stay out because a hurried swipe could take an enemy and its HP off mid-fight. Eight tools in one column at 680 px pushed Undo out of sight with a fog tool picked (it already overflowed by up to 45 px on main), so the column became two.
+
+## D-049 The DM laptop runs Linux
+
+- **Status:** Accepted (2026-11-05), Morgan in chat: "this will be the laptop and it will be linux". Changes D-001's Windows laptop.
+- **Decision:**
+  1. The DM laptop, the HP Pavilion x360 14", runs Ubuntu 26.04 with GNOME on Wayland. The app is built on the laptop from the repo with `npm run install:linux` (an unpacked Electron build in `release/linux-unpacked`, a launcher in `~/.local/bin` and an app-grid entry), and rebuilt the same way after each update.
+  2. The launcher starts the app through XWayland (`--ozone-platform=x11`). The install makes `release/linux-unpacked/chrome-sandbox` root-owned with mode 4755 through `sudo` (added 2026-11-06): Ubuntu restricts unprivileged user namespaces, so Electron needs the setuid helper, and the app-grid launch aborted without it.
+  3. The Windows zip workflow stays for Morgan's Windows PC; nothing in the app is Windows-only.
+- **Why:** Morgan set the laptop up with Linux. Native Wayland ignores where an app places a window, so `setBounds` couldn't put the table window fullscreen on the projector; under XWayland it can. Building on the laptop needs no CI artifact download and keeps the private library's data on the laptop (D-010).

@@ -194,6 +194,23 @@ test("DM controls what the table shows, and it survives a restart", async () => 
     await until(dm, async () => (await window.terra.getState()).party.length === 1);
     assert.ok(fs.readdirSync(path.join(userData, "earlier-saves")).length <= 3);
 
+    // Table → New table… goes back to "Get the table ready": the scenes go, the party and the rig stay, and the table it
+    // left is an earlier save.
+    await dm.evaluate(() => window.terra.apply({ type: "addScene", name: "Two" }));
+    await until(dm, async () => (await window.terra.getState()).scenes.length === 2);
+    await dm.click(".menu-btn[data-menu='table']");
+    await dm.click("#menu >> text=New table…");
+    await dm.click("#newTableOk");
+    await until(dm, async () => (await window.terra.getState()).scenes.length === 1);
+    assert.equal(await party(), 1);
+    assert.ok(await dm.locator("#emptyMap").isVisible());
+    assert.equal(await table.getAttribute("body", "data-calibrated"), "true");
+    assert.match(await dm.textContent("#calState"), /^Calibrated for/);
+    await dm.click(".menu-btn[data-menu='table']");
+    await dm.click("#menu >> text=Earlier saves…");
+    assert.ok(await dm.locator("#menu >> text=no map, 1 character").first().isVisible());
+    await dm.keyboard.press("Escape");
+
     // The problem report is copied for Morgan to paste to Claude, and shown.
     await dm.click(".menu-btn[data-menu='table']");
     await dm.click("#menu >> text=Problem report");
@@ -266,12 +283,23 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.click("#importOk");
     await table.waitForFunction(() => document.body.dataset.view === "map");
 
-    // The table gets the map's place and extent but not its name (D-002). The marked block starts 3 squares in.
+    // The table gets the map's place and extent but not its name (D-002). The marked block starts 3 squares in; the
+    // map lands with its middle on the middle of what the projector reaches.
     const view = await table.evaluate(() => window.terra.getView());
     id = view.map.id;
+    const st = await dm.evaluate(() => window.terra.getStatus());
+    const area = visibleRect(defaultCalibration(st.surface), st.surface);
+    const middle = (from, size, b, bSize) => Math.round(from + size / 2 - (b + bSize / 2)) + 0;
     assert.deepEqual(
       { ...view.map, id: undefined },
-      { id: undefined, bounds: { x: -3, y: -3, width: 8, height: 8 }, x: 0, y: 0, turns: 0, fog: [] },
+      {
+        id: undefined,
+        bounds: { x: -3, y: -3, width: 8, height: 8 },
+        x: middle(area.x, area.width, -3, 8),
+        y: middle(area.y, area.height, -3, 8),
+        turns: 0,
+        fog: [],
+      },
     );
     assert.ok(!JSON.stringify(view).includes("board"));
     // The picture is in the personal library, and terra-map:// serves only library maps.
@@ -519,16 +547,17 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
       await dm.mouse.move(box.x + box.width / 2, box.y + 20, { steps: 4 });
       await dm.mouse.up();
     };
+    const placedX = (await table.evaluate(() => window.terra.getView())).map.x;
     await dragAcross();
-    assert.equal((await table.evaluate(() => window.terra.getView())).map.x, 0);
+    assert.equal((await table.evaluate(() => window.terra.getView())).map.x, placedX);
     // Unlocked, a drag moves the map on the table by whole inches, and Ctrl+Z takes it back.
     await dm.click("#lockMap");
     await dm.waitForSelector("#turnMap:enabled");
     await dragAcross();
-    await until(table, async () => (await window.terra.getView()).map?.x > 0);
+    await until(table, async (x) => (await window.terra.getView()).map?.x > x, placedX);
     await dm.evaluate(() => document.activeElement.blur());
     await dm.keyboard.press("Control+z");
-    await until(table, async () => (await window.terra.getView()).map?.x === 0);
+    await until(table, async (x) => (await window.terra.getView()).map?.x === x, placedX);
 
     // Zoom (D-030): zooming keeps the square under the pointer where it is, so a tap there lands on the same square.
     await dm.click("button[data-tool='marker']");
@@ -629,10 +658,10 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
       await window.terra.apply({ type: "moveMap", dx: 6, dy: 0 });
       await window.terra.apply({ type: "lockMap", on: true });
     });
-    await until(dm, async () => (await window.terra.getState()).map.x === 6);
+    await until(dm, async (x) => (await window.terra.getState()).map.x === x + 6, placedX);
     await dm.click("#spotsMap");
     await dm.click(".pop button.who:has-text('Gate')");
-    await until(dm, async () => (await window.terra.getState()).map.x === 0);
+    await until(dm, async (x) => (await window.terra.getState()).map.x === x, placedX);
 
     // The world map (D-039): with the board as the Road's curtain, the table shows the board as its players know it,
     // party marker and all, and may load its picture only while it does.
@@ -715,7 +744,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.waitForFunction(() => document.getElementById("importOk").textContent === "Import and place");
     assert.equal(
       await dm.textContent("#importStatus"),
-      "4 × 4 squares from the file · 2 wall pieces, 1 door (1 open). Windows come in as doors: change them in Walls. 1 light left out until light sources.",
+      "4 × 4 squares from the file · 2 wall pieces, 1 door. Doors and windows come in closed: tap one to open it, or change windows in Walls. 1 light left out until light sources.",
     );
     await dm.click("#importOk");
     await until(dm, async () => (await window.terra.getState()).map?.name === "Hall");
@@ -735,7 +764,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
             { x: 4, y: 1 },
           ],
         ],
-        [{ kind: "door", a: { x: 2, y: 1 }, b: { x: 3, y: 1 }, open: true }],
+        [{ kind: "door", a: { x: 2, y: 1 }, b: { x: 3, y: 1 }, open: false }],
       ],
     );
     await until(table, async (hallId) => (await window.terra.getView()).map?.id === hallId, hall.id);
@@ -771,7 +800,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.click("#wallsMap");
     await dm.click("button[data-tool='select']");
     await dm.mouse.click(doorTap.x, doorTap.y);
-    await until(dm, async (key) => (await window.terra.getState()).map.doors[key] === false, doorKey);
+    await until(dm, async (key) => (await window.terra.getState()).map.doors[key] === true, doorKey);
     assert.equal((await dm.evaluate(() => window.terra.getState())).map.x, hall.x);
     assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("door"));
     await dm.evaluate(() => document.activeElement.blur());
@@ -779,8 +808,8 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await until(dm, async () => Object.keys((await window.terra.getState()).map.doors).length === 0);
     await dm.click("#wallsMap");
 
-    // Sight follows a token (Sight S2, D-047): set On in the scene's menu; with Walls hidden the doors still show and a
-    // Select tap closes this one. A token below the wall sees its side only; opening the door shows the far side, and
+    // Sight follows a token (Sight S2, D-047): set On in the scene's menu; with Walls hidden the doors still show. The
+    // door came in closed, as every VTT portal does. A token below the wall sees its side only; opening the door shows the far side, and
     // Undo takes the door and its re-look back together. The table gets fog, never the walls or doors (D-002).
     const fogLevels = async (...at) => {
       const fog = (await table.evaluate(() => window.terra.getView())).map.fog;
@@ -796,17 +825,17 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     };
     const near = { x: 1.5, y: 3 };
     const far = { x: 2.5, y: 0.5 };
-    await dm.click(".side-tabs button[data-tab='setup']");
-    await dm.click("#sceneList li.current button.icon");
-    await dm.click("button:has-text('Sight: Off…')");
+    // The Sight button sits on the map bar, not in the scene's menu (Morgan, 2026-11-06: the menu buried it).
+    assert.equal((await dm.textContent("#sightMap")).trim(), "Sight: Off");
+    await dm.click("#sightMap");
     assert.equal(await dm.getAttribute("button:has-text('Off: fog changes only')", "aria-pressed"), "true");
     await dm.click("button:has-text('On: the table shows what the tokens can see.')");
     await until(dm, async () => {
       const st = await window.terra.getState();
       return st.scenes.find((sc) => sc.id === st.scene).sight === "on";
     });
-    await dm.mouse.click(doorTap.x, doorTap.y);
-    await until(dm, async (key) => (await window.terra.getState()).map.doors[key] === false, doorKey);
+    await dm.waitForFunction(() => document.getElementById("sightMap").textContent.trim() === "Sight: On");
+    assert.equal(await dm.getAttribute("#sightMap", "aria-pressed"), "true");
     await dm.evaluate(async () => {
       await window.terra.apply({ type: "addCharacter", character: { name: "Ash", ac: 15, hp: 10, hpMax: 10, passive: 12, speed: 30 } });
     });
@@ -819,7 +848,7 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     assert.ok(!JSON.stringify(await table.evaluate(() => window.terra.getView())).includes("door"));
     await dm.evaluate(() => document.activeElement.blur());
     await dm.keyboard.press("Control+z");
-    await until(dm, async (key) => (await window.terra.getState()).map.doors[key] === false, doorKey);
+    await until(dm, async (key) => (await window.terra.getState()).map.doors[key] !== true, doorKey);
     await fogBecomes(["seen", "unexplored"], near, far);
     // Hidden enemy (Sight S3, D-047 item 3): a disc On table in the unseen room, in a fight, is in neither the table's
     // discs nor its turn strip (D-002). Opening the door shows both; closing it leaves the room explored, and both go.
@@ -1004,6 +1033,19 @@ test("a character's token (D-045): crop a picture, place it, drag it, and only i
     await party.locator('[data-key="pc-place"]').click();
     await until(dm, async () => (await window.terra.getState()).map.tokens.length === 0);
     assert.equal(await table.evaluate(load, `pc/${picture}`), 0);
+
+    // The party is right there in Setup: drag Ash from the roster onto the map and the token lands where it's let go.
+    await dm.click("[role='tab'][data-tab='setup']");
+    const row = dm.locator(".roster-row[data-pc]", { hasText: "Ash Vale" });
+    await row.scrollIntoViewIfNeeded();
+    const from = await row.boundingBox();
+    await dm.mouse.move(from.x + 20, from.y + from.height / 2);
+    await dm.mouse.down();
+    const drop = await dm.locator("#mapCanvas").boundingBox();
+    await dm.mouse.move(drop.x + drop.width / 2, drop.y + drop.height / 2, { steps: 8 });
+    await dm.mouse.up();
+    await until(dm, async () => (await window.terra.getState()).map.tokens.length === 1);
+    await row.getByText("On map").waitFor();
     assert.deepEqual(errors, []);
   } finally {
     await app.close();

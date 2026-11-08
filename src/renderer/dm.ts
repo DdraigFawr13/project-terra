@@ -377,12 +377,8 @@ const selection = {
 let afterLayout = () => {};
 const section = (title: string, ...kids: HTMLElement[]) => el("section", { class: "side-sec" }, el("h3", {}, title), ...kids);
 const encounterSec = section("Encounter", $("encounterPanel"));
-const partySec = section(
-  "Party",
-  el("p", { class: "hint" }, "Names, AC, HP and passives, typed in once and kept between sessions."),
-  button("Party sheet", {}, () => party.show()),
-);
-const scenes = initScenes(terra, $<HTMLButtonElement>("sceneBtn"), $<HTMLButtonElement>("spotsMap"));
+const partySec = section("Party", el("div", { id: "partyRoster" }));
+const scenes = initScenes(terra, $<HTMLButtonElement>("sceneBtn"), $<HTMLButtonElement>("spotsMap"), $<HTMLButtonElement>("sightMap"));
 const panel = initPanel(
   {
     setup: [scenes.section, $("setupPanel"), partySec],
@@ -448,7 +444,9 @@ const party = initParty(
   terra,
   (id) => maps.placeToken(id),
   () => maps.placeRow(),
+  (id, x, y) => maps.dropToken(id, x, y),
 );
+$("partyRoster").replaceWith(party.roster);
 maps.tokenTap((id, at) => quick.showCharacter(id, at));
 const flipBtn = $<HTMLButtonElement>("flipLetters");
 flipBtn.addEventListener("click", () => terra.apply({ type: "flipLetters", on: flipBtn.getAttribute("aria-pressed") !== "true" }));
@@ -483,6 +481,7 @@ function menuItems(name: string): Item[] {
         },
       },
       "-",
+      { text: "New table…", act: confirmNewTable },
       { text: "Earlier saves…", act: () => void showEarlier() },
       { text: "Problem report", act: () => void showReport() },
     ];
@@ -557,6 +556,27 @@ function besideTableMenu(content: HTMLElement[]): void {
 }
 async function restore(name: string): Promise<void> {
   if (!(await terra.restoreSave(name))) besideTableMenu([el("p", { class: "hint" }, "That save couldn't be read.")]);
+}
+/** Table → New table…: back to "Get the table ready" after one confirm; the party and the rig stay (D-037). */
+function confirmNewTable(): void {
+  const r = tableMenuBtn().getBoundingClientRect();
+  const pop = popover({ x: r.left, y: r.bottom + 200 }, [
+    el("h3", { class: "pop-head" }, "New table"),
+    el(
+      "p",
+      { class: "hint" },
+      "Clears every scene with its map, fog, discs, pins, drawings and fight, and goes back to Get the table ready. The party, the map library, the screens and the calibration stay. The table as it is now is kept under Earlier saves.",
+    ),
+    el(
+      "div",
+      { class: "row" },
+      button("Keep", {}, () => pop.close()),
+      button("Start a new table", { id: "newTableOk", class: "danger" }, () => {
+        pop.close();
+        void terra.newTable();
+      }),
+    ),
+  ]);
 }
 async function showReport(): Promise<void> {
   const text = await terra.problemReport();

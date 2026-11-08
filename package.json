@@ -20,6 +20,8 @@
     "test:e2e": "npm run build && node --test \"e2e/*.test.mjs\"",
     "check": "node .claude/skills/test-design/scripts/test-traps.mjs && npm run format:check && npm run typecheck && npm run knip && npm test",
     "dist:win": "npm run build && electron-builder --win zip --x64 --publish never",
+    "dist:linux": "npm run build && electron-builder --linux dir --x64 --publish never",
+    "install:linux": "npm run dist:linux && node scripts/install-linux.mjs",
     "knip": "knip",
     "bench:sight": "node scripts/sight-bench.mjs"
   },

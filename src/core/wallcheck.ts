@@ -1,9 +1,12 @@
 // The wall check (D-044 item 8) and sight (D-047, docs/specs/sight.md "Faster wall check"): light or sight from a point,
 // stopped by walls, pillars and closed doors and secret doors; windows and openings let it through (D-040). Pure. The
 // blocking pieces sit in a grid of 1-inch cells, so each ray tests only the cells it crosses and stops at its first hit.
-// The generator concept's light.ts casts rays the old way, but stays test-only (D-041).
+// A point inside a pillar or a closed wall loop (a tree, a bush, a boulder) looks out of it: that shape's pieces are
+// skipped for that point only (D-047 item 9). The generator concept's light.ts casts rays the old way, but stays
+// test-only (D-041).
 import { segmentDistance, type Annotation } from "./annotation.ts";
 import { doorOpen, type Doors } from "./doors.ts";
+import { insidePolygon } from "./fog.ts";
 import type { Point } from "./homography.ts";
 import type { Bounds } from "./map.ts";
 
@@ -13,8 +16,11 @@ const EDGE_IN = 1;
 const PILLAR_SIDES = 16;
 /** Rays pass this far (radians) either side of each corner, so light slips past it and reaches what lies behind. */
 const NUDGE = 1e-5;
-/** Sight stopped by a piece goes this far past it, so drawn walls show unbroken (a disc ½ inch past stays hidden). */
-const PAST_WALL_IN = 0.25;
+/**
+ * Sight stopped by a piece goes this far past it, so the near half of a drawn wall shows. It was a quarter inch, which
+ * let players peek behind a door's edge and along the inside of a wall when standing close (Morgan, 2026-11-07).
+ */
+const PAST_WALL_IN = 0.08;
 /** Between two rays stopped by the range, the edge follows the circle with a point at least every 10°. */
 const ARC_STEP = Math.PI / 18;
 /** A sight outline is stored as a fog op, which holds at most this many points (fog.ts). */
@@ -24,26 +30,77 @@ const SIMPLIFY_IN = 1 / 32;
 const CELL_EPS = 1e-9;
 
 type Segment = [Point, Point];
-type BlockIndex = { segs: Segment[]; x0: number; y0: number; cols: number; rows: number; start: Int32Array; items: Int32Array };
+/**
+ * `shape[i]` is the closed shape (an index into `polys`) piece i belongs to, or -1 for an open run, a door or the map
+ * edge. `polys` holds each closed shape's outline, for the look-out rule.
+ */
+type BlockIndex = {
+  segs: Segment[];
+  shape: Int32Array;
+  polys: Point[][];
+  x0: number;
+  y0: number;
+  cols: number;
+  rows: number;
+  start: Int32Array;
+  items: Int32Array;
+};
 /** One ray: its angle, how far it went, and the piece it stopped at (an index into `segs`), or -1 at the range. */
 type Ray = { angle: number; t: number; seg: number };
 
 /** Every piece that blocks light and sight: walls, pillars, and doors and secret doors closed in this scene. */
 export function blockersFor(a: Annotation, doors: Doors): Segment[] {
-  const out: Segment[] = [];
+  return shapedBlockers(a, doors).segs;
+}
+
+/**
+ * The blocking pieces, each with the closed shape it belongs to: a wall marked closed or whose run ends where it began
+ * (a VTT loop), or a pillar. Open runs and closed doors belong to no shape.
+ */
+function shapedBlockers(a: Annotation, doors: Doors): { segs: Segment[]; shape: number[]; polys: Point[][] } {
+  const segs: Segment[] = [];
+  const shape: number[] = [];
+  const polys: Point[][] = [];
+  const same = (p: Point, q: Point) => p.x === q.x && p.y === q.y;
   for (const w of a.walls) {
+    const first = w.points[0]!;
+    const last = w.points[w.points.length - 1]!;
+    const loop = w.points.length > 3 && !w.closed && same(first, last);
+    const id = w.closed || loop ? polys.push(loop ? w.points.slice(0, -1) : w.points) - 1 : -1;
     const n = w.closed ? w.points.length : w.points.length - 1;
-    for (let k = 0; k < n; k++) out.push([w.points[k]!, w.points[(k + 1) % w.points.length]!]);
-  }
-  for (const c of a.pillars)
-    for (let k = 0; k < PILLAR_SIDES; k++) {
-      const at = (n: number): Point => ({
-        x: c.at.x + c.r * Math.cos((n / PILLAR_SIDES) * Math.PI * 2),
-        y: c.at.y + c.r * Math.sin((n / PILLAR_SIDES) * Math.PI * 2),
-      });
-      out.push([at(k), at(k + 1)]);
+    for (let k = 0; k < n; k++) {
+      segs.push([w.points[k]!, w.points[(k + 1) % w.points.length]!]);
+      shape.push(id);
     }
-  for (const o of a.openings) if ((o.kind === "door" || o.kind === "secret") && !doorOpen(o, doors)) out.push([o.a, o.b]);
+  }
+  for (const c of a.pillars) {
+    const at = (n: number): Point => ({
+      x: c.at.x + c.r * Math.cos((n / PILLAR_SIDES) * Math.PI * 2),
+      y: c.at.y + c.r * Math.sin((n / PILLAR_SIDES) * Math.PI * 2),
+    });
+    const corners = Array.from({ length: PILLAR_SIDES }, (_, k) => at(k));
+    const id = polys.push(corners) - 1;
+    for (let k = 0; k < PILLAR_SIDES; k++) {
+      segs.push([corners[k]!, corners[(k + 1) % PILLAR_SIDES]!]);
+      shape.push(id);
+    }
+  }
+  for (const o of a.openings)
+    if ((o.kind === "door" || o.kind === "secret") && !doorOpen(o, doors)) {
+      segs.push([o.a, o.b]);
+      shape.push(-1);
+    }
+  return { segs, shape, polys };
+}
+
+/** The shapes p lies inside, as a flag per shape, or null when it is inside none: those pieces don't stop p's rays. */
+function shapesAround(ix: BlockIndex, p: Point): Uint8Array | null {
+  let out: Uint8Array | null = null;
+  ix.polys.forEach((poly, i) => {
+    if (!insidePolygon(p, poly)) return;
+    out ??= new Uint8Array(ix.polys.length);
+    out[i] = 1;
+  });
   return out;
 }
 
@@ -52,7 +109,7 @@ export function blockersFor(a: Annotation, doors: Doors): Segment[] {
  * Built once per look and shared by every point looked from.
  */
 export function blockIndex(a: Annotation, doors: Doors, b: Bounds): BlockIndex {
-  const segs = blockersFor(a, doors);
+  const { segs, shape, polys } = shapedBlockers(a, doors);
   const [x0, y0, x1, y1] = [b.x - EDGE_IN, b.y - EDGE_IN, b.x + b.width + EDGE_IN, b.y + b.height + EDGE_IN];
   const box = [
     { x: x0, y: y0 },
@@ -60,7 +117,10 @@ export function blockIndex(a: Annotation, doors: Doors, b: Bounds): BlockIndex {
     { x: x1, y: y1 },
     { x: x0, y: y1 },
   ];
-  box.forEach((p, i) => segs.push([p, box[(i + 1) % 4]!]));
+  box.forEach((p, i) => {
+    segs.push([p, box[(i + 1) % 4]!]);
+    shape.push(-1);
+  });
   const cols = Math.max(1, Math.ceil(x1 - x0));
   const rows = Math.max(1, Math.ceil(y1 - y0));
   const clamp = (v: number, n: number) => Math.min(n - 1, Math.max(0, v));
@@ -80,7 +140,7 @@ export function blockIndex(a: Annotation, doors: Doors, b: Bounds): BlockIndex {
   cells.forEach(([cx0, cx1, cy0, cy1], i) => {
     for (let cy = cy0!; cy <= cy1!; cy++) for (let cx = cx0!; cx <= cx1!; cx++) items[fill[cy * cols + cx]!++] = i;
   });
-  return { segs, x0, y0, cols, rows, start, items };
+  return { segs, shape: Int32Array.from(shape), polys, x0, y0, cols, rows, start, items };
 }
 
 /** How far along the ray from p in direction (dx, dy) it meets a segment, or Infinity. */
@@ -98,8 +158,11 @@ function hit(p: Point, dx: number, dy: number, s: Segment): number {
   return t > 1e-9 && u >= 0 && u <= 1 ? t : Infinity;
 }
 
-/** The first piece the ray meets within `maxT`, walking only the cells it crosses (a DDA grid walk). */
-function cast(ix: BlockIndex, p: Point, dx: number, dy: number, maxT: number): { t: number; seg: number } {
+/**
+ * The first piece the ray meets within `maxT`, walking only the cells it crosses (a DDA grid walk). Pieces of the
+ * shapes flagged in `skip` (those p is inside) never stop it.
+ */
+function cast(ix: BlockIndex, p: Point, dx: number, dy: number, maxT: number, skip: Uint8Array | null): { t: number; seg: number } {
   // Plain loops and no closures: this runs for every ray of every look.
   let best = Infinity;
   let seg = -1;
@@ -108,6 +171,7 @@ function cast(ix: BlockIndex, p: Point, dx: number, dy: number, maxT: number): {
   if (cx < 0 || cy < 0 || cx >= ix.cols || cy >= ix.rows) {
     // Outside the grid (a point off the map): every piece.
     for (let i = 0; i < ix.segs.length; i++) {
+      if (skip !== null && ix.shape[i]! >= 0 && skip[ix.shape[i]!]) continue;
       const t = hit(p, dx, dy, ix.segs[i]!);
       if (t < best) {
         best = t;
@@ -125,6 +189,7 @@ function cast(ix: BlockIndex, p: Point, dx: number, dy: number, maxT: number): {
       const c = cy * ix.cols + cx;
       for (let k = ix.start[c]!, to = ix.start[c + 1]!; k < to; k++) {
         const i = ix.items[k]!;
+        if (skip !== null && ix.shape[i]! >= 0 && skip[ix.shape[i]!]) continue;
         const t = hit(p, dx, dy, ix.segs[i]!);
         if (t < best) {
           best = t;
@@ -159,8 +224,9 @@ function rays(ix: BlockIndex, p: Point, maxT: number): Ray[] {
         .add(t + NUDGE);
     }
   const out: Ray[] = [];
+  const skip = shapesAround(ix, p);
   for (const angle of [...angles].sort((m, n) => m - n)) {
-    const { t, seg } = cast(ix, p, Math.cos(angle), Math.sin(angle), maxT);
+    const { t, seg } = cast(ix, p, Math.cos(angle), Math.sin(angle), maxT, skip);
     if (Number.isFinite(t)) out.push({ angle, t, seg });
   }
   return out;
@@ -223,7 +289,7 @@ function simplifyClosed(ps: readonly Point[], tol: number): Point[] {
 
 /**
  * What can be seen from p (map inches), as an outline for a fog reveal op. `rangeIn` limits it (a dark scene), or null.
- * Rays stopped at a piece go a quarter inch past it; rays stopped at the range are joined by arcs; numbers are in
+ * Rays stopped at a piece go 0.08 inch past it; rays stopped at the range are joined by arcs; numbers are in
  * hundredths; at most 1,000 points; [] when fewer than 3 remain. A point on a wall line sees both sides of it.
  */
 export function sightFrom(index: BlockIndex, p: Point, rangeIn: number | null): Point[] {

@@ -196,6 +196,8 @@ export function initMaps(
   placeRow: () => void;
   /** The next tap on the map puts this character's token there (D-045). */
   placeToken: (id: string) => void;
+  /** A character dragged from the Setup roster, let go at a screen point; true if their token went on the map. */
+  dropToken: (id: string, clientX: number, clientY: number) => boolean;
   /** What a tap on a character's token does. */
   tokenTap: (fn: (id: string, at: Point) => void) => void;
   select: () => void;
@@ -323,8 +325,7 @@ export function initMaps(
             type: "placeMap",
             map: {
               ...m,
-              x: 0,
-              y: 0,
+              ...centred(m.bounds),
               turns: 0,
               fog: [],
               discs: [],
@@ -527,8 +528,21 @@ export function initMaps(
     }
   }
 
+  /**
+   * Where a map goes so its middle is on the middle of what the projector reaches, in whole inches (as Fill the table
+   * places a picture, D-042). A VTT map's extent starts at its corner, so placing it at (0, 0) put it off to one side.
+   */
+  function centred(b: Bounds): { x: number; y: number } {
+    const area = status ? visibleRect(state?.calibrations[status.surfaceKey] ?? defaultCalibration(status.surface), status.surface) : null;
+    const [cx, cy] = area ? [area.x + area.width / 2, area.y + area.height / 2] : [0, 0];
+    return { x: Math.round(cx - (b.x + b.width / 2)) + 0, y: Math.round(cy - (b.y + b.height / 2)) + 0 };
+  }
+
   /** Put a map just added to the library on the table, and list it. */
-  async function placeNew(entry: LibraryMap, at: { x: number; y: number; turns: 0 | 1 } = { x: 0, y: 0, turns: 0 }): Promise<void> {
+  async function placeNew(
+    entry: LibraryMap,
+    at: { x: number; y: number; turns: 0 | 1 } = { ...centred(entry.bounds), turns: 0 },
+  ): Promise<void> {
     const { x, y, turns } = at;
     await run({
       type: "placeMap",
@@ -577,12 +591,11 @@ export function initMaps(
         needsPicture: true,
       };
     const n = countOf(vtt.walls);
-    const open = vtt.walls.openings.filter((o) => o.open).length;
     const plural = (k: number, one: string) => `${k} ${one}${k === 1 ? "" : "s"}`;
-    const doors = `${plural(n.openings, "door")}${open ? ` (${open} open)` : ""}`;
+    const doors = plural(n.openings, "door");
     const lights = vtt.lights ? ` ${plural(vtt.lights, "light")} left out until light sources.` : "";
     return {
-      text: `${size} from the file · ${plural(n.walls, "wall piece")}, ${doors}. Windows come in as doors: change them in Walls.${lights}`,
+      text: `${size} from the file · ${plural(n.walls, "wall piece")}, ${doors}. Doors and windows come in closed: tap one to open it, or change windows in Walls.${lights}`,
       needsPicture: false,
     };
   }
@@ -1761,12 +1774,24 @@ export function initMaps(
   const placeToken = (id: string) => {
     tokenNext = id;
   };
+  /**
+   * A character dragged from the Setup roster and let go at a screen point: their token goes there if it's let go over
+   * the map view, as a tap after Place on map would put it. Says whether it went.
+   */
+  const dropToken = (id: string, clientX: number, clientY: number): boolean => {
+    const r = mapCanvas.getBoundingClientRect();
+    if (!state?.map || clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom) return false;
+    const at = mapInchesAt({ clientX, clientY } as PointerEvent);
+    if (!at) return false;
+    void run({ type: "token", id, at });
+    return true;
+  };
   const tokenTap = (fn: (id: string, at: Point) => void) => {
     onTokenTap = fn;
   };
   /** Back to Select, so a tap on a disc opens its HP pad (Start fight does this, D-046). */
   const select = () => setTool("select");
-  return { undo, render, cancel, shortcut, placeParty, placeToken, placeRow, tokenTap, select };
+  return { undo, render, cancel, shortcut, placeParty, placeToken, placeRow, dropToken, tokenTap, select };
 }
 
 /**

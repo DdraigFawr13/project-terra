@@ -16,6 +16,7 @@ import {
   parseCommand,
   parseSave,
   INKS,
+  newTable,
   parseLine,
   playerViewOf,
   serialize,
@@ -481,6 +482,13 @@ if (!app.requestSingleInstanceLock()) {
       const lastCharacter = Math.max(state.lastCharacter, parsed.state.lastCharacter);
       commit({ ...parsed.state, ...keepOnRestore(state), lastCharacter });
       return true;
+    });
+    // New table: the table as it is now becomes an earlier save first, so it can be taken back (D-037).
+    ipcMain.handle("saves:new", () => {
+      saveNow();
+      keepEarlier();
+      histories.clear();
+      commit(newTable(state));
     });
     ipcMain.handle("report:copy", () => {
       const { fullscreen, surfaceKey } = placement();
