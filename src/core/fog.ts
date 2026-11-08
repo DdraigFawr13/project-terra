@@ -38,7 +38,7 @@ export type FogOp =
 /** A stroke or shape: the ops that cover an area. */
 export type FogShape = Extract<FogOp, { mode: FogMode }>;
 
-/** What players see at a point: black, grey and darkened, or the map itself (D-023). */
+/** What players see at a point: black, grey with a slate tint and dots, or the map itself (D-023, D-025). */
 export type FogLevel = "unexplored" | "explored" | "seen";
 
 /** Limits for untrusted data. A long stroke is split into several ops by the DM window. */
