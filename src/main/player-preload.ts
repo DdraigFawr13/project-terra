@@ -13,6 +13,11 @@ const api = {
     ipcRenderer.on("player:sketch", (_e, s: { ink: Ink; points: Point[] }) => fn(s)),
   /** A piece of the DM's laser trail, in table inches (D-046). */
   onLaser: (fn: (points: Point[]) => void) => ipcRenderer.on("player:laser", (_e, points: Point[]) => fn(points)),
+  /**
+   * Live sight while the DM drags a token (Sight S5, D-047): its outline in map inches, drawn uncovered, or null to
+   * clear it. Nothing about walls or doors: only the outline.
+   */
+  onSightLive: (fn: (points: Point[] | null) => void) => ipcRenderer.on("table:sight-live", (_e, points: Point[] | null) => fn(points)),
   /** A map's table copy changed (D-036): load its picture again. */
   onMapPatched: (fn: (id: string) => void) => ipcRenderer.on("map:patched", (_e, id: string) => fn(id)),
 };
