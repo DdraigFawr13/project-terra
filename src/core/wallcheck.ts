@@ -21,6 +21,11 @@ const NUDGE = 1e-5;
  * let players peek behind a door's edge and along the inside of a wall when standing close (Morgan, 2026-11-07).
  */
 const PAST_WALL_IN = 0.08;
+/**
+ * Sight stopped by a natural edge (rock, a cliff, a tree, a bush, an object) goes this far past it, so players see a little
+ * of what's there; built walls keep PAST_WALL_IN, so they don't reveal what's behind them (Morgan, 2026-11-07).
+ */
+const PAST_NATURAL_IN = 0.3;
 /** Between two rays stopped by the range, the edge follows the circle with a point at least every 10°. */
 const ARC_STEP = Math.PI / 18;
 /** A sight outline is stored as a fog op, which holds at most this many points (fog.ts). */
@@ -37,6 +42,10 @@ type Segment = [Point, Point];
 type BlockIndex = {
   segs: Segment[];
   shape: Int32Array;
+  /** 1 where piece i belongs to a natural edge. */
+  natural: Uint8Array;
+  /** Areas of solid rock: a point inside one sees nothing. */
+  solids: Point[][];
   polys: Point[][];
   x0: number;
   y0: number;
@@ -57,9 +66,10 @@ export function blockersFor(a: Annotation, doors: Doors): Segment[] {
  * The blocking pieces, each with the closed shape it belongs to: a wall marked closed or whose run ends where it began
  * (a VTT loop), or a pillar. Open runs and closed doors belong to no shape.
  */
-function shapedBlockers(a: Annotation, doors: Doors): { segs: Segment[]; shape: number[]; polys: Point[][] } {
+function shapedBlockers(a: Annotation, doors: Doors): { segs: Segment[]; shape: number[]; polys: Point[][]; natural: number[] } {
   const segs: Segment[] = [];
   const shape: number[] = [];
+  const natural: number[] = [];
   const polys: Point[][] = [];
   const same = (p: Point, q: Point) => p.x === q.x && p.y === q.y;
   for (const w of a.walls) {
@@ -73,6 +83,7 @@ function shapedBlockers(a: Annotation, doors: Doors): { segs: Segment[]; shape: 
     for (let k = 0; k < n; k++) {
       segs.push([w.points[k]!, w.points[(k + 1) % w.points.length]!]);
       shape.push(id);
+      natural.push(w.natural ? 1 : 0);
     }
   }
   for (const c of a.pillars) {
@@ -85,14 +96,16 @@ function shapedBlockers(a: Annotation, doors: Doors): { segs: Segment[]; shape: 
     for (let k = 0; k < PILLAR_SIDES; k++) {
       segs.push([corners[k]!, corners[(k + 1) % PILLAR_SIDES]!]);
       shape.push(id);
+      natural.push(1);
     }
   }
   for (const o of a.openings)
     if ((o.kind === "door" || o.kind === "secret") && !doorOpen(o, doors)) {
       segs.push([o.a, o.b]);
       shape.push(-1);
+      natural.push(0);
     }
-  return { segs, shape, polys };
+  return { segs, shape, polys, natural };
 }
 
 /** The shapes p lies inside, as a flag per shape, or null when it is inside none: those pieces don't stop p's rays. */
@@ -111,7 +124,7 @@ function shapesAround(ix: BlockIndex, p: Point): Uint8Array | null {
  * Built once per look and shared by every point looked from.
  */
 export function blockIndex(a: Annotation, doors: Doors, b: Bounds): BlockIndex {
-  const { segs, shape, polys } = shapedBlockers(a, doors);
+  const { segs, shape, polys, natural } = shapedBlockers(a, doors);
   const [x0, y0, x1, y1] = [b.x - EDGE_IN, b.y - EDGE_IN, b.x + b.width + EDGE_IN, b.y + b.height + EDGE_IN];
   const box = [
     { x: x0, y: y0 },
@@ -122,6 +135,7 @@ export function blockIndex(a: Annotation, doors: Doors, b: Bounds): BlockIndex {
   box.forEach((p, i) => {
     segs.push([p, box[(i + 1) % 4]!]);
     shape.push(-1);
+    natural.push(0);
   });
   const cols = Math.max(1, Math.ceil(x1 - x0));
   const rows = Math.max(1, Math.ceil(y1 - y0));
@@ -142,7 +156,19 @@ export function blockIndex(a: Annotation, doors: Doors, b: Bounds): BlockIndex {
   cells.forEach(([cx0, cx1, cy0, cy1], i) => {
     for (let cy = cy0!; cy <= cy1!; cy++) for (let cx = cx0!; cx <= cx1!; cx++) items[fill[cy * cols + cx]!++] = i;
   });
-  return { segs, shape: Int32Array.from(shape), polys, x0, y0, cols, rows, start, items };
+  return {
+    segs,
+    shape: Int32Array.from(shape),
+    natural: Uint8Array.from(natural),
+    solids: a.solids ?? [],
+    polys,
+    x0,
+    y0,
+    cols,
+    rows,
+    start,
+    items,
+  };
 }
 
 /** How far along the ray from p in direction (dx, dy) it meets a segment, or Infinity. */
@@ -291,15 +317,17 @@ function simplifyClosed(ps: readonly Point[], tol: number): Point[] {
 
 /**
  * What can be seen from p (map inches), as an outline for a fog reveal op. `rangeIn` limits it (a dark scene), or null.
- * Rays stopped at a piece go 0.08 inch past it; rays stopped at the range are joined by arcs; numbers are in
+ * Rays stopped at a built wall go 0.08 inch past it, at a natural edge 0.3 inch, and a point in solid rock sees nothing; rays stopped at the range are joined by arcs; numbers are in
  * hundredths; at most 1,000 points; [] when fewer than 3 remain. A point on a wall line sees both sides of it.
  */
 export function sightFrom(index: BlockIndex, p: Point, rangeIn: number | null): Point[] {
+  // A token dragged into rock sees nothing, rather than the inside of the rock (Morgan, 2026-11-07).
+  if (index.solids.some((s) => insidePolygon(p, s))) return [];
   const kept = dropMid(rays(index, p, rangeIn ?? Infinity));
   const at = (angle: number, t: number): Point => ({ x: r2(p.x + Math.cos(angle) * t), y: r2(p.y + Math.sin(angle) * t) });
   let out: Point[] = [];
   kept.forEach((r, i) => {
-    out.push(at(r.angle, r.seg < 0 ? r.t : r.t + PAST_WALL_IN));
+    out.push(at(r.angle, r.seg < 0 ? r.t : r.t + (index.natural[r.seg] ? PAST_NATURAL_IN : PAST_WALL_IN)));
     const next = kept[(i + 1) % kept.length]!;
     if (rangeIn === null || r.seg >= 0 || next.seg >= 0 || kept.length < 2) return;
     const end = next.angle > r.angle ? next.angle : next.angle + Math.PI * 2;

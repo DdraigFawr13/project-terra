@@ -9,7 +9,12 @@ const OPENING_KINDS = ["door", "secret", "window", "opening"] as const;
 export type OpeningKind = (typeof OPENING_KINDS)[number];
 
 /** A run of wall through its corners; `closed` joins the last corner back to the first (a loop round a pillar). */
-type Wall = { points: Point[]; closed: boolean };
+/**
+ * A run of wall through its corners; `closed` joins the last corner back to the first (a loop round a pillar). `natural`:
+ * a rock edge, cliff, tree, bush or other object rather than a built wall, so sight shows a little of what lies past it
+ * (Morgan, 2026-11-07: "I really just don't want to reveal walls").
+ */
+type Wall = { points: Point[]; closed: boolean; natural?: boolean };
 /** A round pillar, boulder or tree trunk that blocks sight. */
 type Pillar = { at: Point; r: number };
 /** `open`: how a door starts; each scene keeps its own state from step 2C. */
@@ -21,7 +26,8 @@ export type Material = (typeof MATERIALS)[number];
 type Room = { outline: Point[]; name: string; material: Material | null };
 /** An area (step 2D): an outline that may overlap rooms, with a material, difficult terrain, or both. DM map only. */
 type Area = { outline: Point[]; material: Material | null; difficult: boolean };
-export type Annotation = { walls: Wall[]; pillars: Pillar[]; openings: Opening[]; rooms: Room[]; areas: Area[] };
+/** `solids`: areas of solid rock (a cave's rock): a point inside one sees nothing, so a token dragged into rock shows none of it. */
+export type Annotation = { walls: Wall[]; pillars: Pillar[]; openings: Opening[]; rooms: Room[]; areas: Area[]; solids?: Point[][] };
 
 /** Version 2 added rooms, version 3 areas and room materials; older files load with none. */
 export const ANNOTATION_VERSION = 3;
@@ -207,7 +213,8 @@ export function parseAnnotation(raw: unknown, b: Bounds): Annotation | null {
   const areas = r.version === ANNOTATION_VERSION ? r.areas : [];
   if (!Array.isArray(walls) || !Array.isArray(pillars) || !Array.isArray(openings) || !Array.isArray(rooms) || !Array.isArray(areas))
     return null;
-  if (walls.length + pillars.length + openings.length + rooms.length + areas.length > MAX_ITEMS) return null;
+  const solids = Array.isArray(r.solids) ? r.solids : [];
+  if (walls.length + pillars.length + openings.length + rooms.length + areas.length + solids.length > MAX_ITEMS) return null;
   /** A material, or null; undefined if the value isn't one. Files before version 3 have none. */
   const material = (v: unknown): Material | null | undefined =>
     r.version !== ANNOTATION_VERSION ? null : v === null ? null : MATERIALS.includes(v as Material) ? (v as Material) : undefined;
@@ -216,7 +223,7 @@ export function parseAnnotation(raw: unknown, b: Bounds): Annotation | null {
     if (!w || typeof w !== "object" || typeof w.closed !== "boolean") return null;
     const points = parsePoints(w.points, b, w.closed ? 3 : 2);
     if (!points) return null;
-    out.walls.push({ points, closed: w.closed });
+    out.walls.push(w.natural === true ? { points, closed: w.closed, natural: true } : { points, closed: w.closed });
   }
   for (const c of pillars) {
     const at = c && typeof c === "object" ? parsePoint(c.at, b) : null;
@@ -242,6 +249,12 @@ export function parseAnnotation(raw: unknown, b: Bounds): Annotation | null {
     const m = material(area.material);
     if (!outline || m === undefined) return null;
     out.areas.push({ outline, material: m, difficult: area.difficult });
+  }
+  // Optional in any version, so a file with none reads as before and an older app ignores them.
+  for (const s of solids) {
+    const outline = parsePoints(s, b, 3);
+    if (!outline) return null;
+    (out.solids ??= []).push(outline);
   }
   return out;
 }
