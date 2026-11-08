@@ -38,7 +38,7 @@ import { initPatch } from "./dm-patch.ts";
 import { initWalls } from "./dm-walls.ts";
 import { drawWalls } from "./walls-draw.ts";
 import { countOf, type Annotation } from "../core/annotation.ts";
-import { doorAt, doorKey, doorOpen } from "../core/doors.ts";
+import { doorAt, doorKey, doorOpen, wallAt, wallKey, wallOff } from "../core/doors.ts";
 import { roomAt, roomUncover } from "../core/rooms.ts";
 import { parseVtt, planVttPicture, type VttMap } from "../core/vtt.ts";
 import { icon } from "./icons.ts";
@@ -156,6 +156,8 @@ type Rub = { pointer: number; pen: boolean; drawings: Set<number>; pins: Set<num
 const LINE_HIT_PX = 12;
 /** A Select tap this close to a drawn door or secret door, in map inches, opens or closes it (D-047). */
 const DOOR_HIT_IN = 0.25;
+/** A tap this close to a wall line toggles it, with Walls shown: tight, so a tap meant for the floor doesn't hit one. */
+const WALL_HIT_IN = 0.12;
 /** Fingers find a disc within this many pixels of its edge, however small the map draws it (D-027). */
 const GRAB_PX = 22;
 /** Discs are drawn at least this wide on the DM's map so their letters stay readable. */
@@ -1487,7 +1489,8 @@ export function initMaps(
   }
   /**
    * A Select tap that started a map drag or pan, on a door or secret door that is drawn (Walls shown, or Sight on), opens or closes it
-   * for this scene (D-047). True when it did. With no walls file loaded yet there is nothing to hit.
+   * for this scene (D-047); with Walls shown, a tap on a wall line switches it off or on. True when it did. With no walls
+   * file loaded yet there is nothing to hit.
    */
   function tapDoor(e: PointerEvent, keep: boolean): boolean {
     const press = doorPress;
@@ -1498,8 +1501,15 @@ export function initMaps(
     if (!keep || !map || !(showWalls || sightOn()) || Math.hypot(p.x - press.from.x, p.y - press.from.y) > SLIP_PX) return false;
     const traced = wallsFor(map.id);
     const door = traced && doorAt(traced, press.at, DOOR_HIT_IN);
-    if (!door) return false;
-    void run({ type: "door", key: doorKey(door), open: !doorOpen(door, map.doors) });
+    if (door) {
+      void run({ type: "door", key: doorKey(door), open: !doorOpen(door, map.doors) });
+      return true;
+    }
+    // With Walls shown, a wall line or outline toggles off and on the same way (Morgan, 2026-11-07). Not with Walls hidden:
+    // a tap while moving tokens through a wood shouldn't switch a canopy off.
+    const wall = showWalls && traced && wallAt(traced, press.at, WALL_HIT_IN);
+    if (!wall) return false;
+    void run({ type: "door", key: wallKey(wall), open: !wallOff(wall, map.doors) });
     return true;
   }
 

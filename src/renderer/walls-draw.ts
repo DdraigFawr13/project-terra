@@ -1,7 +1,7 @@
 // Drawing traced walls, pillars, openings, rooms and areas (D-044) on the DM's canvases: the walls editor and the DM map's walls
 // switch. DM-only: the table window never imports this or gets the data (D-002).
 import type { Annotation, Material, OpeningKind } from "../core/annotation.ts";
-import { doorOpen, type Doors } from "../core/doors.ts";
+import { doorOpen, wallOff, type Doors } from "../core/doors.ts";
 import type { Point } from "../core/homography.ts";
 
 /** Colour and dash per opening kind, so each reads apart at a glance on dark and light maps. */
@@ -109,6 +109,7 @@ export function drawWalls(
     ctx.strokeStyle = halo ? HALO : WALL;
     ctx.beginPath();
     for (const wall of doorsOnly ? [] : a.walls) {
+      if (wallOff(wall, doors)) continue;
       wall.points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
       if (wall.closed) ctx.closePath();
     }
@@ -117,6 +118,16 @@ export function drawWalls(
       ctx.arc(c.at.x, c.at.y, c.r, 0, Math.PI * 2);
     }
     ctx.stroke();
+    // Walls switched off in this scene: dotted, as an open door, so the DM sees them and can tap them back on.
+    ctx.setLineDash(OPEN_DASH);
+    ctx.beginPath();
+    for (const wall of doorsOnly ? [] : a.walls) {
+      if (!wallOff(wall, doors)) continue;
+      wall.points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      if (wall.closed) ctx.closePath();
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
     for (const o of a.openings) {
       const door = o.kind === "door" || o.kind === "secret";
       if (doorsOnly && !door) continue;

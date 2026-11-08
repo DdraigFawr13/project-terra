@@ -5,7 +5,7 @@
 // skipped for that point only (D-047 item 9). The generator concept's light.ts casts rays the old way, but stays
 // test-only (D-041).
 import { segmentDistance, type Annotation } from "./annotation.ts";
-import { doorOpen, type Doors } from "./doors.ts";
+import { doorOpen, wallOff, type Doors } from "./doors.ts";
 import { insidePolygon } from "./fog.ts";
 import type { Point } from "./homography.ts";
 import type { Bounds } from "./map.ts";
@@ -48,7 +48,7 @@ type BlockIndex = {
 /** One ray: its angle, how far it went, and the piece it stopped at (an index into `segs`), or -1 at the range. */
 type Ray = { angle: number; t: number; seg: number };
 
-/** Every piece that blocks light and sight: walls, pillars, and doors and secret doors closed in this scene. */
+/** Every piece that blocks light and sight: walls on in this scene, pillars, and doors and secret doors closed in it. */
 export function blockersFor(a: Annotation, doors: Doors): Segment[] {
   return shapedBlockers(a, doors).segs;
 }
@@ -63,6 +63,8 @@ function shapedBlockers(a: Annotation, doors: Doors): { segs: Segment[]; shape: 
   const polys: Point[][] = [];
   const same = (p: Point, q: Point) => p.x === q.x && p.y === q.y;
   for (const w of a.walls) {
+    // A wall the DM switched off in this scene blocks nothing.
+    if (wallOff(w, doors)) continue;
     const first = w.points[0]!;
     const last = w.points[w.points.length - 1]!;
     const loop = w.points.length > 3 && !w.closed && same(first, last);

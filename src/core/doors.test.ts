@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { emptyAnnotation } from "./annotation.ts";
-import { doorAt, doorKey, doorOpen, MAX_DOORS } from "./doors.ts";
+import { doorAt, doorKey, doorOpen, MAX_DOORS, parseDoors, wallAt, wallKey, wallOff } from "./doors.ts";
+import { blockIndex, sightFrom } from "./wallcheck.ts";
+import { insidePolygon } from "./fog.ts";
 import {
   apply,
   defaultState,
@@ -128,4 +130,35 @@ test("no new key past 5,000", () => {
   assert.equal(run([{ type: "door", key: key(MAX_DOORS), open: true }], full), full);
   // A door already in the record still opens and closes.
   assert.equal(run([{ type: "door", key: key(0), open: false }], full).map!.doors[key(0)], false);
+});
+
+test("a wall line switches off and on per scene, as a door, and sight passes it while off (Morgan, 2026-11-07)", () => {
+  const a = emptyAnnotation();
+  a.walls.push({
+    points: [
+      { x: 5, y: 0 },
+      { x: 5, y: 10 },
+    ],
+    closed: false,
+  });
+  const w = a.walls[0]!;
+  assert.equal(wallKey(w), "w:5.00,0.00,5.00,10.00,2");
+  // The record keeps a wall key like a door key; anything else that only looks like one is dropped.
+  assert.deepEqual(parseDoors({ [wallKey(w)]: true, "w:5,0": true, "w:5.00,0.00,5.00,10.00": true }), { [wallKey(w)]: true });
+  // A tap finds the wall within reach, and misses beyond it.
+  assert.equal(wallAt(a, { x: 5.1, y: 4 }, 0.12), w);
+  assert.equal(wallAt(a, { x: 5.2, y: 4 }, 0.12), null);
+  const bounds = { x: 0, y: 0, width: 10, height: 10 };
+  const seesPast = (doors: Record<string, boolean>) =>
+    insidePolygon({ x: 8, y: 5 }, sightFrom(blockIndex(a, doors, bounds), { x: 2, y: 5 }, null));
+  assert.equal(wallOff(w, {}), false);
+  assert.equal(seesPast({}), false);
+  assert.equal(wallOff(w, { [wallKey(w)]: true }), true);
+  assert.equal(seesPast({ [wallKey(w)]: true }), true);
+  // Through the door command, as a tap sends it: the scene keeps it, and Undo takes it back.
+  let s = apply(defaultState(), parseCommand({ type: "placeMap", map })!);
+  s = apply(s, parseCommand({ type: "door", key: wallKey(w), open: true })!);
+  assert.equal(s.map!.doors[wallKey(w)], true);
+  s = apply(s, parseCommand({ type: "door", key: wallKey(w), open: false })!);
+  assert.equal(wallOff(w, s.map!.doors), false);
 });
