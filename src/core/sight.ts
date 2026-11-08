@@ -7,7 +7,7 @@ import type { Character, Light } from "./fight.ts";
 import { addFog } from "./fog.ts";
 import type { Point } from "./homography.ts";
 import type { Bounds } from "./map.ts";
-import { sightOf, type Command, type TableState } from "./table.ts";
+import { MAX_TRAIL, sightOf, type Command, type TableState } from "./table.ts";
 import { blockIndex, sightFrom } from "./wallcheck.ts";
 
 type Index = ReturnType<typeof blockIndex>;
@@ -90,20 +90,31 @@ export function afterCommand(
   // Cover all with Sight on covers only what the party saw before: what they see now comes straight back, so the DM
   // needn't switch Sight off and on again (Morgan, 2026-11-07).
   const coverAll = command.type === "fog" && command.op.kind === "coverAll";
-  if (!coverAll && sightKey(prev) === sightKey(next)) return next;
+  // A drag that went somewhere and came back still saw the way.
+  const trail = command.type === "token" && command.trail?.length ? { id: command.id, points: command.trail } : undefined;
+  if (!coverAll && !trail && sightKey(prev) === sightKey(next)) return next;
   if (!annotation || !blocksAnything(annotation)) return next;
-  return relook(next, indexFor(annotation, m.doors, m.bounds));
+  return relook(next, indexFor(annotation, m.doors, m.bounds), trail);
 }
 
 /**
  * The party moves on: a `dimSeen`, then one reveal outline per seeing token on the map, through `addFog`. Packing a
  * long list happens in the background (D-047 item 8). On a dark scene each token sees only as far as its darkvision
- * or light reaches, and one with neither adds nothing.
+ * or light reaches, and one with neither adds nothing. `trail`: where token `id` was dragged through; what it saw from
+ * each point is revealed before the `dimSeen`, so it ends up explored.
  */
-export function relook(state: TableState, index: Index): TableState {
+export function relook(state: TableState, index: Index, trail?: { id: string; points: Point[] }): TableState {
   const m = state.map;
   if (!m) return state;
-  let fog = addFog(m.fog, { kind: "dimSeen" }, m.bounds);
+  let fog = m.fog;
+  const walker = trail && lookers(state).find((l) => l.id === trail.id);
+  if (walker?.sees && walker.range !== 0)
+    for (const p of trail!.points) {
+      if (!inside(p, m.bounds)) continue;
+      const points = sightFrom(index, p, walker.range);
+      if (points.length) fog = addFog(fog, { kind: "outline", mode: "reveal", points }, m.bounds);
+    }
+  fog = addFog(fog, { kind: "dimSeen" }, m.bounds);
   for (const t of lookers(state)) {
     if (!t.sees || t.range === 0 || !inside(t.at, m.bounds)) continue;
     const points = sightFrom(index, t.at, t.range);
@@ -132,3 +143,24 @@ export function liveSight(
   const points = sightFrom(indexFor(annotation, m.doors, m.bounds), at, t.range);
   return points.length ? points : null;
 }
+
+/** How far apart a drag's trail points are, in map inches: about every half square. */
+const TRAIL_STEP_IN = 0.5;
+
+/**
+ * A dragged token's trail with `at` added when it is TRAIL_STEP_IN or more from the last point (or from `from`, where
+ * the drag started), up to MAX_TRAIL points. The same array when nothing is added. The DM window and main both extend
+ * it from the same points, so the table shows during the drag what the drop then stores.
+ */
+export function extendTrail(trail: Point[], from: Point, at: Point): Point[] {
+  const last = trail[trail.length - 1] ?? from;
+  if (trail.length >= MAX_TRAIL || Math.hypot(at.x - last.x, at.y - last.y) < TRAIL_STEP_IN) return trail;
+  return [...trail, { x: at.x, y: at.y }];
+}
+
+/**
+ * What the table is sent while the DM drags a token (Sight S5): the token itself where it is now (table inches), the
+ * outline it sees (map inches, or null), and the outlines of trail points added since the last message, which the
+ * table shows as explored. Null ends the drag.
+ */
+export type LiveDrag = { token: { id: string; tint: number; x: number; y: number }; points: Point[] | null; added: Point[][] };

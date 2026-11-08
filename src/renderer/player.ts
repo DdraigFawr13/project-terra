@@ -4,6 +4,8 @@
 import { defaultCalibration, layerFor, visibleRect, type Calibration, type Surface } from "../core/calibration.ts";
 import { cssMatrix3d } from "../core/homography.ts";
 import type { PlayerView } from "../core/table.ts";
+import type { FogOp } from "../core/fog.ts";
+import type { LiveDrag } from "../core/sight.ts";
 import type { PlayerApi } from "../main/player-preload.ts";
 import { FogPainter } from "./fog-draw.ts";
 import {
@@ -45,8 +47,8 @@ let lasers: { points: Point[]; start: number }[] = [];
 const LASER_MS = 1200;
 let animating = false;
 let player: PlayerView | null = null;
-/** Live sight while the DM drags a token (Sight S5, D-047), in map inches, or null. Never saved. */
-let live: Point[] | null = null;
+/** While the DM drags a token (Sight S5, D-047): the token, its outline, and its trail as fog ops. Never saved. */
+let live: { token: LiveDrag["token"]; points: Point[] | null; trail: FogOp[] } | null = null;
 
 const fog = new FogPainter();
 const image = mapImages(draw);
@@ -74,8 +76,12 @@ function drawLayer(cal: Calibration, mode: TableMode, calibrated: boolean): void
   pingCanvas.height = layerCanvas.height;
   pingCanvas.style.cssText = layerCanvas.style.cssText;
   pingCanvas.hidden = !pingLayer;
-  if (player)
-    drawTable(lctx, { cal, layer, mode, calibrated, view: player, image, fog, area: visibleRect(cal, surface), picture, live }, 1);
+  if (!player) return;
+  // The trail shows explored: each outline revealed, then dimmed, after the map's own fog (only ever added to, so the
+  // fog painter draws just the new ones).
+  const map = player.map;
+  const view = live?.trail.length && map ? { ...player, map: { ...map, fog: [...map.fog, ...live.trail] } } : player;
+  drawTable(lctx, { cal, layer, mode, calibrated, view, image, fog, area: visibleRect(cal, surface), picture, live }, 1);
 }
 
 /**
@@ -171,8 +177,10 @@ terra.onLaser((points) => {
   lasers.push({ points, start: performance.now() });
   animate();
 });
-terra.onSightLive((points) => {
-  live = points;
+terra.onSightLive((l) => {
+  const trail = l && live?.token.id === l.token.id ? live.trail : [];
+  for (const points of l?.added ?? []) trail.push({ kind: "outline", mode: "reveal", points }, { kind: "outline", mode: "hide", points });
+  live = l && { token: l.token, points: l.points, trail };
   draw();
 });
 terra.onSketch((s) => {

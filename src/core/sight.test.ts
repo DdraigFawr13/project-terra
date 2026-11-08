@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { emptyAnnotation, type Annotation } from "./annotation.ts";
 import { fogAt, MAX_FOG_OPS, parseFogOp, type FogOp } from "./fog.ts";
-import { afterCommand, liveSight, relook, sightKey } from "./sight.ts";
+import { afterCommand, extendTrail, liveSight, relook, sightKey } from "./sight.ts";
 import { denseRooms } from "./sight-fixtures.ts";
 import { apply, defaultState, parseCommand, parseSave, serialize, type Command, type PlacedMap, type TableState } from "./table.ts";
 import { blockersFor, blockIndex } from "./wallcheck.ts";
@@ -361,4 +361,52 @@ test("liveSight: the dragged token's outline as a re-look draws it, or null wher
   const near: FogOp[] = [{ kind: "outline", mode: "reveal", points: liveSight(seeing, rooms, "pc-1", { x: 4.5, y: 5.5 })! }];
   assert.equal(fogAt(near, { x: 4.5, y: 2 }), "seen", "3.5 inches up");
   assert.equal(fogAt(near, { x: 4.5, y: 1 }), "unexplored", "4.5 inches up");
+});
+
+test("a drag's trail: what the token saw on the way is explored after the drop, even back where it started", () => {
+  // Rooms A and B with a gap at the bottom of the wall between them (no door).
+  const gap: Annotation = {
+    ...emptyAnnotation(),
+    walls: [
+      {
+        points: [
+          { x: 10, y: 0 },
+          { x: 10, y: 8 },
+        ],
+        closed: false,
+      },
+    ],
+  };
+  const s = step(ready(), { type: "token", id: "pc-1", at: A }, gap);
+  const far = { x: 15, y: 2 };
+  assert.equal(fogAt(ops(s), far), "unexplored");
+  // Dropped back on its own square: without a trail nothing happens; with one, B's corner is explored.
+  assert.deepEqual(ops(step(s, { type: "token", id: "pc-1", at: A }, gap)), ops(s));
+  const back = step(
+    s,
+    {
+      type: "token",
+      id: "pc-1",
+      at: A,
+      trail: [
+        { x: 12, y: 9 },
+        { x: 15, y: 5 },
+      ],
+    },
+    gap,
+  );
+  assert.equal(fogAt(ops(back), far), "explored");
+  assert.equal(fogAt(ops(back), A), "seen");
+  // A trail longer than 120 points is refused.
+  assert.equal(parseCommand({ type: "token", id: "pc-1", at: A, trail: Array.from({ length: 121 }, () => A) }), null);
+});
+
+test("extendTrail adds a point about every half square, and keeps the same array otherwise", () => {
+  const from = { x: 1, y: 1 };
+  const none: { x: number; y: number }[] = [];
+  assert.equal(extendTrail(none, from, { x: 1.3, y: 1 }), none);
+  const one = extendTrail(none, from, { x: 1.5, y: 1 });
+  assert.deepEqual(one, [{ x: 1.5, y: 1 }]);
+  assert.equal(extendTrail(one, from, { x: 1.9, y: 1 }), one);
+  assert.equal(extendTrail(one, from, { x: 2, y: 1 }).length, 2);
 });
