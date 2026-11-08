@@ -21,6 +21,7 @@ import {
   playerViewOf,
   serialize,
   sightOf,
+  tokenView,
   viewOf,
   UNDOABLE,
   type Command,
@@ -32,7 +33,7 @@ import { countCreatures, findCreatures, getCreature, importCreatures } from "./c
 import { listMaps, loadAnnotation, mapFile, saveAnnotation, saveMap, savePatch, tableMapFile } from "./library.ts";
 import { pictureFile, savePicture } from "./curtains.ts";
 import { startPacking } from "./fog-pack.ts";
-import { afterCommand, liveSight } from "../core/sight.ts";
+import { afterCommand, extendTrail, liveSight, type LiveDrag } from "../core/sight.ts";
 import { blockIndex } from "../core/wallcheck.ts";
 import type { Annotation } from "../core/annotation.ts";
 import type { Doors } from "../core/doors.ts";
@@ -532,21 +533,37 @@ if (!app.requestSingleInstanceLock()) {
     // Live sight while a token is dragged (Sight S5, D-047): the dragged token's outline goes to the table as it
     // moves, drawn uncovered there. Nothing is stored; the drop runs the normal re-look. The curtain hides it, as it
     // hides pings. A null id ends the drag, and a null outline clears the table's.
+    // The token moves on the table with the drag, and what it sees on the way shows as explored (Morgan, 2026-11-07).
     let liveShown = false;
-    const sendLive = (points: Point[] | null): void => {
-      // A clear is sent only over an outline, so a token that sees nothing doesn't redraw the table every square.
-      if (points || liveShown) send(playerWindow, "table:sight-live", points);
-      liveShown = !!points;
+    let liveTrail: { id: string; points: Point[] } | null = null;
+    const sendLive = (live: LiveDrag | null): void => {
+      if (live || liveShown) send(playerWindow, "table:sight-live", live);
+      liveShown = !!live;
     };
     ipcMain.handle("sight:drag", (_e, id: unknown, x: unknown, y: unknown) => {
-      if (id === null) return sendLive(null);
+      if (id === null) {
+        liveTrail = null;
+        return sendLive(null);
+      }
       const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 500;
       if (typeof id !== "string" || id.length > 80 || !ok(x) || !ok(y)) return;
       // Under the curtain nothing is sent; the table clears its own outline there, as it ends pings.
-      if (viewOf(state) !== "map") return;
-      // With Sight Off nothing is read from disk, as for a re-look (D-047 item 1); an outline still up is cleared.
-      if (!state.map || sightOf(state) === "off") return sendLive(null);
-      sendLive(liveSight(state, wallsOf(state.map.id), id, { x: x + 0, y: y + 0 }, indexFor));
+      if (viewOf(state) !== "map" || !state.map) return;
+      const m = state.map;
+      const from = m.tokens.find((t) => t.id === id);
+      if (!from) return;
+      const at = { x: x + 0, y: y + 0 };
+      const shown = tokenView(state, m, { id, ...at });
+      if (!shown) return;
+      const token = { id, tint: shown.tint, x: shown.x, y: shown.y };
+      // With Sight Off nothing is read from disk, as for a re-look (D-047 item 1): only the token moves.
+      if (sightOf(state) === "off") return sendLive({ token, points: null, added: [] });
+      const walls = wallsOf(m.id);
+      if (liveTrail?.id !== id) liveTrail = { id, points: [] };
+      const before = liveTrail.points;
+      liveTrail.points = extendTrail(before, from, at);
+      const points = liveSight(state, walls, id, at, indexFor);
+      sendLive({ token, points, added: liveTrail.points !== before && points ? [points] : [] });
     });
     ipcMain.handle("library:list", () => listMaps(app.getPath("userData")));
     ipcMain.handle("library:save", (_e, name: unknown, png: unknown, bounds: unknown, feet: unknown, walls: unknown) =>

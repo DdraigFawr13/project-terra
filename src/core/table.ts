@@ -47,6 +47,8 @@ import {
 import { isDoorKey, parseDoors, setDoor } from "./doors.ts";
 import { addFog, fogAt, fogCheck, MAX_FOG_OPS, parseFog, parseFogOp, type FogBase, type FogOp } from "./fog.ts";
 import { mapToTable, placedExtent, type Bounds } from "./map.ts";
+/** The most points a dragged token's trail keeps (`extendTrail` in sight.ts). */
+export const MAX_TRAIL = 120;
 import type { Point } from "./homography.ts";
 
 const SAVE_VERSION = 18;
@@ -275,8 +277,11 @@ export type Command =
   | { type: "linkPin"; id: number; scene: string | null }
   /** Put the party marker at a point in map inches, or take it away with null. */
   | { type: "party"; at: Point | null }
-  /** Put a character's token on a square of this map, or take it off with null (D-045). */
-  | { type: "token"; id: string; at: Point | null }
+  /**
+   * Put a character's token on a square of this map, or take it off with null (D-045). `trail`: where a drag passed
+   * (from `extendTrail`), so Sight marks what the token saw on the way as explored (Morgan, 2026-11-07).
+   */
+  | { type: "token"; id: string; at: Point | null; trail?: Point[] }
   /** Open or close a door or secret door in this scene, by `doorKey` (D-047). */
   | { type: "door"; key: string; open: boolean }
   /** A scene's Sight setting (D-047). Not undoable: scenes survive undo. */
@@ -913,7 +918,11 @@ export function parseCommand(raw: unknown): Command | null {
       if (!isWho(raw.id) || isColour(raw.id)) return null;
       if (raw.at === null) return { type: "token", id: raw.id, at: null };
       const at = isObject(raw.at) ? point(raw.at) : null;
-      return at && { type: "token", id: raw.id, at };
+      if (!at) return null;
+      if (raw.trail === undefined) return { type: "token", id: raw.id, at };
+      if (!Array.isArray(raw.trail) || raw.trail.length > MAX_TRAIL) return null;
+      const trail = raw.trail.map((p) => (isObject(p) ? point(p) : null));
+      return trail.every((p): p is Point => !!p) ? { type: "token", id: raw.id, at, trail } : null;
     }
     case "door":
       return isDoorKey(raw.key) && typeof raw.open === "boolean" ? { type: "door", key: raw.key, open: raw.open } : null;

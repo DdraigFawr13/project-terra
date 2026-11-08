@@ -40,6 +40,7 @@ import { drawWalls } from "./walls-draw.ts";
 import { countOf, type Annotation } from "../core/annotation.ts";
 import { doorAt, doorKey, doorOpen, wallAt, wallKey, wallOff } from "../core/doors.ts";
 import { roomAt, roomUncover } from "../core/rooms.ts";
+import { extendTrail } from "../core/sight.ts";
 import { parseVtt, planVttPicture, type VttMap } from "../core/vtt.ts";
 import { icon } from "./icons.ts";
 import { drawDisc, drawLaser, drawLine, drawParty, drawPin, drawToken, PING_MS, SKETCH_MS, sketchAlpha } from "./table-draw.ts";
@@ -233,7 +234,7 @@ export function initMaps(
   /** After Place party (D-046): the next tap puts the travelling characters down in a row. */
   let rowNext = false;
   /** Select dragging a character's token: where it started and where it would land, in map inches. */
-  let tokenDrag: { pointer: number; pen: boolean; id: string; from: Point; at: Point; grab: Point } | null = null;
+  let tokenDrag: { pointer: number; pen: boolean; id: string; from: Point; at: Point; grab: Point; trail: Point[] } | null = null;
   /** Smooth (map bar): a dragged token or disc follows the pointer, and lands on the grid when let go. On unless turned off. */
   let smooth = true;
   try {
@@ -321,14 +322,19 @@ export function initMaps(
   });
   $<HTMLButtonElement>("patchMap").addEventListener("click", () => state?.map && patch.open(state.map));
   const run = (c: Command) => terra.apply(c);
-  /** While a token is dragged with Sight on, tell main where it is, at most once a frame and only when it moved. */
+  /**
+   * While a token is dragged, tell main where it is, at most once a frame and only when it moved: the table moves the
+   * token with it, and with Sight on shows what it sees. The trail grows from the same points main gets, so the drop
+   * stores what the table showed on the way.
+   */
   function liveSoon(): void {
-    if (liveFrame || !sightOn()) return;
+    if (liveFrame) return;
     liveFrame = requestAnimationFrame(() => {
       liveFrame = 0;
       const t = tokenDrag;
       if (!t || (liveSent && liveSent.x === t.at.x && liveSent.y === t.at.y)) return;
       liveSent = t.at;
+      if (sightOn()) t.trail = extendTrail(t.trail, t.from, t.at);
       void terra.sightDrag(t.id, t.at.x, t.at.y);
     });
   }
@@ -1255,7 +1261,7 @@ export function initMaps(
       if (hit) {
         const from = { x: hit.x, y: hit.y };
         const p = mapInchesAt(e) ?? from;
-        tokenDrag = { pointer: e.pointerId, pen, id: hit.id, from, at: from, grab: { x: p.x - from.x, y: p.y - from.y } };
+        tokenDrag = { pointer: e.pointerId, pen, id: hit.id, from, at: from, grab: { x: p.x - from.x, y: p.y - from.y }, trail: [] };
         render();
         return;
       }
@@ -1563,8 +1569,10 @@ export function initMaps(
       const t = tokenDrag;
       tokenDrag = null;
       t.at = snapDisc(t.at, 1);
-      const moved = t.at.x !== t.from.x || t.at.y !== t.from.y;
-      if (keep && moved) void run({ type: "token", id: t.id, at: t.at });
+      // Dragged away and back counts as a move too: what it saw on the way is kept.
+      const moved = t.at.x !== t.from.x || t.at.y !== t.from.y || t.trail.length > 0;
+      if (keep && moved)
+        void run(t.trail.length ? { type: "token", id: t.id, at: t.at, trail: t.trail } : { type: "token", id: t.id, at: t.at });
       // After the drop's command, so the table's live outline clears onto the re-look (Sight S5).
       liveEnd();
       if (keep && !moved && state?.map) {

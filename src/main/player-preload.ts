@@ -1,6 +1,7 @@
 // The table window's only bridge to the main process: it can read the player view and nothing else (D-002).
 import { contextBridge, ipcRenderer } from "electron";
 import type { Point } from "../core/homography.ts";
+import type { LiveDrag } from "../core/sight.ts";
 import type { Ink, PlayerView } from "../core/table.ts";
 
 const api = {
@@ -14,10 +15,10 @@ const api = {
   /** A piece of the DM's laser trail, in table inches (D-046). */
   onLaser: (fn: (points: Point[]) => void) => ipcRenderer.on("player:laser", (_e, points: Point[]) => fn(points)),
   /**
-   * Live sight while the DM drags a token (Sight S5, D-047): its outline in map inches, drawn uncovered, or null to
-   * clear it. Nothing about walls or doors: only the outline.
+   * While the DM drags a token (Sight S5, D-047): where the token is, its outline (drawn uncovered) and the outlines its
+   * trail added (drawn explored), or null when the drag ends. Nothing about walls or doors.
    */
-  onSightLive: (fn: (points: Point[] | null) => void) => ipcRenderer.on("table:sight-live", (_e, points: Point[] | null) => fn(points)),
+  onSightLive: (fn: (live: LiveDrag | null) => void) => ipcRenderer.on("table:sight-live", (_e, live: LiveDrag | null) => fn(live)),
   /** A map's table copy changed (D-036): load its picture again. */
   onMapPatched: (fn: (id: string) => void) => ipcRenderer.on("map:patched", (_e, id: string) => fn(id)),
 };

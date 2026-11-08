@@ -633,8 +633,11 @@ export type TableScene = {
   area: Area;
   /** Curtain pictures, for the cover mode. */
   picture?: (id: string) => HTMLImageElement;
-  /** Live sight while the DM drags a token (Sight S5): an outline in map inches, drawn uncovered over the fog. */
-  live?: Point[] | null;
+  /**
+   * While the DM drags a token (Sight S5): the token where it is now (table inches), drawn there instead of its square,
+   * and its outline in map inches, drawn uncovered over the fog.
+   */
+  live?: { token: { tint: number; x: number; y: number }; points: Point[] | null } | null;
 };
 
 /** A scene's curtain over the part of the table the projector reaches: its picture fitted whole, or its title twice. */
@@ -667,7 +670,11 @@ function drawFight(ctx: CanvasRenderingContext2D, scene: TableScene, X: (inches:
       X(1),
     );
   for (const d of view.discs) drawDisc(ctx, d, X(d.x), X(d.y), X(d.size), view.flipLetters ? Math.PI : 0);
-  for (const t of view.tokens) drawToken(ctx, t, X(t.x), X(t.y), X(1));
+  const dragged = scene.live?.token;
+  for (const t of view.tokens) {
+    const at = dragged?.tint === t.tint ? dragged : t;
+    drawToken(ctx, t, X(at.x), X(at.y), X(1));
+  }
   for (const p of view.pins) drawPin(ctx, X(p.x), X(p.y), X(1));
   if (view.party) drawParty(ctx, X(view.party.x), X(view.party.y), X(1));
   if (view.strip) {
@@ -700,9 +707,10 @@ export function drawTable(ctx: CanvasRenderingContext2D, scene: TableScene, scal
       if (view.brightness !== 1) ctx.filter = `brightness(${view.brightness})`;
       scene.fog.draw(ctx, img, map.bounds, map.fog, "table");
       // Nothing stored: the map shows clear inside the dragged token's view until the drop's re-look (Sight S5).
-      if (scene.live && scene.live.length >= 3) {
+      const outline = scene.live?.points;
+      if (outline && outline.length >= 3) {
         ctx.beginPath();
-        scene.live.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        outline.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
         ctx.closePath();
         ctx.clip("evenodd");
         ctx.drawImage(img, map.bounds.x, map.bounds.y, map.bounds.width, map.bounds.height);

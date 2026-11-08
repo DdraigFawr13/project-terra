@@ -920,11 +920,19 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.mouse.move(right.x, right.y, { steps: 5 });
     const seesFar = async () =>
       (await liveSeen()).some(
-        (p) => Array.isArray(p) && p.length >= 3 && fogAt([{ kind: "outline", mode: "reveal", points: p }], hidden) === "seen",
+        (l) =>
+          Array.isArray(l?.points) &&
+          l.points.length >= 3 &&
+          fogAt([{ kind: "outline", mode: "reveal", points: l.points }], hidden) === "seen",
       );
     for (const end = Date.now() + 10_000; !(await seesFar()); await new Promise((resolve) => setTimeout(resolve, 50)))
       assert.ok(Date.now() < end, "a live outline that sees the enemy's square");
     assert.equal(await fogCount(), fogBefore, "no fog op until the drop");
+    // The token moves on the table with the drag (Morgan, 2026-11-07).
+    assert.ok(
+      (await liveSeen()).some((l) => l?.token && typeof l.token.x === "number"),
+      "the dragged token's place reaches the table",
+    );
     assert.deepEqual(await enemyOnTable(), { strip: false, disc: false, chip: false }, "the enemy waits for the drop");
     await dm.evaluate(() => window.terra.apply({ type: "curtain", on: true }));
     await table.waitForFunction(() => document.body.dataset.view === "curtain");
