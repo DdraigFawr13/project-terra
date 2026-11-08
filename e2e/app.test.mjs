@@ -812,6 +812,14 @@ test("a map picture is straightened, placed, moved and undone, and is still ther
     await dm.evaluate(() => document.activeElement.blur());
     await dm.keyboard.press("Control+z");
     await until(dm, async () => Object.keys((await window.terra.getState()).map.doors).length === 0);
+    // A wall line toggles the same way (Morgan, 2026-11-07): with Walls shown, a tap on it switches it off for this
+    // scene, and Undo puts it back.
+    const wallTap = onScreen(hall.x + 1.5, hall.y + 1);
+    await dm.mouse.click(wallTap.x, wallTap.y);
+    await until(dm, async () => (await window.terra.getState()).map.doors["w:1.00,1.00,2.00,1.00,2"] === true);
+    await dm.evaluate(() => document.activeElement.blur());
+    await dm.keyboard.press("Control+z");
+    await until(dm, async () => Object.keys((await window.terra.getState()).map.doors).length === 0);
     await dm.click("#wallsMap");
 
     // Sight follows a token (Sight S2, D-047): set On in the scene's menu; with Walls hidden the doors still show. The
